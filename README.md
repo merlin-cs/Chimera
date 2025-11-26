@@ -1,7 +1,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 <p align="center">
-  <img src="./logo.png" alt="Chimera logo" width="60" />
+  <img src="./logo.png" alt="Chimera logo" width="120" />
 </p>
 
 # Chimera
