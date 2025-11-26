@@ -1,0 +1,5 @@
+(declare-const i3 Int)
+(declare-const i6 Int)
+(declare-const i4 Int)
+(assert (= i3 i6))
+(check-sat)

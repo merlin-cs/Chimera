@@ -1,0 +1,5 @@
+(declare-const a Real)
+(declare-const b Real)
+(declare-const c Bool)
+(assert (or c (= a b)))
+(check-sat)

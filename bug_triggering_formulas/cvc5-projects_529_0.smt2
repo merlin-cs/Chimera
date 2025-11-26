@@ -1,0 +1,5 @@
+(declare-const x (Set Bool))
+(assert (set.member (set.subset x (set.choose (set.singleton (set.minus (set.singleton (set.choose x)) (set.inter x (set.singleton (set.choose x))))))) (set.inter x (set.singleton (set.choose x)))))
+(assert (set.subset x (set.choose (set.singleton (set.minus (set.singleton (set.choose x)) (set.inter x (set.singleton (set.choose x))))))))
+(check-sat)
+(check-sat)

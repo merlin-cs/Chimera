@@ -1,0 +1,5 @@
+(declare-fun a () (_ BitVec 2))
+(declare-fun b () (_ BitVec 2))
+(assert (distinct b (_ bv1 2)))
+(assert (= a b))
+(check-sat)

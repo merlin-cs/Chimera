@@ -1,0 +1,6 @@
+(declare-fun a () Real)
+(declare-fun b () Real)
+(declare-fun c () Real)
+(assert (<= (* c (* (to_real (mod (to_int b) 2)) 1)) a b 1 a))
+(assert (> c 2))
+(check-sat)

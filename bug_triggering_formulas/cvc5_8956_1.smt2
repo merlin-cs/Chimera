@@ -1,0 +1,6 @@
+(declare-fun T () Bool)
+(declare-fun _2 () Bool)
+(declare-fun v () String)
+(assert (= T (not (= "file:" v))))
+(assert (= _2 (or false (str.prefixof "file:" (str.update "file:" (+ (str.len v) 3) v)))))
+(check-sat)

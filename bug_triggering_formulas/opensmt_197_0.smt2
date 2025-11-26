@@ -1,0 +1,7 @@
+(declare-fun r1 () Real)
+(declare-fun r3 () Real)
+(check-sat)
+(check-sat)
+(assert (< 0.8372183652 r3))
+(assert (< (+ (- 0.8372183652 r1) r3) 0.0))
+(check-sat)

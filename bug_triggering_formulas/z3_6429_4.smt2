@@ -1,0 +1,6 @@
+(declare-fun a (Int) Int)
+(declare-fun c () Int)
+(declare-fun f () Int)
+(assert (> c 1))
+(assert (b c f))
+(check-sat)

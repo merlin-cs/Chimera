@@ -1,0 +1,6 @@
+(declare-fun G ((_ BitVec 32) (_ BitVec 32)) (_ BitVec 1))
+(declare-fun a ((_ BitVec 32) (_ BitVec 32)) (_ BitVec 32))
+(assert (= (_ bv0 1) (G (_ bv0 32) (a (_ bv0 32) (_ bv0 32)))))
+(assert (= (_ bv1 1) (G (_ bv1 32) (a (_ bv0 32) (_ bv0 32)))))
+(assert (not (= (_ bv1 32) (a (_ bv0 32) (_ bv0 32)))))
+(check-sat)

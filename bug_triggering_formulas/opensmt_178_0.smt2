@@ -1,0 +1,7 @@
+(declare-sort U 0)
+
+(declare-fun x () U)
+(declare-fun y () U)
+(assert (distinct x y))
+(assert (let ((x y)(y x)) (= x y)))
+(check-sat)

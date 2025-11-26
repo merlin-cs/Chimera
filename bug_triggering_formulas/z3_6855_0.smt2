@@ -1,0 +1,5 @@
+(declare-fun x () String)
+(declare-fun y () String)
+(declare-fun z () Int)
+(assert (not (distinct (re.comp re.all) (re.range "e" "x"))))
+(check-sat)

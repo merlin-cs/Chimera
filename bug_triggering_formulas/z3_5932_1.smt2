@@ -1,0 +1,6 @@
+(declare-const x Bool)
+(declare-fun a () String)
+(declare-fun va () Int)
+(assert (forall ((V Int)) (= a (str.++ a))))
+(assert (forall ((v Int)) (or x (= va v))))
+(check-sat)

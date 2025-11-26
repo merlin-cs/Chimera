@@ -1,0 +1,5 @@
+(declare-fun a () Int)
+(declare-fun b (Int) Int)
+(assert (distinct 0 (b (b 0))))
+(assert (forall ((c Int) (d Int)) (= d (div (- a) (b c)))))
+(check-sat)

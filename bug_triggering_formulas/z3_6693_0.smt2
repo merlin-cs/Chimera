@@ -1,0 +1,5 @@
+(declare-fun c (Int) Int)
+(assert (exists ((k Int)) (and (< k 0) (= k (h 1 k 0)))))
+(check-sat)
+(assert (exists ((k Int)) (and (< k 0) (= k (h 1 k 0)))))
+(check-sat)

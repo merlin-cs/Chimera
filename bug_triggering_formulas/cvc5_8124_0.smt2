@@ -1,0 +1,5 @@
+(declare-fun x () (Tuple Real Real))
+(declare-fun t () (Set (Tuple Real Int)))
+(declare-fun e () (Set (Tuple Int Real)))
+(assert (exists ((V Real)) (and (distinct x (tuple 0.0 0.0)) (not (set.member (tuple (to_int ((_ tuple_select 0) x)) ((_ tuple_select 1) x)) e)) (not (set.member (tuple ((_ tuple_select 0) x) (to_int ((_ tuple_select 1) x))) t)))))
+(check-sat)

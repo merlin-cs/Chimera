@@ -1,0 +1,13 @@
+(declare-sort I 0)
+
+(declare-fun x () Bool)
+(declare-fun f (I I) I)
+(declare-fun e () I)
+(declare-fun e0 () I)
+(declare-fun e1 () I)
+(assert (= e (f e1 e1)))
+(assert (or (= e0 (f e1 e)) (= e (f e1 e0))))
+(assert (or x (= e0 (f e0 e1))))
+(assert (= e (f e1 e)))
+(assert (not (= e0 (f e1 e1))))
+(check-sat)

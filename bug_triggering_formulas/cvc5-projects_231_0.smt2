@@ -1,0 +1,7 @@
+(declare-const a Int)
+(declare-const b Int)
+(declare-const c Int)
+(declare-const d Bool)
+(declare-const e Int)
+(assert (or (= (* (+ 0 0 e 0 888) c b a) 0) d))
+(check-sat)

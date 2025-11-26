@@ -1,0 +1,5 @@
+(declare-const _x1 Bool)
+(declare-const _x7 Bool)
+(declare-const _x15 Bool)
+(declare-const _x16 Bool)
+(check-sat)

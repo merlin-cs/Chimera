@@ -1,0 +1,8 @@
+(declare-fun a () Bool)
+(declare-fun b () Real)
+(assert (or a (<= b 0)))
+(assert (< b 0))
+(check-sat)
+(push)
+(assert (> b 0))
+(check-sat)

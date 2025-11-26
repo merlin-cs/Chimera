@@ -1,0 +1,6 @@
+(declare-const a (_ BitVec 1))
+(declare-const b (Array (_ BitVec 32) (_ BitVec 8)))
+(declare-const c (_ BitVec 1))
+(declare-const d (Array (_ BitVec 32) (_ BitVec 8)))
+(assert (= c (ite (= b (store (store (store d (_ bv0 32) (_ bv0 8)) ((_ zero_extend 16) ((_ zero_extend 14) ((_ zero_extend 1) a))) (_ bv1 8)) (_ bv0 32) (_ bv0 8))) (_ bv1 1) (_ bv0 1))))
+(check-sat)

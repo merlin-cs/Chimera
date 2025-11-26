@@ -1,0 +1,5 @@
+(declare-fun v () Int)
+(declare-fun a () Int)
+(assert (< 0 (mod v (* a (div 0 0)))))
+(assert (exists ((e String)) (> (str.len e) 0)))
+(check-sat)

@@ -1,0 +1,6 @@
+(declare-fun a () Float32)
+(assert (distinct a (_ NaN 8 24)))
+(assert (fp.geq a (_ +zero 8 24)))
+(assert (fp.leq a (fp #b0 #x9f #b00000000000000000000000)))
+(assert (not (bvult ((_ fp.to_ubv 32) RTZ a) #x00000064)))
+(check-sat)

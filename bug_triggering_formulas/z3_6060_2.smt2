@@ -1,0 +1,5 @@
+(declare-fun a () Real)
+(declare-fun r () Real)
+(declare-fun v () Real)
+(assert (and (forall ((a Real)) (distinct 0.0 (- r v))) (forall ((va Real)) (= 0 (+ 2 a va)))))
+(check-sat)

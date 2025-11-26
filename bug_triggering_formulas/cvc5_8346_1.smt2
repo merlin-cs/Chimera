@@ -1,0 +1,7 @@
+(declare-fun i5 () Int)
+(declare-fun str7 () String)
+(declare-fun str8 () String)
+(assert (= i5 (* 35 263)))
+(assert (str.<= str8 "c"))
+(assert (< 1 (str.indexof str8 str7 (* 84 i5 i5))))
+(check-sat)

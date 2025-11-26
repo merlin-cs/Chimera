@@ -1,0 +1,8 @@
+(declare-fun _substvar_1773_ () (Array Bool Bool))
+(declare-const v16 Bool)
+(declare-const arr-6085764253233397621_6085764253233397621-0 (Array Bool Bool))
+(declare-const arr-6085764253233397621_6085764253233397621-2 (Array Bool Bool))
+(declare-const arr--8474158384260862814_6085764253233397621-0 (Array (Array Bool Bool) Bool))
+(assert (= (select (store (store arr-6085764253233397621_6085764253233397621-0 false false) true true) v16) true true true (select (store (store arr--8474158384260862814_6085764253233397621-0 arr-6085764253233397621_6085764253233397621-2 (select arr-6085764253233397621_6085764253233397621-0 true)) _substvar_1773_ true) (store (store arr-6085764253233397621_6085764253233397621-0 false false) true true)) true true true true true))
+(assert (select arr--8474158384260862814_6085764253233397621-0 (store arr-6085764253233397621_6085764253233397621-0 v16 false)))
+(check-sat)

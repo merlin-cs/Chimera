@@ -1,0 +1,6 @@
+(declare-fun v () (Seq (Seq Int)))
+(declare-fun a () (Seq Int))
+(declare-fun r () (Seq Int))
+(declare-fun r3 () (Seq (Seq Int)))
+(assert (forall ((Seq Int)) (and (seq.prefixof (seq.++ r a) r) (distinct v r3 (seq.unit a)))))
+(check-sat)

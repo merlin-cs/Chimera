@@ -1,0 +1,5 @@
+(declare-fun a () Bool)
+(declare-fun b (Int) Int)
+(assert (forall ((c Int)) (or a (= c 0))))
+(assert (>= (ite (= (b 0) 0) (- 1) (mod (- 1) (b 0))) 0))
+(check-sat)

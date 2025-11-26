@@ -1,0 +1,5 @@
+(declare-const x (_ BitVec 8))
+(declare-const y (_ BitVec 8))
+(declare-const z (_ BitVec 8))
+(assert (or (not (= (bvadd x y z) (bvadd (bvadd x y) z))) (not (= (bvmul x y z) (bvmul (bvmul x y) z))) (not (= (bvand x y z) (bvand (bvand x y) z))) (not (= (bvor x y z) (bvor (bvor x y) z))) (not (= (bvxor x y z) (bvxor (bvxor x y) z))) (not (= (bvxnor x y z) (bvxnor (bvxnor x y) z)))))
+(check-sat)

@@ -1,0 +1,7 @@
+(declare-fun a () Int)
+(assert (< (* (rem 1 a)) 0))
+(assert (< a 0))
+(check-sat)
+(assert (< (* (rem 1 a)) 0))
+(assert (< a 0))
+(check-sat)

@@ -1,0 +1,6 @@
+(declare-fun a () Real)
+(declare-fun b () Real)
+(declare-fun c () Real)
+(assert (not (< a 1 (/ 1 c))))
+(assert (= (+ c (/ 0 b)) (+ (* 2 c) (* 4 a)) 1))
+(check-sat)

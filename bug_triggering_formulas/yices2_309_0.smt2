@@ -1,0 +1,8 @@
+(declare-const v10 Bool)
+(declare-const i1 Int)
+(declare-const v19 Bool)
+(declare-const i2 Int)
+(assert (<= 456 (div (* 789 65 i1) 643)))
+(assert (>= i2 (- 315 i1 i1 i2 0)))
+(assert (or (>= i2 (* 65 65)) (= true true true true v10 v19)))
+(check-sat)

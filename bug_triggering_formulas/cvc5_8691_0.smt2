@@ -1,0 +1,6 @@
+(declare-fun a () Int)
+(declare-fun b () Int)
+(assert (> b 0))
+(assert (> 0 (/ (to_real (+ a a)) (to_real b))))
+(assert (= 0 (+ b a)))
+(check-sat)

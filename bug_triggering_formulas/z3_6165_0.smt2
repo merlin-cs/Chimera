@@ -1,0 +1,8 @@
+(declare-const x Bool)
+(declare-const x2 Int)
+(declare-fun v () String)
+(declare-fun e () Bool)
+(declare-fun a () Bool)
+(assert (and (>= 0 (mod x2 (* x2 x2 x2))) (= a (not x)) (= 0 (ite (str.contains (str.substr v 0 (str.len v)) "L") 1 0)) (= x (not e))))
+(assert (exists ((T Bool)) T))
+(check-sat)

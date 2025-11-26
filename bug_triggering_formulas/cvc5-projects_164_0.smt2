@@ -1,0 +1,8 @@
+(declare-fun b () (Set String))
+(declare-fun c () (Set (Tuple Int Int)))
+(declare-fun d () (Set (Tuple Int Int)))
+(declare-fun e () Int)
+(assert (distinct c (insert (mkTuple 0 0) (singleton (mkTuple 1 1)))))
+(assert (distinct d (tclosure c)))
+(assert (distinct e (card b)))
+(check-sat)

@@ -1,0 +1,8 @@
+(declare-fun v () Int)
+(declare-fun t () R)
+(declare-fun n (Int R) R)
+(declare-fun N (R) B)
+(assert (and (not ((_ is T) (n v t))) (not (B (N (BT (d (n v t))))))))
+(check-sat)
+(assert (= (n v t) (ite ((_ is T) (n 0 T)) T (RB (RB o (BT (d T)) (RBT (d T)) (r (d T)))))))
+(check-sat)

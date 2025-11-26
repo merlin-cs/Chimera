@@ -1,0 +1,6 @@
+(declare-fun s () String)
+(declare-fun i () String)
+(declare-fun x () String)
+(assert (or (= x i) (= x s)))
+(assert (str.in_re x (re.* (re.++ re.allchar re.allchar))))
+(check-sat)

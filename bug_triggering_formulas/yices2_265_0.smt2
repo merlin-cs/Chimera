@@ -1,0 +1,7 @@
+(declare-const i0 Int)
+(declare-const i5 Int)
+(assert true)
+(assert (<= i5 (* 72 28 898 (div (mod i0 31) 31) 45)))
+(assert (= true true true true true true true (>= i5 154)))
+(check-sat)
+(assert true)

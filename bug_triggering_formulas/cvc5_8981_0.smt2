@@ -1,0 +1,6 @@
+(declare-fun t () String)
+(assert (str.< (str.to_upper t) (str.to_lower t)))
+(check-sat)
+(declare-fun s () String)
+(assert (xor (str.<= (str.replace_all "FCBEDAC" s s) (str.replace_re "EBDCFAB" re.allchar s)) (str.in_re (str.replace s "EBDCFAB" "EBDCFAB") (re.union re.allchar re.allchar))))
+(check-sat)

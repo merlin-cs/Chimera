@@ -1,0 +1,6 @@
+(declare-fun a (Real Real) Real)
+(declare-fun b () Real)
+(declare-fun f (Real Int) Int)
+(assert (forall ((c Int) (d Real)) (= (a d 0) (f (a b (a d (a d c))) (a 0 0)))))
+(assert (forall ((d Real)) (< 0 (a 0 d))))
+(check-sat)

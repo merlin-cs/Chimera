@@ -1,0 +1,5 @@
+(declare-const a32 Float32)
+(declare-const b32 Float32)
+(declare-const rm RoundingMode)
+(assert (fp.isNormal (fp.fma rm a32 a32 b32)))
+(check-sat)

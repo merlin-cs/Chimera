@@ -1,0 +1,5 @@
+(declare-const x Int)
+(declare-const y Int)
+(assert (<= 1 y))
+(assert (<= 1 (+ (- (+ 1 1) 0) 1)))
+(check-sat)

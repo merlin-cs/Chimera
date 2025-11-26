@@ -1,0 +1,7 @@
+(declare-const x1 Int)
+(declare-const x Real)
+(declare-fun a () Real)
+(declare-fun r () (Array (Array Real Bool) Real))
+(declare-fun v () (Array Real Bool))
+(assert (and (< 0.0 x) (= 0.0 x1) (= x (/ x a)) (= 0.0 (/ 1.0 0.0)) (= 2 (* (select r v) (select r v)))))
+(check-sat)

@@ -1,0 +1,6 @@
+(declare-const v0 Bool)
+(declare-const v2 Bool)
+(declare-const v8 Bool)
+(declare-const _1-0 (_ BitVec 1))
+(assert (= true v8 true true v0 true true true true (bvsgt _1-0 (bvcomp _1-0 _1-0)) (xor v0 v8 v2)))
+(check-sat)

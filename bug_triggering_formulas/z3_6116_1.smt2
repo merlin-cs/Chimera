@@ -1,0 +1,7 @@
+(declare-fun d () Int)
+(declare-fun i () Int)
+(declare-fun k () Int)
+(declare-fun j () Int)
+(assert (h d j i k))
+(assert (not (m d i k)))
+(check-sat)

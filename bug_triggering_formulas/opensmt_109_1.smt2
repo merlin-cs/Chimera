@@ -1,0 +1,8 @@
+(declare-fun _substvar_122_ () Bool)
+(declare-fun _substvar_129_ () Bool)
+(declare-fun i2 () Int)
+(declare-fun i3 () Int)
+(assert (or _substvar_122_ (<= (- (* 734 i3)) 683)))
+(assert (> 675 (- 734 i2)))
+(assert (or (distinct 0.0 (+ (* 734 i3) i2)) _substvar_129_))
+(check-sat)

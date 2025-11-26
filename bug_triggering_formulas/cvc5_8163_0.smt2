@@ -1,0 +1,3 @@
+(declare-fun b (Real) Real)
+(assert (forall ((_2 Bool)) (= _2 (and _2 (= 0.0 (b (exp 1.0)))))))
+(check-sat)

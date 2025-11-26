@@ -1,0 +1,7 @@
+(declare-fun d (Int Int) Int)
+(declare-fun e (Int Int) Int)
+(declare-fun f () Int)
+(declare-fun g () Int)
+(assert (forall ((a Int) (b Int)) (= (d g b) (d b (d a 0)))))
+(assert (forall ((c Int)) (= c (e f (d g c)))))
+(check-sat)

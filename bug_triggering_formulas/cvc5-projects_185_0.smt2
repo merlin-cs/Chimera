@@ -1,0 +1,5 @@
+(declare-fun f () a)
+(assert (= e (b 0 (b 0 e))))
+(assert (distinct f (b 0 f)))
+(assert (not (distinct e f)))
+(check-sat)

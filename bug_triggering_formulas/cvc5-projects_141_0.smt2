@@ -1,0 +1,6 @@
+(declare-fun x () Real)
+(assert (<= 0 0.84))
+(assert (> (sin 238) 0.85))
+(assert (> (- 52 x 0) 0))
+(assert (> (/ 236 0 x) 0))
+(check-sat)

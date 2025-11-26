@@ -1,0 +1,6 @@
+(declare-fun r10 () Real)
+(push)
+(check-sat)
+(assert (xor (distinct 9878.986668 2334401.0) (= r10 0.0)))
+(push)
+(check-sat)

@@ -1,0 +1,5 @@
+(declare-fun a () Int)
+(declare-fun b () Int)
+(assert (and (<= 6 (* (* 6 b) a))))
+(assert (not (and (exists ((c Int)) (and (<= c 6))) (<= b 0))))
+(check-sat)

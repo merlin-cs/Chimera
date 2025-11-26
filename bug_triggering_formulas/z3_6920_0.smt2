@@ -1,0 +1,6 @@
+(declare-fun a () Int)
+(push)
+(assert (< a 0))
+(check-sat)
+(assert (= (mod a 0) (div (- 1) a)))
+(check-sat)

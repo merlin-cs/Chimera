@@ -1,0 +1,5 @@
+(declare-fun s () String)
+(declare-fun m () String)
+(assert (str.suffixof m ""))
+(assert (and (>= (seq.last_indexof m s) 0) (= 1 (str.len (str.substr s 1 1)))))
+(check-sat)

@@ -1,0 +1,170 @@
+<h1>Theory Reference: Bags<a class="headerlink" href="#theory-reference-bags" title="Link to this heading"></a></h1>
+<section id="finite-bags">
+<h2>Finite Bags<a class="headerlink" href="#finite-bags" title="Link to this heading"></a></h2>
+<p>cvc5 supports the theory of finite bags using the following sorts, constants,
+functions and predicates.</p>
+<p>For the C++ API examples in the table below, we assume that we have created
+a <cite>cvc5::Solver solver</cite> object.</p>
+<table class="docutils align-default">
+<tbody>
+<tr class="row-odd"><td></td>
+<td><p>SMTLIB language</p></td>
+<td><p>C++ API</p></td>
+</tr>
+<tr class="row-even"><td><p>Logic String</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(set-logic</span> <span class="pre">ALL)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">solver.setLogic(&quot;ALL&quot;);</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Sort</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(Bag</span> <span class="pre">&lt;Sort&gt;)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">solver.mkBagSort(cvc5::Sort</span> <span class="pre">elementSort);</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Constants</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(declare-const</span> <span class="pre">X</span> <span class="pre">(Bag</span> <span class="pre">String))</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Sort</span> <span class="pre">s</span> <span class="pre">=</span> <span class="pre">solver.mkBagSort(solver.getStringSort());</span></code></p>
+<p><code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">X</span> <span class="pre">=</span> <span class="pre">solver.mkConst(s,</span> <span class="pre">&quot;X&quot;);</span></code></p>
+</td>
+</tr>
+<tr class="row-odd"><td><p>Union disjoint</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(bag.union_disjoint</span> <span class="pre">X</span> <span class="pre">Y)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">Y</span> <span class="pre">=</span> <span class="pre">solver.mkConst(s,</span> <span class="pre">&quot;Y&quot;);</span></code></p>
+<p><code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">t</span> <span class="pre">=</span> <span class="pre">solver.mkTerm(Kind::BAG_UNION_DISJOINT,</span> <span class="pre">{X,</span> <span class="pre">Y});</span></code></p>
+</td>
+</tr>
+<tr class="row-even"><td><p>Union max</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(bag.union_max</span> <span class="pre">X</span> <span class="pre">Y)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">Y</span> <span class="pre">=</span> <span class="pre">solver.mkConst(s,</span> <span class="pre">&quot;Y&quot;);</span></code></p>
+<p><code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">t</span> <span class="pre">=</span> <span class="pre">solver.mkTerm(Kind::BAG_UNION_MAX,</span> <span class="pre">{X,</span> <span class="pre">Y});</span></code></p>
+</td>
+</tr>
+<tr class="row-odd"><td><p>Intersection min</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(bag.inter_min</span> <span class="pre">X</span> <span class="pre">Y)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">t</span> <span class="pre">=</span> <span class="pre">solver.mkTerm(Kind::BAG_INTER_MIN,</span> <span class="pre">{X,</span> <span class="pre">Y});</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Difference subtract</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(bag.difference_subtract</span> <span class="pre">X</span> <span class="pre">Y)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">t</span> <span class="pre">=</span> <span class="pre">solver.mkTerm(Kind::BAG_DIFFERENCE_SUBTRACT,</span> <span class="pre">{X,</span> <span class="pre">Y});</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Duplicate elimination</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(bag.setof</span> <span class="pre">X)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">t</span> <span class="pre">=</span> <span class="pre">solver.mkTerm(Kind::BAG_SETOF,</span> <span class="pre">{X});</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Membership</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(bag.member</span> <span class="pre">x</span> <span class="pre">X)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">x</span> <span class="pre">=</span> <span class="pre">solver.mkConst(solver.getStringSort(),</span> <span class="pre">&quot;x&quot;);</span></code></p>
+<p><code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">t</span> <span class="pre">=</span> <span class="pre">solver.mkTerm(Kind::BAG_MEMBER,</span> <span class="pre">{x,</span> <span class="pre">X});</span></code></p>
+</td>
+</tr>
+<tr class="row-odd"><td><p>Subbag</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(bag.subbag</span> <span class="pre">X</span> <span class="pre">Y)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">t</span> <span class="pre">=</span> <span class="pre">solver.mkTerm(Kind::BAG_SUBBAG,</span> <span class="pre">{X,</span> <span class="pre">Y});</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Emptybag</p></td>
+<td colspan="2"><p><code class="docutils literal notranslate"><span class="pre">(as</span> <span class="pre">bag.empty</span> <span class="pre">(Bag</span> <span class="pre">Int))</span></code>                  | <code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">t</span> <span class="pre">=</span> <span class="pre">solver.mkEmptyBag(s);</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Make bag</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(bag</span> <span class="pre">&quot;a&quot;</span> <span class="pre">3)</span></code></p></td>
+<td><dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">t</span> <span class="pre">=</span> <span class="pre">solver.mkTerm(Kind::BAG_MAKE,</span></code></dt><dd><p><code class="docutils literal notranslate"><span class="pre">{solver.mkString(&quot;a&quot;),</span> <span class="pre">solver.mkInteger(1)});</span></code></p>
+</dd>
+</dl>
+</td>
+</tr>
+</tbody>
+</table>
+<section id="semantics">
+<h3>Semantics<a class="headerlink" href="#semantics" title="Link to this heading"></a></h3>
+<p>A bag (or a multiset) <span class="math notranslate nohighlight">\(m\)</span> can be defined as a function from the domain of its elements
+to the set of natural numbers (i.e., <span class="math notranslate nohighlight">\(m : D \rightarrow \mathbb{N}\)</span>),
+where <span class="math notranslate nohighlight">\(m(e)\)</span> represents the multiplicity of element <span class="math notranslate nohighlight">\(e\)</span> in the bag <span class="math notranslate nohighlight">\(m\)</span>.</p>
+<p>The semantics of supported bag operators is given in the table below.</p>
+<table class="docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p>Bag operator</p></td>
+<td><p>cvc5 operator</p></td>
+<td><p>Semantics</p></td>
+</tr>
+<tr class="row-even"><td><p>union disjoint <span class="math notranslate nohighlight">\(m_1 \uplus m_2\)</span></p></td>
+<td><p>bag.union_disjoint</p></td>
+<td><p><span class="math notranslate nohighlight">\(\forall e. \; (m_1 \uplus m_2)(e) = m_1(e) + m_2 (e)\)</span></p></td>
+</tr>
+<tr class="row-odd"><td><p>union max <span class="math notranslate nohighlight">\(m_1 \cup m_2\)</span></p></td>
+<td><p>bag.union_max</p></td>
+<td><p><span class="math notranslate nohighlight">\(\forall e. \; (m_1 \cup m_2)(e) = max(m_1(e), m_2 (e))\)</span></p></td>
+</tr>
+<tr class="row-even"><td><p>intersection <span class="math notranslate nohighlight">\(m_1 \cap m_2\)</span></p></td>
+<td><p>bag.inter_min</p></td>
+<td><p><span class="math notranslate nohighlight">\(\forall e. \; (m_1 \cap m_2)(e) = min(m_1(e), m_2 (e))\)</span></p></td>
+</tr>
+<tr class="row-odd"><td><p>difference subtract <span class="math notranslate nohighlight">\(m_1 \setminus m_2\)</span></p></td>
+<td><p>bag.difference_subtract</p></td>
+<td><p><span class="math notranslate nohighlight">\(\forall e. \; (m_1 \setminus m_2)(e) = max(m_1(e) - m_2 (e), 0)\)</span></p></td>
+</tr>
+<tr class="row-even"><td><p>difference remove <span class="math notranslate nohighlight">\(m_1 \setminus\setminus m_2\)</span></p></td>
+<td><p>bag.difference_remove</p></td>
+<td><p><span class="math notranslate nohighlight">\(\forall e. \; (m_1 \setminus\setminus m_2)(e) = ite(m_2(e) = 0, m_1(e), 0)\)</span></p></td>
+</tr>
+<tr class="row-odd"><td><p>setof <span class="math notranslate nohighlight">\(\delta(m)\)</span></p></td>
+<td><p>bag.setof</p></td>
+<td><p><span class="math notranslate nohighlight">\(\forall e. \; (\delta(m))(e) = ite(1 \leq m(e), 1, 0)\)</span></p></td>
+</tr>
+<tr class="row-even"><td><p>subbag <span class="math notranslate nohighlight">\(m_1 \subseteq m_2\)</span></p></td>
+<td><p>bag.subbag</p></td>
+<td><p><span class="math notranslate nohighlight">\(\forall e. \; m_1(e) \leq m_2(e)\)</span></p></td>
+</tr>
+<tr class="row-odd"><td><p>equality <span class="math notranslate nohighlight">\(m_1 = m_2\)</span></p></td>
+<td><p>=</p></td>
+<td><p><span class="math notranslate nohighlight">\(\forall e. \; m_1(e) = m_2(e)\)</span></p></td>
+</tr>
+<tr class="row-even"><td><p>membership <span class="math notranslate nohighlight">\(e \in m\)</span></p></td>
+<td><p>bag.member</p></td>
+
+```
+ 1(set-logic ALL)
+ 2
+ 3(set-option :produce-models true)
+ 4(set-option :incremental true)
+ 5
+ 6(declare-const A (Bag String))
+ 7(declare-const B (Bag String))
+ 8(declare-const C (Bag String))
+ 9(declare-const x String)
+10
+11; union disjoint does not distribute over intersection
+12; sat
+13(check-sat-assuming
+14 ((distinct
+15   (bag.inter_min (bag.union_disjoint A B) C)
+16   (bag.union_disjoint (bag.inter_min A C) (bag.inter_min B C)))))
+17
+18
+19(get-value (A))
+20(get-value (B))
+21(get-value (C))
+22(get-value ((bag.inter_min (bag.union_disjoint A B) C)))
+23(get-value ((bag.union_disjoint (bag.inter_min A C) (bag.inter_min B C))))
+24
+25; union max distributes over intersection
+26; unsat
+27(check-sat-assuming
+28 ((distinct
+29   (bag.inter_min (bag.union_max A B) C)
+30   (bag.union_max (bag.inter_min A C) (bag.inter_min B C)))))
+31
+32; Verify emptbag is a subbag of any bag
+33; unsat
+34(check-sat-assuming
+35 ((not (bag.subbag (as bag.empty (Bag String)) A))))
+36
+37; find an element with multiplicity 4 in the disjoint union of
+38; {|"a", "a", "b", "b", "b"|} and {|"b", "c", "c"|}
+39(check-sat-assuming
+40 ((= 4
+41     (bag.count x
+42                (bag.union_disjoint
+43                 (bag.union_disjoint (bag "a" 2) (bag "b" 3))
+44                 (bag.union_disjoint (bag "b" 1) (bag "c" 2)))))))
+45
+46; x is "b"
+47(get-value (x))
+```

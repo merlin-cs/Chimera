@@ -1,0 +1,7 @@
+(declare-const x (Array Int (Array Bool Int)))
+(declare-fun b (Int Real) (Array Int Real))
+(declare-fun b (Int Int) Int)
+(declare-fun a () (Array Bool Bool))
+(assert (forall ((v (Array Bool Bool))) (= a v)))
+(assert (forall ((v Real) (va (Array Int (Array Bool Int)))) (or (= va x) (distinct 0.0 (select (b v (b 0 0)) 0)))))
+(check-sat)

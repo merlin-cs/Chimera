@@ -1,0 +1,5 @@
+(declare-fun _substvar_541_ () Bool)
+(declare-const _1-1 (_ BitVec 1))
+(assert (= _substvar_541_ true true true (bvugt (bvcomp (_ bv0 25) (_ bv0 25)) _1-1)))
+(assert false)
+(check-sat)

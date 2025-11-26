@@ -1,0 +1,6 @@
+(declare-fun a () (Set Real))
+(declare-fun b () (Set Real))
+(declare-fun c () (Set Int))
+(assert (member 1 a))
+(assert (= b (union c (singleton 2.5)) (intersection a (singleton 0))))
+(check-sat)

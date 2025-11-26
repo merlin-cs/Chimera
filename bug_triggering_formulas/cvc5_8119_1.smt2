@@ -1,0 +1,6 @@
+(declare-const x Int)
+(declare-fun ex () String)
+(declare-fun v () String)
+(declare-fun e () String)
+(assert (or (= 0 (ite (str.contains (str.substr v 2 x) "@") 1 0)) (= (str.replace "" ex e) (str.replace v (str.replace "" ex "A") e))))
+(check-sat)

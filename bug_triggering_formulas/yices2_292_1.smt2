@@ -1,0 +1,8 @@
+(declare-const r3 Real)
+(declare-const r4 Real)
+(declare-const r18 Real)
+(assert (= r18 (* (/ r18 r4) r3 r4 r4 r18) 96.0))
+(assert (<= 52310526.0 (- r3)))
+(check-sat)
+(assert true)
+(check-sat)

@@ -1,0 +1,5 @@
+(declare-const x Bool)
+(declare-const x2 Bool)
+(declare-const x7 Bool)
+(assert false)
+(check-sat)

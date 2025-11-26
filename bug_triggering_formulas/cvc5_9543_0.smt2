@@ -1,0 +1,6 @@
+(declare-fun s () String)
+(assert (distinct 0 (str.len s)))
+(assert (not (str.in_re s (re.+ (re.range "0" "9")))))
+(check-sat)
+(assert (not (str.in_re s (re.+ (re.range "0" (str.replace (str.at "fmzbxcom" 0) "e" "vGYHMu"))))))
+(check-sat)

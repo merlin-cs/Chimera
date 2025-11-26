@@ -1,0 +1,6 @@
+(declare-const _x4 String)
+(declare-const _x7 Bool)
+(declare-const _x8 String)
+(assert (str.prefixof _x8 _x4))
+(assert (xor (str.prefixof _x8 _x4) (not _x7)))
+(check-sat)

@@ -1,0 +1,7 @@
+(declare-const r11 Real)
+(push)
+(assert (= true true true true true true (= true true true true (<= 0.0 (/ 0.2702 0.0) 83250 r11)) true true))
+(pop)
+(push)
+(check-sat)
+(pop)

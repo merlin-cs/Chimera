@@ -1,0 +1,5 @@
+(declare-fun _substvar_14_ () Bool)
+(declare-const i4 Int)
+(declare-const i7 Int)
+(assert (or (<= 801 (- 39 i4 (mod i7 39) i4)) _substvar_14_))
+(check-sat)

@@ -1,0 +1,10 @@
+(declare-sort I)
+
+(declare-fun b (Int Int Int Int Int Int) Bool)
+(declare-fun o (I I) I)
+(declare-fun x () I)
+(declare-fun a () (Array Bool (Array Int Bool)))
+(assert (forall ((e I)) (exists ((t I)) (and (= e (o e x)) (= t (o x t))))))
+(assert (= x (o x x)))
+(assert (forall ((v (Array Bool Int)) (va (Array Bool Bool)) (r (Array Bool (Array Bool (Array Int Bool))))) (= r (store r (or (b 1 0 0 1 0 (v (va false)))) a))))
+(check-sat)

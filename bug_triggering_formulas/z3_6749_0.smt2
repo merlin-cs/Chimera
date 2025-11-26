@@ -1,0 +1,7 @@
+(assert true)
+(check-sat)
+(declare-fun s (Int) Int)
+(declare-fun n ((Array Int Int) Int) Int)
+(declare-const j Int)
+(assert (forall ((i0 Int) (a1 (Array Int Int))) (=> (= 0 j) (= (s (n a1 i0)) i0))))
+(check-sat)

@@ -1,0 +1,6 @@
+(declare-fun a () (Set Int))
+(declare-fun b () (Set Int))
+(declare-fun c () (Set Int))
+(declare-fun d () Int)
+(assert (> (card (setminus a (intersection (setminus a b) (setminus a c)))) d))
+(check-sat)

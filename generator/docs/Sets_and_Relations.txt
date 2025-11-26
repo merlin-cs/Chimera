@@ -1,0 +1,319 @@
+<h1>Theory Reference: Sets and Relations<a class="headerlink" href="#theory-reference-sets-and-relations" title="Link to this heading"></a></h1>
+<section id="finite-sets">
+<h2>Finite Sets<a class="headerlink" href="#finite-sets" title="Link to this heading"></a></h2>
+<p>cvc5 supports the theory of finite sets using the following sorts, constants,
+functions and predicates.  More details can be found in <span id="id1">[<a class="reference internal" href="../references.html#id4" title="Kshitij Bansal, Clark W. Barrett, Andrew Reynolds, and Cesare Tinelli. A new decision procedure for finite sets and cardinality constraints in SMT. CoRR, 2017. arXiv:1702.06259.">BBRT17</a>]</span>.</p>
+<p>For the C++ API examples in the table below, we assume that we have created
+a <cite>cvc5::Solver solver</cite> object.</p>
+<table class="docutils align-default">
+<tbody>
+<tr class="row-odd"><td></td>
+<td><p>SMTLIB language</p></td>
+<td><p>C++ API</p></td>
+</tr>
+<tr class="row-even"><td><p>Logic String</p></td>
+<td><p>append <cite>FS</cite> for finite sets</p>
+<p><code class="docutils literal notranslate"><span class="pre">(set-logic</span> <span class="pre">QF_UFLIAFS)</span></code></p>
+</td>
+<td><p>append <cite>FS</cite> for finite sets</p>
+<p><code class="docutils literal notranslate"><span class="pre">solver.setLogic(&quot;QF_UFLIAFS&quot;);</span></code></p>
+</td>
+</tr>
+<tr class="row-odd"><td><p>Sort</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(Set</span> <span class="pre">&lt;Sort&gt;)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">solver.mkSetSort(cvc5::Sort</span> <span class="pre">elementSort);</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Constants</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(declare-const</span> <span class="pre">X</span> <span class="pre">(Set</span> <span class="pre">Int))</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Sort</span> <span class="pre">s</span> <span class="pre">=</span> <span class="pre">solver.mkSetSort(solver.getIntegerSort());</span></code></p>
+<p><code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">X</span> <span class="pre">=</span> <span class="pre">solver.mkConst(s,</span> <span class="pre">&quot;X&quot;);</span></code></p>
+</td>
+</tr>
+<tr class="row-odd"><td><p>Union</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(set.union</span> <span class="pre">X</span> <span class="pre">Y)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">Y</span> <span class="pre">=</span> <span class="pre">solver.mkConst(s,</span> <span class="pre">&quot;Y&quot;);</span></code></p>
+<p><code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">t</span> <span class="pre">=</span> <span class="pre">solver.mkTerm(Kind::SET_UNION,</span> <span class="pre">{X,</span> <span class="pre">Y});</span></code></p>
+</td>
+</tr>
+<tr class="row-even"><td><p>Intersection</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(set.inter</span> <span class="pre">X</span> <span class="pre">Y)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">t</span> <span class="pre">=</span> <span class="pre">solver.mkTerm(Kind::SET_INTER,</span> <span class="pre">{X,</span> <span class="pre">Y});</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Minus</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(set.minus</span> <span class="pre">X</span> <span class="pre">Y)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">t</span> <span class="pre">=</span> <span class="pre">solver.mkTerm(Kind::SET_MINUS,</span> <span class="pre">{X,</span> <span class="pre">Y});</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Membership</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(set.member</span> <span class="pre">x</span> <span class="pre">X)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">x</span> <span class="pre">=</span> <span class="pre">solver.mkConst(solver.getIntegerSort(),</span> <span class="pre">&quot;x&quot;);</span></code></p>
+<p><code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">t</span> <span class="pre">=</span> <span class="pre">solver.mkTerm(Kind::SET_MEMBER,</span> <span class="pre">{x,</span> <span class="pre">X});</span></code></p>
+</td>
+</tr>
+<tr class="row-odd"><td><p>Subset</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(set.subset</span> <span class="pre">X</span> <span class="pre">Y)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">t</span> <span class="pre">=</span> <span class="pre">solver.mkTerm(Kind::SET_SUBSET,</span> <span class="pre">{X,</span> <span class="pre">Y});</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Emptyset</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(as</span> <span class="pre">set.empty</span> <span class="pre">(Set</span> <span class="pre">Int))</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">t</span> <span class="pre">=</span> <span class="pre">solver.mkEmptySet(s);</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Singleton Set</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(set.singleton</span> <span class="pre">1)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">t</span> <span class="pre">=</span> <span class="pre">solver.mkTerm(Kind::SET_SINGLETON,</span> <span class="pre">{solver.mkInteger(1)});</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Emptyset tester</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(set.is_empty</span> <span class="pre">X)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">t</span> <span class="pre">=</span> <span class="pre">solver.mkTerm(Kind::SET_IS_EMPTY,</span> <span class="pre">{X});</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Singleton tester</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(set.is_singleton</span> <span class="pre">X)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">t</span> <span class="pre">=</span> <span class="pre">solver.mkTerm(Kind::SET_IS_SINGLETON,</span> <span class="pre">{X});</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Cardinality</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(set.card</span> <span class="pre">X)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">t</span> <span class="pre">=</span> <span class="pre">solver.mkTerm(Kind::SET_CARD,</span> <span class="pre">{X});</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Insert / Finite Sets</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(set.insert</span> <span class="pre">1</span> <span class="pre">2</span> <span class="pre">3</span> <span class="pre">(set.singleton</span> <span class="pre">4))</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">one</span> <span class="pre">=</span> <span class="pre">solver.mkInteger(1);</span></code></p>
+<p><code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">two</span> <span class="pre">=</span> <span class="pre">solver.mkInteger(2);</span></code></p>
+<p><code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">three</span> <span class="pre">=</span> <span class="pre">solver.mkInteger(3);</span></code></p>
+<p><code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">sgl</span> <span class="pre">=</span> <span class="pre">solver.mkTerm(Kind::SET_SINGLETON,</span> <span class="pre">{solver.mkInteger(4)});</span></code></p>
+<p><code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">t</span> <span class="pre">=</span> <span class="pre">solver.mkTerm(Kind::SET_INSERT,</span> <span class="pre">{one,</span> <span class="pre">two,</span> <span class="pre">three,</span> <span class="pre">sgl});</span></code></p>
+</td>
+</tr>
+<tr class="row-even"><td><p>Complement</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(set.complement</span> <span class="pre">X)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">t</span> <span class="pre">=</span> <span class="pre">solver.mkTerm(Kind::SET_COMPLEMENT,</span> <span class="pre">{X});</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Universe Set</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(as</span> <span class="pre">set.universe</span> <span class="pre">(Set</span> <span class="pre">Int))</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">t</span> <span class="pre">=</span> <span class="pre">solver.mkUniverseSet(s);</span></code></p></td>
+</tr>
+</tbody>
+</table>
+<section id="semantics">
+<h3>Semantics<a class="headerlink" href="#semantics" title="Link to this heading"></a></h3>
+<p>The semantics of most of the above operators (e.g., <code class="docutils literal notranslate"><span class="pre">set.union</span></code>,
+<code class="docutils literal notranslate"><span class="pre">set.inter</span></code>, difference) are straightforward.
+The semantics for the universe set and complement are more subtle and explained
+in the following.</p>
+<p>The universe set <code class="docutils literal notranslate"><span class="pre">(as</span> <span class="pre">set.universe</span> <span class="pre">(Set</span> <span class="pre">T))</span></code> is <em>not</em> interpreted as the set
+containing all elements of sort <code class="docutils literal notranslate"><span class="pre">T</span></code>.
+Instead it may be interpreted as any set such that all sets of sort <code class="docutils literal notranslate"><span class="pre">(Set</span> <span class="pre">T)</span></code>
+are interpreted as subsets of it.
+In other words, it is the union of the interpretations of all (finite) sets in
+our input.</p>
+<p>For example:</p>
+<div class="highlight-smtlib notranslate"><div class="highlight"><pre><span></span>(<span class="k">declare-fun</span> <span class="n">x</span> () (<span class="na">Set</span> <span class="na">Int</span>))
+(<span class="k">declare-fun</span> <span class="n">y</span> () (<span class="na">Set</span> <span class="na">Int</span>))
+(<span class="k">declare-fun</span> <span class="n">z</span> () (<span class="na">Set</span> <span class="na">Int</span>))
+(<span class="k">assert</span> (<span class="o">set.member</span> <span class="m">0</span> <span class="n">x</span>))
+(<span class="k">assert</span> (<span class="o">set.member</span> <span class="m">1</span> <span class="n">y</span>))
+(<span class="k">assert</span> (<span class="o">=</span> <span class="n">z</span> (<span class="k">as</span> <span class="o">set.universe</span> (<span class="na">Set</span> <span class="na">Int</span>))))
+(<span class="k">check-sat</span>)
+</pre></div>
+</div>
+<p>Here, a possible model is:</p>
+<div class="highlight-smtlib notranslate"><div class="highlight"><pre><span></span>(<span class="k">define-fun</span> <span class="n">x</span> () (<span class="o">set.singleton</span> <span class="m">0</span>))
+(<span class="k">define-fun</span> <span class="n">y</span> () (<span class="o">set.singleton</span> <span class="m">1</span>))
+(<span class="k">define-fun</span> <span class="n">z</span> () (<span class="o">set.union</span> (<span class="o">set.singleton</span> <span class="m">1</span>) (<span class="o">set.singleton</span> <span class="m">0</span>)))
+</pre></div>
+</div>
+<p>Notice that the universe set in this example is interpreted the same as <code class="docutils literal notranslate"><span class="pre">z</span></code>,
+and is such that all sets in this example (<code class="docutils literal notranslate"><span class="pre">x</span></code>, <code class="docutils literal notranslate"><span class="pre">y</span></code>, and <code class="docutils literal notranslate"><span class="pre">z</span></code>) are subsets
+of it.</p>
+<p>The set complement operator for <code class="docutils literal notranslate"><span class="pre">(Set</span> <span class="pre">T)</span></code> is interpreted relative to the
+interpretation of the universe set for <code class="docutils literal notranslate"><span class="pre">(Set</span> <span class="pre">T)</span></code>, and not relative to the set
+of all elements of sort <code class="docutils literal notranslate"><span class="pre">T</span></code>.
+That is, for all sets <code class="docutils literal notranslate"><span class="pre">X</span></code> of sort <code class="docutils literal notranslate"><span class="pre">(Set</span> <span class="pre">T)</span></code>, the complement operator is
+such that <code class="docutils literal notranslate"><span class="pre">(=</span> <span class="pre">(set.complement</span> <span class="pre">X)</span> <span class="pre">(set.minus</span> <span class="pre">(as</span> <span class="pre">set.universe</span> <span class="pre">(Set</span> <span class="pre">T))</span> <span class="pre">X))</span></code>
+holds in all models.</p>
+<p>The motivation for these semantics is to ensure that the universe set for sort
+<code class="docutils literal notranslate"><span class="pre">T</span></code> and applications of set complement can always be interpreted as a finite
+set in (quantifier-free) inputs, even if the cardinality of <code class="docutils literal notranslate"><span class="pre">T</span></code> is infinite.
+Above, notice that we were able to find a model for the universe set of sort
+<code class="docutils literal notranslate"><span class="pre">(Set</span> <span class="pre">Int)</span></code> that contained two elements only.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>In the presence of quantifiers, cvc5’s implementation of the above theory
+allows infinite sets.
+In particular, the following formula is SAT (even though cvc5 is not able to
+say this):</p>
+<div class="highlight-smtlib notranslate"><div class="highlight"><pre><span></span>(<span class="k">set-logic</span> <span class="n">ALL</span>)
+(<span class="k">declare-fun</span> <span class="n">x</span> () (<span class="na">Set</span> <span class="na">Int</span>))
+(<span class="k">assert</span> (<span class="k">forall</span> ((<span class="n">z</span> <span class="na">Int</span>) (<span class="o">set.member</span> (<span class="o">*</span> <span class="m">2</span> <span class="n">z</span>) <span class="n">x</span>)))
+(<span class="k">check-sat</span>)
+</pre></div>
+</div>
+<p>The reason for that is that making this formula (and similar ones) <cite>unsat</cite> is
+counter-intuitive when quantifiers are present.</p>
+</div>
+<p>Below is a more extensive example on how to use finite sets:</p>
+
+```
+ 1(set-logic QF_UFLIAFS)
+ 2(set-option :produce-models true)
+ 3(set-option :incremental true)
+ 4(declare-const A (Set Int))
+ 5(declare-const B (Set Int))
+ 6(declare-const C (Set Int))
+ 7(declare-const x Int)
+ 8
+ 9; Verify union distributions over intersection
+10(check-sat-assuming
+11  (
+12    (distinct
+13      (set.inter (set.union A B) C)
+14      (set.union (set.inter A C) (set.inter B C)))
+15  )
+16)
+17
+18; Verify emptset is a subset of any set
+19(check-sat-assuming
+20  (
+21    (not (set.subset (as set.empty (Set Int)) A))
+22  )
+23)
+24
+25; Find an element in {1, 2} intersection {2, 3}, if there is one.
+26(check-sat-assuming
+27  (
+28    (set.member
+29      x
+30      (set.inter
+31        (set.union (set.singleton 1) (set.singleton 2))
+32        (set.union (set.singleton 2) (set.singleton 3))))
+33  )
+34)
+35
+36(echo "A member: ")
+37(get-value (x))
+```
+
+<h2>Finite Relations<a class="headerlink" href="#finite-relations" title="Link to this heading"></a></h2>
+<p>cvc5 also supports the theory of finite relations, using the following sorts,
+constants, functions and predicates.
+More details can be found in <span id="id2">[<a class="reference internal" href="../references.html#id5" title="Baoluo Meng, Andrew Reynolds, Cesare Tinelli, and Clark W. Barrett. Relational constraint solving in SMT. In Leonardo de Moura, editor, Automated Deduction - CADE 26 - 26th International Conference on Automated Deduction, Gothenburg, Sweden, August 6-11, 2017, Proceedings, volume 10395 of Lecture Notes in Computer Science, 148–165. Springer, 2017. doi:10.1007/978-3-319-63046-5_10.">MRTB17</a>]</span>.</p>
+<table class="docutils align-default">
+<tbody>
+<tr class="row-odd"><td></td>
+<td><p>SMTLIB language</p></td>
+<td><p>C++ API</p></td>
+</tr>
+<tr class="row-even"><td><p>Logic String</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(set-logic</span> <span class="pre">QF_ALL)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">solver.setLogic(&quot;QF_ALL&quot;);</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Tuple Sort</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(Tuple</span> <span class="pre">&lt;Sort_1&gt;,</span> <span class="pre">...,</span> <span class="pre">&lt;Sort_n&gt;)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">std::vector&lt;cvc5::Sort&gt;</span> <span class="pre">sorts</span> <span class="pre">=</span> <span class="pre">{</span> <span class="pre">...</span> <span class="pre">};</span></code></p>
+<p><code class="docutils literal notranslate"><span class="pre">Sort</span> <span class="pre">s</span> <span class="pre">=</span> <span class="pre">solver.mkTupleSort(sorts);</span></code></p>
+</td>
+</tr>
+<tr class="row-even"><td></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(declare-const</span> <span class="pre">t</span> <span class="pre">(Tuple</span> <span class="pre">Int</span> <span class="pre">Int))</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Sort</span> <span class="pre">s_int</span> <span class="pre">=</span> <span class="pre">solver.getIntegerSort();</span></code></p>
+<p><code class="docutils literal notranslate"><span class="pre">Sort</span> <span class="pre">s</span> <span class="pre">=</span> <span class="pre">solver.mkTupleSort({s_int,</span> <span class="pre">s_int});</span></code></p>
+<p><code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">t</span> <span class="pre">=</span> <span class="pre">solver.mkConst(s,</span> <span class="pre">&quot;t&quot;);</span></code></p>
+</td>
+</tr>
+<tr class="row-odd"><td><p>Tuple Constructor</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(tuple</span> <span class="pre">&lt;Term_1&gt;,</span> <span class="pre">...,</span> <span class="pre">&lt;Term_n&gt;)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">t</span> <span class="pre">=</span> <span class="pre">solver.mkTuple({Term_1&gt;,</span> <span class="pre">...,</span> <span class="pre">&lt;Term_n&gt;});</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Unit Tuple Sort</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">UnitTuple</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Sort</span> <span class="pre">s</span> <span class="pre">=</span> <span class="pre">solver.mkTupleSort({});</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Unit Tuple</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">tuple.unit</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">t</span> <span class="pre">=</span> <span class="pre">solver.mkTuple({});</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Tuple Selector</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">((_</span> <span class="pre">tuple.select</span> <span class="pre">i)</span> <span class="pre">t)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Sort</span> <span class="pre">s</span> <span class="pre">=</span> <span class="pre">solver.mkTupleSort(sorts);</span></code></p>
+<p><code class="docutils literal notranslate"><span class="pre">Datatype</span> <span class="pre">dt</span> <span class="pre">=</span> <span class="pre">s.getDatatype();</span></code></p>
+<p><code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">c</span> <span class="pre">=</span> <span class="pre">dt[0].getSelector();</span></code></p>
+<p><code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">t</span> <span class="pre">=</span> <span class="pre">solver.mkTerm(Kind::APPLY_SELECTOR,</span> <span class="pre">{s,</span> <span class="pre">t});</span></code></p>
+</td>
+</tr>
+<tr class="row-odd"><td><p>Relation Sort</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(Relation</span> <span class="pre">&lt;Sort_1&gt;,</span> <span class="pre">...,</span> <span class="pre">&lt;Sort_n&gt;)</span></code></p>
+<p>which is a syntax sugar for</p>
+<p><code class="docutils literal notranslate"><span class="pre">(Set</span> <span class="pre">(Tuple</span> <span class="pre">&lt;Sort_1&gt;,</span> <span class="pre">...,</span> <span class="pre">&lt;Sort_n&gt;))</span></code></p>
+</td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Sort</span> <span class="pre">s</span> <span class="pre">=</span> <span class="pre">solver.mkSetSort(cvc5::Sort</span> <span class="pre">tupleSort);</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Constants</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(declare-const</span> <span class="pre">X</span> <span class="pre">(Set</span> <span class="pre">(Tuple</span> <span class="pre">Int</span> <span class="pre">Int)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Sort</span> <span class="pre">s</span> <span class="pre">=</span> <span class="pre">solver.mkSetSort(solver.mkTupleSort({s_int,</span> <span class="pre">s_int});</span></code></p>
+<p><code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">X</span> <span class="pre">=</span> <span class="pre">solver.mkConst(s,</span> <span class="pre">&quot;X&quot;);</span></code></p>
+</td>
+</tr>
+<tr class="row-odd"><td><p>Transpose</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(rel.transpose</span> <span class="pre">X)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">t</span> <span class="pre">=</span> <span class="pre">solver.mkTerm(Kind::RELATION_TRANSPOSE,</span> <span class="pre">X);</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Transitive Closure</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(rel.tclosure</span> <span class="pre">X)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">t</span> <span class="pre">=</span> <span class="pre">solver.mkTerm(Kind::RELATION_TCLOSURE,</span> <span class="pre">X);</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Join</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(rel.join</span> <span class="pre">X</span> <span class="pre">Y)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">t</span> <span class="pre">=</span> <span class="pre">solver.mkTerm(Kind::RELATION_JOIN,</span> <span class="pre">X,</span> <span class="pre">Y);</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Product</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">(rel.product</span> <span class="pre">X</span> <span class="pre">Y)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Term</span> <span class="pre">t</span> <span class="pre">=</span> <span class="pre">solver.mkTerm(Kind::RELATION_PRODUCT,</span> <span class="pre">X,</span> <span class="pre">Y);</span></code></p></td>
+</tr>
+</tbody>
+</table>
+<p>Example:</p>
+
+```
+ 1(set-logic ALL)
+ 2
+ 3(set-option :produce-models true)
+ 4; we need finite model finding to answer sat problems with universal
+ 5; quantified formulas
+ 6(set-option :finite-model-find true)
+ 7; we need sets extension to support set.universe operator
+ 8(set-option :sets-exp true)
+ 9
+10(declare-sort Person 0)
+11
+12(declare-fun people () (Relation Person))
+13(declare-fun males () (Relation Person))
+14(declare-fun females () (Relation Person))
+15(declare-fun father () (Relation Person Person))
+16(declare-fun mother () (Relation Person Person))
+17(declare-fun parent () (Relation Person Person))
+18(declare-fun ancestor () (Relation Person Person))
+19(declare-fun descendant () (Relation Person Person))
+20
+21(assert (= people (as set.universe (Relation Person))))
+22(assert (not (= males (as set.empty (Relation Person)))))
+23(assert (not (= females (as set.empty (Relation Person)))))
+24(assert (= (set.inter males females) (as set.empty (Relation Person))))
+25
+26; father relation is not empty
+27(assert (not (= father (as set.empty (Relation Person Person)))))
+28; mother relation is not empty
+29(assert (not (= mother (as set.empty (Relation Person Person)))))
+30; fathers are males
+31(assert (set.subset (rel.join father people) males))
+32; mothers are females
+33(assert (set.subset (rel.join mother people) females))
+34; parent
+35(assert (= parent (set.union father mother)))
+36; no self ancestor
+37(assert (forall ((x Person)) (not (set.member (tuple x x) ancestor))))
+38; ancestor
+39(assert (= ancestor (rel.tclosure parent)))
+40; ancestor
+41(assert (= descendant (rel.transpose ancestor)))
+42
+43(check-sat)
+44(get-model)
+```

@@ -1,0 +1,7 @@
+(declare-const x Real)
+(declare-fun a () Real)
+(declare-fun v () Real)
+(declare-fun ex () Real)
+(assert (exists ((t Real)) (< (- 1) ex)))
+(assert (forall ((e Real)) (exists ((V Real)) (= (* ex ex (+ (* v a) ex)) (+ x (* e e (- 1)))))))
+(check-sat)

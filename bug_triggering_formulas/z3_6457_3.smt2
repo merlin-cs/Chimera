@@ -1,0 +1,5 @@
+(declare-const a (Array (_ BitVec 32) (_ BitVec 8)))
+(declare-const b (Array (_ BitVec 32) (_ BitVec 8)))
+(declare-fun c () (_ BitVec 32))
+(assert (let ((d (bvor (bvor (bvshl (_ bv0 32) (concat (_ bv0 24) (select a (bvadd (_ bv0 32) (bvor (concat (_ bv0 24) (select a (_ bv1 32))) (bvshl (_ bv1 32) (concat (_ bv0 24) (select a (_ bv0 32))))))))) (concat (_ bv0 24) (select a (bvadd (_ bv0 32) (bvadd (_ bv0 32) (bvor (bvshl (_ bv1 32) ((_ zero_extend 24) (select a (_ bv0 32)))) (bvor (_ bv0 32) ((_ zero_extend 24) (select a (_ bv1 32)))))))))) (_ bv1 32)))(e (bvlshr (_ bv0 32) (_ bv0 32)))) (= (bvshl ((_ zero_extend 24) (select (store b c (_ bv0 8)) (_ bv0 32))) (_ bv1 32)) ((_ zero_extend 24) (select (store b c (_ bv0 8)) (_ bv0 32))))))
+(check-sat)

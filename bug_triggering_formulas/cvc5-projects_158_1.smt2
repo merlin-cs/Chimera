@@ -1,0 +1,7 @@
+(declare-fun _substvar_22_ () (Array Int Bool))
+(declare-const i2 Int)
+(declare-const arr1 (Array Int Bool))
+(declare-const arr2 (Array (Array Int Bool) Int))
+(assert (or (= arr2 (store arr2 (store arr1 0 true) i2)) (= arr2 (store arr2 (store arr1 0 true) i2))))
+(assert (= arr2 (store arr2 _substvar_22_ i2)))
+(check-sat)

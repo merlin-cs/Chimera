@@ -1,0 +1,5 @@
+(declare-fun a () Int)
+(assert (distinct a 0 (div (rem (div a a) a) a)))
+(check-sat)
+(assert (distinct a 0 (div (rem (div a a) a) a)))
+(check-sat)

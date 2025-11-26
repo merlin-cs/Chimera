@@ -1,0 +1,7 @@
+(declare-const x Real)
+(declare-const x4 Real)
+(declare-const x44 Bool)
+(declare-fun r () Real)
+(check-sat)
+(assert (xor x44 (= 0.0 (/ r 0.0)) (= 1.0 (/ x4 0.0)) x44 (= 1.0 (* r (- (abs x)) (+ r 5)))))
+(check-sat)

@@ -1,0 +1,7 @@
+(declare-fun $x228 () Bool)
+(declare-fun u!FP () (_ FloatingPoint 8 24))
+(declare-fun ?x130 () (_ FloatingPoint 8 24))
+(declare-fun ?x230 () (_ FloatingPoint 8 24))
+(declare-fun uFP () (_ FloatingPoint 8 24))
+(assert (let (($x40 (fp.leq uFP (fp #b0 #x7f #b01000010100011110101110)))($x92 (fp.leq uFP (fp #b0 #x80 #b10000000000000000000000)))($x104 (fp.leq (fp #b1 #x81 #b10010011001100110011001) uFP))($x107 (fp.leq uFP (fp #b0 #x7f #b11100110011001100110011)))($x102 (fp.leq (fp #b1 #x7e #b00110011001100110011001) uFP))) (and (and (and $x102 $x107 $x104 $x92) $x40) (and $x228 (fp.eq ?x230 (fp.rem ?x130 u!FP))) (not (fp.gt (fp.abs ?x230) ?x130)))))
+(check-sat)

@@ -1,0 +1,16 @@
+(declare-sort a 0)
+
+(declare-sort b 0)
+
+(declare-const c a)
+(declare-fun counter (a b) Int)
+(declare-fun d (a Int b) Int)
+(declare-const j a)
+(declare-const e b)
+(declare-fun f (b) Int)
+(declare-const k b)
+(declare-const g a)
+(assert (forall ((h b)) (and (=> (> (f h) 0) (= (counter j h) 0)) (> (f h) 0) (= (d g 0 h) 7) (forall ((i Int)) (=> (not (= i (counter j h))) (= 0 (d j i h)))))))
+(assert (forall ((h b) (i Int)) (= (d c i h) (d g i h))))
+(assert (not (forall ((i Int)) (= (d c i e) (d c i k)))))
+(check-sat)

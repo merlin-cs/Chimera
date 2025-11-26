@@ -1,0 +1,7 @@
+(declare-fun r11 () Real)
+(check-sat)
+(check-sat)
+(assert (> r11 0.0))
+(push)
+(assert (> 0.0 r11))
+(check-sat)

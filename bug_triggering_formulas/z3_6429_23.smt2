@@ -1,0 +1,5 @@
+(declare-fun a () Int)
+(declare-fun b () Int)
+(declare-fun c () Int)
+(assert (or (forall ((d Int) (g Int)) (distinct c (+ (* 4 d) g))) (forall ((e Int)) (= b 0)) (forall ((f Int) (h Int)) (= (- h f) a))))
+(check-sat)

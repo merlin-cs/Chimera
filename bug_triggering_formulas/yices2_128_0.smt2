@@ -1,0 +1,5 @@
+(declare-fun x () (_ BitVec 31))
+(declare-fun y () (_ BitVec 31))
+(declare-fun z () (_ BitVec 31))
+(assert (let ((e3 (bvadd x z))) (let ((e4 (bvshl e3 y))) (let ((e11 (distinct e4 e3))) e11))))
+(check-sat)

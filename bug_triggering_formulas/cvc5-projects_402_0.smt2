@@ -1,0 +1,5 @@
+(declare-const x5 Bool)
+(declare-const x (Array Real Real))
+(declare-const x8 Real)
+(assert (or (not x5) (= 1.0 (select (store x (- (/ (+ 0.0 real.pi) x8)) 0.0) 0.0))))
+(check-sat)

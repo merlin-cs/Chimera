@@ -1,0 +1,8 @@
+(declare-fun t () String)
+(declare-fun r () String)
+(declare-fun i () String)
+(declare-fun tr () String)
+(declare-fun s () String)
+(assert (= (str.++ i r) (str.++ r t)))
+(assert (= (str.++ tr t) (str.++ s (str.++ i r))))
+(check-sat)

@@ -1,0 +1,7 @@
+(declare-const p Bool)
+(declare-const q Bool)
+(declare-const r Bool)
+(declare-const s Bool)
+(declare-const t Bool)
+(assert ((_ pbeq 5 2 1 3 3 2) p q r s t))
+(check-sat)

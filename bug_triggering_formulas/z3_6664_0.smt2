@@ -1,0 +1,7 @@
+(declare-fun a () Int)
+(declare-fun b (Int) Bool)
+(declare-fun c (Int) Bool)
+(assert (b 0))
+(assert (= (c 0) (b 1) (c 1)))
+(assert (not (b 2)))
+(check-sat)

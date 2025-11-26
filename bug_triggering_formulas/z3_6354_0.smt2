@@ -1,0 +1,7 @@
+(declare-const yy Int)
+(assert (= yy (div 3 2)))
+(declare-const zz Int)
+(assert (= zz (div -3 2)))
+(declare-const pp Int)
+(assert (= pp (div 3 -2)))
+(check-sat)

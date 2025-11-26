@@ -1,0 +1,5 @@
+(declare-const x4 (Bag RoundingMode))
+(declare-const x (Bag RoundingMode))
+(assert (< 1 (bag.card (bag.union_max x4 x))))
+(assert (bag.subbag x4 x))
+(check-sat)

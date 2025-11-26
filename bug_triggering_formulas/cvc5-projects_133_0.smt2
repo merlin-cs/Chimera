@@ -1,0 +1,5 @@
+(declare-const a Int)
+(declare-const d Real)
+(declare-const e Real)
+(assert (< a d e))
+(check-sat)

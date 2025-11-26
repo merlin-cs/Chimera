@@ -1,0 +1,7 @@
+(declare-fun a () Int)
+(declare-fun b () Real)
+(declare-fun c () (Array Int (Array Int Real)))
+(declare-fun d (Int Int) Int)
+(declare-fun e (Int Int Real) (Array Int (Array Int Real)))
+(assert (exists ((f Real)) (and (forall ((j Int) (g Int)) (or (> g a) (= b (select (select c j) g)))) (not (exists ((h Int)) (and (>= a 0) (distinct b (select (select (e 0 (d 0 0) 0.0) h) h))))) (forall ((i Int)) (not (and (>= i 0 i) (distinct 1.0 (select (select (e (d 0 0) 0 0.0) i) i))))) (distinct b (select (select (store (e 0.0 0 0) 1 (store (select (e 0.0 0 0) 1) 0 1.0)) 1) 0)))))
+(check-sat)

@@ -1,0 +1,6 @@
+(push)
+(push)
+(assert false)
+(check-sat)
+(pop)
+(check-sat)

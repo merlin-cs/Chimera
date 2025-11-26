@@ -1,0 +1,5 @@
+(declare-const x Int)
+(declare-fun e () (Bag Int))
+(declare-fun ex () (Bag Int))
+(assert (or (exists ((v Bool)) (= 1 (+ 0 (bag.card (bag.difference_subtract ex e))))) (forall ((V String)) (= (bag.card ex) (* x (bag.card ex))))))
+(check-sat)

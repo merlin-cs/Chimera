@@ -1,0 +1,6 @@
+(declare-fun _substvar_27_ () Bool)
+(declare-fun _substvar_36_ () Bool)
+(declare-const v2 Bool)
+(assert (forall ((q2 Bool) (q3 Int) (q4 Int)) (xor q2 _substvar_36_ q2 q2 q2 true)))
+(assert (or _substvar_27_ v2))
+(check-sat)

@@ -1,0 +1,6 @@
+(declare-fun a (Int Int) Int)
+(declare-fun b (Int) (-> Int Int))
+(declare-fun c () (-> Int Int Int))
+(assert (or (= a b) (= b c)))
+(assert (distinct (a 1 1) 1))
+(check-sat)

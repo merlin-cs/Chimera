@@ -1,0 +1,7 @@
+(declare-fun a () Real)
+(declare-fun r () (Array Bool (Array Bool Real)))
+(declare-fun v () Int)
+(push)
+(assert (= 0 v))
+(assert (forall ((v (Array Bool Real))) (= v (select (store r (= a 1) v) false))))
+(check-sat)

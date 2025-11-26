@@ -1,0 +1,16 @@
+(declare-sort Loc 0) 
+
+(declare-sort Loc 0) 
+
+(declare-const z Loc)
+(declare-const y Loc)
+(declare-const x Loc)
+(assert (sep (not (wand sep.emp (not (pto x z)))) (distinct y z) (distinct y x) (distinct z x)))
+(assert (pto x y))
+(check-sat)
+(declare-const z Loc)
+(declare-const y Loc)
+(declare-const x Loc)
+(assert (sep (septraction sep.emp (pto x z)) (distinct y z) (distinct y x) (distinct z x)))
+(assert (pto x y))
+(check-sat)

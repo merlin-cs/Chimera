@@ -1,0 +1,20 @@
+(declare-sort e 0)
+
+(declare-sort aa 0)
+
+(declare-sort f 0)
+
+(declare-fun ab (f e) aa)
+(declare-fun g () f)
+(declare-fun ac () f)
+(declare-fun h (aa aa) Bool)
+(declare-fun i (f f) f)
+(declare-fun acc (aa aa) e)
+(declare-fun j (aa) e)
+(declare-fun k (aa aa) e)
+(declare-fun l (aa aa aa aa) Bool)
+(declare-fun m () f)
+(declare-fun ad (Int Int Int Int) Bool)
+(assert (forall ((n Int) (ae Int) (o Int) (af Int)) (= (ad n ae o af) (= (> o af) (= ae o)))))
+(assert (not (forall ((a e) (b e) (c e) (d e) (ag e) (p e)) (let ((q (ab ac ag))(ah m)) (= (= c d) (forall ((r e)) (let ((s (ab ah a))(ai (ab ah b))(aj (i g m))) (let ((t (ab aj r))(ak (ab aj p))(u m)) (=> (l q ak t (ab u (k (ab u (j ai)) (ab u (j s))))) (=> (h q (ab ah c)) (forall ((al e)) (= (= al (acc t (ab ah c))) (= (h q (ab ah d)) (forall ((v e)) (= (= v (acc t (ab ah d))) (distinct (acc t (ab ah d)) (acc t (ab ah c))))))))))))))))))
+(check-sat)

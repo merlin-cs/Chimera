@@ -1,0 +1,5 @@
+(declare-fun v () Int)
+(declare-fun a () Int)
+(declare-fun va () Int)
+(assert (and (= 1 (div 0 va)) (> 0 ((_ iand 1) v a))))
+(check-sat)

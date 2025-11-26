@@ -1,0 +1,5 @@
+(declare-fun a () Bool)
+(declare-fun b () Bool)
+(declare-fun c () (Array Int (Array Int Real)))
+(assert (or false (and b (not (distinct (forall ((t Int)) false) (and a (forall ((x Int)) (and a (forall ((d Int)) (or (< d 0) (> d 1) (= 0 (select (select c d) x))))))))))))
+(check-sat)

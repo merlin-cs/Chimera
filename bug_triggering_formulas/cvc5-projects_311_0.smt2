@@ -1,0 +1,6 @@
+(declare-fun a () (Array Int Int))
+(declare-fun b () (Array Int Int))
+(declare-fun x () Int)
+(declare-fun y () Int)
+(assert (let ((_let_1 (>= (+ y (* (- 1) 0)) 0))) (let ((_let_2 (ite _let_1 0 y))) (let ((_let_3 (store b 0 x))) (and (= a (store _let_3 x x)) (>= (+ x (* (- 1) _let_2)) 0) (= a (store _let_3 x y)) (= x _let_2) (= a (store (store b y 1) 1 1)) (= x (ite _let_1 1 x)))))))
+(check-sat)

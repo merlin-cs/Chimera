@@ -1,0 +1,6 @@
+(declare-const _10-0 (_ BitVec 10))
+(declare-const arr (Array (_ BitVec 40) (_ BitVec 10)))
+(assert (bvsgt (bvsub _10-0 (bvmul _10-0 _10-0)) _10-0))
+(check-sat)
+(check-sat)
+(assert (bvsge (select arr ((_ repeat 8) ((_ extract 9 5) (bvmul _10-0 _10-0)))) (_ bv0 10)))

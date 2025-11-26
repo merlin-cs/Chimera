@@ -1,0 +1,5 @@
+(declare-fun v () Int)
+(declare-fun r () String)
+(assert (distinct r (str.substr r 0 (div 0 (* v v v v v))) "fu" ""))
+(assert (exists ((e Bool)) e))
+(check-sat)

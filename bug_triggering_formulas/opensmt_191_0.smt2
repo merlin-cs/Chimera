@@ -1,0 +1,6 @@
+(declare-fun uf3 (Bool Bool Bool) Bool)
+(declare-fun v0 () Bool)
+(assert (uf3 v0 (uf3 v0 v0 v0) v0))
+(assert (not (uf3 v0 v0 v0)))
+(assert (distinct v0 true))
+(check-sat)

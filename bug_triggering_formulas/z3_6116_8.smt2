@@ -1,0 +1,6 @@
+(declare-fun a (Int) Int)
+(assert (exists ((b Int)) (distinct 0 (a b))))
+(assert (forall ((c Int)) (ite (> (a c) 0) true (exists ((d Int)) (= (a c) (+ 1 (a d)))))))
+(assert (forall ((c Int)) (or (distinct (a c) 2) (forall ((d Int)) (distinct (a c) (+ 2 (a d)))))))
+(assert (forall ((d Int)) (or (= (a d) 5))))
+(check-sat)

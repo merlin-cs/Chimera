@@ -1,0 +1,7 @@
+(declare-fun b ((Array Int (Array Int Real)) Int) Bool)
+(declare-fun v () Int)
+(declare-fun a () Int)
+(declare-fun r () (Array Int (Array Int Real)))
+(assert (or true (distinct (select (select r v) 0) (select (select r 0) a))))
+(assert (forall ((r4 Int) (ar (Array Int Bool)) (r (Array Int Bool)) (va (Array Int (Array Int Real)))) (or (b va 0) (and (= 1 r4) (= ar ((_ map or) r ar))))))
+(check-sat)

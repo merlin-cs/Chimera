@@ -1,0 +1,7 @@
+(declare-fun ar () (Array Int (Array (Array Bool Bool) Bool)))
+(declare-fun r () (Array Bool Bool))
+(declare-fun v () (Array (Array (Array Bool Bool) Bool) (Array (Array Bool Bool) Bool)))
+(declare-fun a () (Array (Array Bool Bool) Bool))
+(assert (not (distinct a (select ar 0) (select (store v a (store (select ar 0) r false)) a))))
+(assert (exists ((va (Array Bool (Array Real Real)))) (forall ((V Real)) (= 1.0 (select (va true) 0.0)))))
+(check-sat)

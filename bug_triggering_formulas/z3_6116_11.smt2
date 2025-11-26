@@ -1,0 +1,8 @@
+(declare-const a Bool)
+(declare-const b Bool)
+(declare-fun c ((Array Int (Array Int Real)) (Array Int (Array Int Real))) (Array Int (Array Int Real)))
+(declare-fun d ((Array Int (Array Int Real))) (Array Int (Array Int Real)))
+(assert (forall ((e Int) (f Int)) (=> (< e f) b)))
+(assert (forall ((k Int) (g Int) (h Int) (i Int) (l (Array Int (Array Int Real))) (j (Array Int (Array Int Real)))) (distinct (and (> h g) (> i 0)) (= (select (select (c l (c j (d j))) h) 0) (select (select (c l (c j (d l))) i) k)))))
+(assert (or a b))
+(check-sat)

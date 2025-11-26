@@ -1,0 +1,6 @@
+(declare-const x Int)
+(declare-const x5 Int)
+(declare-fun ex () Int)
+(declare-fun v () Int)
+(assert (forall ((e Int)) (and (= 0 (+ x ex 1 x5)) (distinct 0 (+ x5 (* v e))))))
+(check-sat)

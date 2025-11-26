@@ -1,0 +1,6 @@
+(declare-fun %db () (_ BitVec 7))
+(declare-fun blk_align_tgt ((_ BitVec 3)) (_ BitVec 6))
+(declare-fun blk_size ((_ BitVec 3)) (_ BitVec 4))
+(declare-fun blk_align_src ((_ BitVec 3)) (_ BitVec 6))
+(assert (let ((a!3 (and (bvule (bvadd #x1 ((_ extract 3 0) %db)) (blk_size ((_ extract 6 4) %db))) (not (= ((_ extract 3 3) %db) #b1)) (bvule #b000011 (blk_align_src ((_ extract 6 4) %db)))))(a!7 (bvule #b000011 (blk_align_tgt ((_ extract 6 4) %db))))) (and (= #x0 (blk_size #b000)) (bvule ((_ extract 6 4) %db) #b001) (bvule (blk_align_src #b001) (blk_align_tgt #b001)) (and a!3 (not a!7)))))
+(check-sat)

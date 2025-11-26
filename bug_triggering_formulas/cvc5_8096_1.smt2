@@ -1,0 +1,7 @@
+(declare-fun v () String)
+(push)
+(assert (exists ((V String)) (str.in_re (str.replace_re_all "A" (str.to_re v) "") (str.to_re ""))))
+(check-sat)
+(pop)
+(assert (forall ((E String)) (= 2000 (str.len v))))
+(check-sat)

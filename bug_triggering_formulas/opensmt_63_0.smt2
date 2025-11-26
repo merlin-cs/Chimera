@@ -1,0 +1,8 @@
+(declare-fun i5 () Int)
+(declare-fun i13 () Int)
+(declare-fun i19 () Int)
+(assert (> i19 i5))
+(assert (=> (> 89 i19) (> i13 55)))
+(push)
+(assert (=> (> i13 55) false))
+(check-sat)

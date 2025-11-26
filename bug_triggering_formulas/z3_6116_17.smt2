@@ -1,0 +1,5 @@
+(declare-const x Bool)
+(declare-fun v () (Array Int Bool))
+(declare-fun a () Int)
+(assert (or x (= v ((_ map or) v v)) (or (> 1 a) (= 0 (bv2nat ((_ int2bv 3) (bv2nat (bvor ((_ int2bv 3) (bv2nat ((_ int2bv 3) 7)))))))))))
+(check-sat)

@@ -1,0 +1,5 @@
+(declare-const x Int)
+(declare-fun a () Bool)
+(assert (forall ((e Int)) (or (> e 0) (exists ((E Int)) a))))
+(assert (distinct true (= 0 (* x (- x)))))
+(check-sat)

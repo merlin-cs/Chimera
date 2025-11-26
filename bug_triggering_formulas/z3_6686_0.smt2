@@ -1,0 +1,8 @@
+(declare-fun i () Int)
+(declare-fun n () Int)
+(assert (> i 1))
+(assert (< i 1))
+(assert (> n 0))
+(assert (< n 1))
+(assert (distinct 0 (+ i n)))
+(check-sat)

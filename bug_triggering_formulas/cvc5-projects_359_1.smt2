@@ -1,0 +1,25 @@
+(declare-sort A$ 0)
+
+(declare-sort A_set$ 0)
+
+(declare-sort A_measure$ 0)
+
+(declare-sort A_real_fun$ 0)
+
+(declare-fun a$ () A$)
+(declare-fun b$ () A$)
+(declare-fun uu$ (A$ A$) A_real_fun$)
+(declare-fun box$ (A$ A$) A_set$)
+(declare-fun cbox$ (A$ A$) A_set$)
+(declare-fun prod$ (A_real_fun$ A_set$) Real)
+(declare-fun basis$ () A_set$)
+(declare-fun inner$ (A$ A$) Real)
+(declare-fun lborel$ () A_measure$)
+(declare-fun member$ (A$ A_set$) Bool)
+(declare-fun fun_app$ (A_real_fun$ A$) Real)
+(declare-fun measure$ (A_measure$ A_set$) Real)
+(assert (forall ((?v0 A$) (?v1 A$) (?v2 A$)) (= (fun_app$ (uu$ ?v0 ?v1) ?v2) (- (inner$ ?v1 ?v2) (inner$ ?v0 ?v2)))))
+(assert (not (= (measure$ lborel$ (box$ a$ b$)) (measure$ lborel$ (cbox$ a$ b$)))))
+(assert (forall ((?v0 A$) (?v1 A$)) (= (measure$ lborel$ (cbox$ ?v0 ?v1)) (ite (forall ((?v2 A$)) (=> (member$ ?v2 basis$) (<= (inner$ ?v0 ?v2) (inner$ ?v1 ?v2)))) (prod$ (uu$ ?v0 ?v1) basis$) 0.0))))
+(assert (forall ((?v0 A$) (?v1 A$)) (= (measure$ lborel$ (box$ ?v0 ?v1)) (ite (forall ((?v2 A$)) (=> (member$ ?v2 basis$) (<= (inner$ ?v0 ?v2) (inner$ ?v1 ?v2)))) (prod$ (uu$ ?v0 ?v1) basis$) 0.0))))
+(check-sat)

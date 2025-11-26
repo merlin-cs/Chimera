@@ -1,0 +1,6 @@
+(declare-fun r4 () Real)
+(declare-fun v74 () Bool)
+(declare-fun r42 () Real)
+(assert (> r4 0.0))
+(assert (or (= 0.0 (+ r4 r42 (sin 1))) v74))
+(check-sat)

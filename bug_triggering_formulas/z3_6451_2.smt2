@@ -1,0 +1,11 @@
+(declare-sort I 0)
+
+(declare-fun f (I I) I)
+(declare-fun e () I)
+(declare-fun e1 () I)
+(declare-fun e2 () I)
+(declare-fun e3 () I)
+(assert (let ((t (= e1 (f e e2)))) (and (= e2 (f e e2)) (or (= e1 (f e3 e1)) t))))
+(assert (not (= e2 (f e2 e2))))
+(assert (= (f e e1) (f e2 e2)))
+(check-sat)

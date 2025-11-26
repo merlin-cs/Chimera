@@ -1,0 +1,6 @@
+(declare-fun a (Int) Int)
+(assert (= 1 (a 0)))
+(assert (= 2 (a 1)))
+(assert (forall ((c Int) (d Int)) (or (>= c d) (< (a c) (a d)))))
+(assert (exists ((e Int)) (<= 0 (exists ((b Int)) (not (= (mod b 2) (a e)))))))
+(check-sat)

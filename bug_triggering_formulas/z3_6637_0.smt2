@@ -1,0 +1,7 @@
+(declare-fun pow2 (Int) Int)
+(declare-fun k () Int)
+(declare-fun s () Int)
+(assert (in_range k s))
+(assert (= 0 (mod (pow2 0) (ite false (pow2 0) (ite (= 0 (pow2 (intashr (+ 1 (div 0 s)) (- 4) k))) 1 0)))))
+(assert pow2_ax)
+(check-sat)

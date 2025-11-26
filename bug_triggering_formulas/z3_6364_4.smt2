@@ -1,0 +1,7 @@
+(declare-fun d () Real)
+(declare-fun q () (Array Int (Array Int Real)))
+(declare-fun u () Real)
+(declare-fun t ((Array Int (Array Int Real)) (Array Int (Array Int Real))) (Array Int (Array Int Real)))
+(assert (forall ((X Int) (J Int) (N Int) (A (Array Int (Array Int Real))) (B (Array Int (Array Int Real)))) (or (distinct (select (select (t q q) 0) 1) (select (select (t A B) 0) 0)) (and (= (select (B X) J) (select (B J) J)) (or (= (select (A X) J) (select (A J) X)) (and (= X 0) (> X 0) (>= J 0) (<= J N)))))))
+(assert (distinct d u))
+(check-sat)

@@ -1,0 +1,5 @@
+(declare-fun s0 () (Array Int Bool))
+(declare-fun s1 () (Array Int Bool))
+(declare-fun s2 () (Array Int Bool))
+(assert s3)
+(check-sat)

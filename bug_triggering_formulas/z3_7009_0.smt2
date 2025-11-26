@@ -1,0 +1,6 @@
+(declare-fun c () Real)
+(declare-fun y () Real)
+(declare-fun x () Real)
+(assert (< (- (+ (* x x) y) c) 0.0))
+(assert (< (- (- (* y y) x) y) 0.0))
+(check-sat)

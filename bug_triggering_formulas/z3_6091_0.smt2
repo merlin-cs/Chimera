@@ -1,0 +1,6 @@
+(declare-const a Int)
+(declare-const b Int)
+(assert (= 0 (+ b a)))
+(assert (= 0 (+ a a (* b a))))
+(assert (= (= 0 b) (forall ((a Int)) (= a 1))))
+(check-sat)

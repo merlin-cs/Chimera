@@ -1,0 +1,7 @@
+(declare-const t fsm-time)
+(assert (= (fsm-get-depth t) 2))
+(check-sat)
+(declare-const t fsm-time)
+(assert (= (fsm-get-depth t) 2))
+(assert (fsm-no-loops t))
+(check-sat)

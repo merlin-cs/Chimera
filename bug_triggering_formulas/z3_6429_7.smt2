@@ -1,0 +1,7 @@
+(declare-fun a () Int)
+(declare-fun b () Int)
+(declare-fun c () Int)
+(declare-fun d () Bool)
+(assert (or d (= 0 (+ b (* b c)))))
+(assert (or (= 0 (+ 1 (* b c))) (and (= b 0) (> a 0) (= a 0))))
+(check-sat)

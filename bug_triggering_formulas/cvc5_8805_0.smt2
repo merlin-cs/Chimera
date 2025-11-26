@@ -1,0 +1,4 @@
+(declare-const a Real)
+(declare-const b Int)
+(assert (= (to_real b) (* a a)))
+(check-sat)

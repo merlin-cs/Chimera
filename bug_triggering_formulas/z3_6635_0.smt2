@@ -1,0 +1,5 @@
+(declare-fun p (Int) Int)
+(declare-fun k () Int)
+(assert (= 1 (mod (mod (- k) (+ 1 (- (- 3)))) (+ 2 1))))
+(assert (< (p 3) (p k)))
+(check-sat)

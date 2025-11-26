@@ -1,0 +1,5 @@
+(declare-const b0 Bool)
+(declare-const b1 Bool)
+(declare-const b2 Bool)
+(assert (xor true true true true true b2 b1 b0 true))
+(check-sat)

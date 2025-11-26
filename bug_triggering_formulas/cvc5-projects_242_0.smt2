@@ -1,0 +1,23 @@
+(declare-sort a 0)
+
+(declare-sort ao 0)
+
+(declare-sort b 0)
+
+(declare-fun c (b a) ao)
+(declare-fun ap (Int) a)
+(declare-fun d () b)
+(declare-fun aa (b) b)
+(declare-fun e () b)
+(declare-fun f (ao) a)
+(declare-fun ab (ao Int) a)
+(declare-fun ac (ao ao) Bool)
+(declare-fun g (ao ao Int Int) Bool)
+(declare-fun h (b b) b)
+(declare-fun acc (ao ao) a)
+(declare-fun i (ao ao ao) a)
+(declare-fun ad (ao ao Int) Bool)
+(declare-fun ag () b)
+(assert (forall ((?j b) (?k b) (?l a)) (exists ((?m a)) (forall ((?n Int)) (let ((?o (h (aa ?k) ?j))) (= (ad (c ?o ?l) (c ?o ?m) ?n) (forall ((?ae a) (?p a)) (=> (ac (c e ?p) (c (aa ?j) ?ae)) (forall ((?q Int)) (let ((?r (aa ?k))(?s (aa ?j))) (let ((?af (c ?s ?ae))) (= (< ?q ?n) (distinct (f (c ?r (acc (c ?o ?l) (c ?s (ab ?af ?q))))) (f (c ?r (acc (c ?o ?m) ?af))))))))))))))))
+(assert (not (forall ((?t a)) (exists ((?ah a)) (forall ((?ai a)) (= (g (c e ?ah) (c ag ?t) 0 4) (forall ((?aj a)) (let ((?o ag)) (= (= ?aj (ab (c ?o ?t) 0)) (= (ac (c e ?ah) (c ?o ?aj)) (forall ((?ak a)) (= (distinct ?ak (acc (c (h d ag) ?ai) (c ?o ?aj))) (forall ((?u a)) (= (= ?u (ab (c ?o ?t) 1)) (= (ac (c e ?ah) (c ?o ?u)) (forall ((?v a)) (= (= ?v (acc (c (h d ag) ?ai) (c ?o ?u))) (= (> 0 0) (forall ((?al a)) (= (= ?al (ab (c ?o ?t) 0)) (= (ac (c e ?ah) (c ?o ?al)) (forall ((?w a)) (= (= ?w (acc (c (h d ag) ?ai) (c ?o ?al))) (forall ((?aq Int)) (= (distinct (ap ?aq) ?w) (forall ((?x a)) (= (= ?x (ab (c ?o ?t) 0)) (forall ((?y a)) (= (= ?y (ab (c ?o ?t) 1)) (= (ac (c e ?ah) (c ?o ?y)) (forall ((?z a)) (= (= ?z (acc (c (h d ag) ?ai) (c ?o ?y))) (= (ac (c e ?ah) (c ?o ?x)) (forall ((?am a)) (= (= ?am (i (c (h d ag) ?ai) (c ?o ?x) (c d ?z))) (forall ((?an a)) (= (= ?an (ab (c ?o ?t) 1)) (= (ac (c e ?ah) (c ?o ?an)) (forall ((?ar a)) (= (= ?ar (i (c (h d ag) ?am) (c ?o ?an) (c d (ap ?aq)))) (forall ((?as a)) (= (= ?as (ab (c ?o ?t) 2)) (= (ac (c e ?ah) (c ?o ?as)) (forall ((?bj a)) (= (= ?bj (acc (c (h d ag) ?ar) (c ?o ?as))) (forall ((?at a)) (= (= ?at (ab (c ?o ?t) 3)) (= (ac (c e ?ah) (c ?o ?at)) (forall ((?au a)) (= (= ?au (acc (c (h d ag) ?ar) (c ?o ?at))) (= (= 0 0) (forall ((?av a)) (= (= ?av (ab (c ?o ?t) 0)) (= (ac (c e ?ah) (c ?o ?av)) (forall ((?aw a)) (= (= ?aw (acc (c (h d ag) ?ar) (c ?o ?av))) (forall ((?ax a)) (= (= ?ax (ab (c ?o ?t) 2)) (= (ac (c e ?ah) (c ?o ?ax)) (forall ((?ay a)) (= (= ?ay (acc (c (h d ag) ?ar) (c ?o ?ax))) (= (= 0 0) (forall ((?az a)) (= (= ?az (ab (c ?o ?t) 1)) (= (ac (c e ?ah) (c ?o ?az)) (forall ((?ba a)) (= (= ?ba (acc (c (h d ag) ?ar) (c ?o ?az))) (forall ((?bb a)) (= (= ?bb (ab (c ?o ?t) 3)) (= (ac (c e ?ah) (c ?o ?bb)) (forall ((?bc a)) (= (= ?bc (acc (c (h d ag) ?ar) (c ?o ?bb))) (= (> 0 0) (forall ((?bd a)) (= (= ?bd (ab (c ?o ?t) 1)) (= (ac (c e ?ah) (c ?o ?bd)) (forall ((?be a)) (= (= ?be (acc (c (h d ag) ?ar) (c ?o ?bd))) (forall ((?bf Int)) (= (= (ap ?bf) ?be) (forall ((?bg a)) (= (= ?bg (ab (c ?o ?t) 1)) (forall ((?bh a)) (= (= ?bh (ab (c ?o ?t) 3)) (= (ac (c e ?ah) (c ?o ?bh)) (forall ((?bi a)) (let ((s 0)) (let ((?r 0)) (= (= ?bi (acc (c (h d ag) ?ar) (c ?o ?bh))) (and (< ?r 0)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+(check-sat)

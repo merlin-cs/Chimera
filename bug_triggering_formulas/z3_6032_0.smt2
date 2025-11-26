@@ -1,0 +1,5 @@
+(declare-fun v!FP () (_ FloatingPoint 8 24))
+(declare-fun ?x150 () (_ FloatingPoint 8 24))
+(declare-const t (_ FloatingPoint 11 53))
+(assert (fp.eq (fp.add RTZ (fp.add RTP v!FP (fp.add roundTowardNegative ?x150 ?x150)) (fp.sub RTN (fp.sub roundTowardPositive (fp.fma RTP v!FP v!FP ?x150) v!FP) v!FP)) (fp.sub RTZ v!FP ?x150)))
+(check-sat)

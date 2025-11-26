@@ -1,0 +1,11 @@
+(declare-sort I)
+
+(declare-const x Bool)
+(declare-const x7 Int)
+(declare-fun o (I I) I)
+(declare-fun v () Int)
+(declare-fun t () I)
+(declare-fun e () I)
+(assert (not (xor x (= 0 (mod v (* v x7 x7 x7))) x (= t (o t t)) (= t (o t e)))))
+(assert (or (exists ((e I)) (= e (o t t)))))
+(check-sat)

@@ -1,0 +1,7 @@
+(declare-fun i0 () Int)
+(push)
+(pop)
+(assert (= (+ 94 i0) i0))
+(push)
+(push)
+(check-sat)

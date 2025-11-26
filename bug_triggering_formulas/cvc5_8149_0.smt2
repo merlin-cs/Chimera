@@ -1,0 +1,2 @@
+(assert (forall ((V Int)) (= 0 (seq.nth (seq.unit 0) 1))))
+(check-sat)

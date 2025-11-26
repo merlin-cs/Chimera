@@ -1,0 +1,6 @@
+(declare-fun c () Float64)
+(declare-fun b () Float64)
+(declare-fun d () Float64)
+(assert (= d (fp #b0 #b11100111110 #b0111110000100110010110110111011001001000001011001101)))
+(assert (= (fp.sub roundTowardZero c b) d))
+(check-sat)

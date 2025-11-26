@@ -1,0 +1,5 @@
+(declare-const x Real)
+(declare-const _x Real)
+(declare-const x1 Real)
+(assert (ite (= 0.0 real.pi) false (= (= x (- _x)) (= 0.0 (/ 0.0 x1 0.0)))))
+(check-sat)

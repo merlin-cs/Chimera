@@ -1,0 +1,5 @@
+(declare-fun str0 () String)
+(declare-fun str5 () String)
+(assert (= str0 (str.substr str5 0 1)))
+(assert (= 473 (- (str.len (str.replace_re_all str0 re.allchar str5)) 639)))
+(check-sat)

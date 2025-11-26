@@ -1,0 +1,7 @@
+(declare-const a (_ BitVec 2))
+(declare-const b (_ BitVec 2))
+(push)
+(assert (bvule ((_ zero_extend 1) b) (_ bv1 3)))
+(assert (bvult (_ bv0 3) ((_ zero_extend 1) a)))
+(assert (bvult a b))
+(check-sat)

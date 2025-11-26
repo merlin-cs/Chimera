@@ -1,0 +1,8 @@
+(declare-const x15 Bool)
+(declare-const x Real)
+(declare-const x1 Real)
+(declare-const x9 Bool)
+(declare-fun v () Real)
+(assert (forall ((r Real)) (or x9 (or (= (+ r 1.0) (mod 0 (to_int x)))))))
+(assert (and (> 0.0 x1) (< x (/ 1.0 0.0 (* v v x x))) (<= 0.0 (/ 0 v))))
+(check-sat)

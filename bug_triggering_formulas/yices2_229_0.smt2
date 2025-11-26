@@ -1,0 +1,7 @@
+(declare-const i10 Int)
+(declare-const i12 Int)
+(declare-const i17 Int)
+(assert (= (- i10 669) i17))
+(assert (= i12 (- 642 i10)))
+(assert (= 642 i10))
+(check-sat)

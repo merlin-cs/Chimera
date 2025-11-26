@@ -1,0 +1,5 @@
+(declare-fun p (Int) Int)
+(declare-fun n (Int) Int)
+(assert (= 1 (p 0)))
+(assert (forall ((s Int) (t Int) (k Int)) (or (= t 0) (> t 0) (= s (- 1)) (distinct k (n (- (div 0 (p k)) t))))))
+(check-sat)
