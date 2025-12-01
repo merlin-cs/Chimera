@@ -23,6 +23,22 @@ It brings together techniques from three pulications:
 
 ---
 
+## Note
+
+We are currently refactoring and integrating our tools into this project.
+Please check back in a few days for a more complete version of this repository.
+Thank you for your interest and understanding.
+---
+
+## Contribution
+
+We welcome contributions and suggestions from both users and researchers.
+Feel free to open issues or submit pull requests to help improve this project.
+
+
+
+---
+
 ## License
 
 Chimera is released under the MIT License.
