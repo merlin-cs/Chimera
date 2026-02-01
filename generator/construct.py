@@ -102,16 +102,16 @@ class GenerationStatistics:
         print("GENERATION STATISTICS SUMMARY")
         print("=" * 60)
         
-        print(f"\n📊 Theory: {self.theory_name} ({self.theory_abbrev})")
-        print(f"🤖 Model: {self.backend} - {self.model}")
+        print(f"\n Theory: {self.theory_name} ({self.theory_abbrev})")
+        print(f" Model: {self.backend} - {self.model}")
         
-        print(f"\n⏱️  TIMING:")
+        print(f"\n  TIMING:")
         print(f"  Total time: {self.total_time:.2f}s")
         print(f"  - CFG generation: {self.cfg_generation_time:.2f}s")
         print(f"  - Initial generator: {self.initial_generator_time:.2f}s")
         print(f"  - Correction process: {self.correction_time:.2f}s")
         
-        print(f"\n🔄 LLM CALLS:")
+        print(f"\n LLM CALLS:")
         print(f"  Total API calls: {self.total_llm_calls}")
         print(f"  - CFG generation: {self.cfg_llm_calls}")
         print(f"  - Generator creation: {self.generator_llm_calls}")
@@ -119,7 +119,7 @@ class GenerationStatistics:
         print(f"  - Repairs: {self.repair_llm_calls}")
         
         if self.total_tokens > 0:
-            print(f"\n💰 TOKEN USAGE:")
+            print(f"\n TOKEN USAGE:")
             print(f"  Prompt tokens: {self.total_prompt_tokens:,}")
             print(f"  Completion tokens: {self.total_completion_tokens:,}")
             print(f"  Total tokens: {self.total_tokens:,}")
@@ -146,14 +146,14 @@ class GenerationStatistics:
         print(f"  Syntax errors: {self.syntax_errors}")
         print(f"  Solver errors: {self.solver_errors}")
         
-        print(f"\n✅ VALIDATION RESULTS:")
+        print(f"\n VALIDATION RESULTS:")
         print(f"  Total terms generated: {self.total_terms_generated}")
         print(f"  Total valid terms: {self.total_terms_valid}")
         print(f"  Overall passing rate: {self.overall_passing_rate:.1%}")
         print(f"  Final passing rate: {self.final_passing_rate:.1%}")
         
         if self.passing_rate_per_iteration:
-            print(f"\n📈 PASSING RATE PER ITERATION:")
+            print(f"\n PASSING RATE PER ITERATION:")
             for i, rate in enumerate(self.passing_rate_per_iteration, 1):
                 valid = self.valid_per_iteration[i-1] if i-1 < len(self.valid_per_iteration) else 0
                 total = self.terms_per_iteration[i-1] if i-1 < len(self.terms_per_iteration) else 0
