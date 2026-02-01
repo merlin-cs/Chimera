@@ -7,12 +7,18 @@ or False to use the original generators.
 """
 
 import os
+from pathlib import Path
 
 # Configuration flag - set this to switch between generator versions
 USE_NEW_GENERATORS = os.environ.get('USE_NEW_GENERATORS', 'false').lower() == 'true'
 
 # Path to new generators (adjust this path as needed)
-NEW_GENERATORS_PATH = "/home/smtagent/generator/generated-gemini"
+# NEW_GENERATORS_PATH = "/home/smtagent/generator/generated-gemini"
+if os.environ.get("NEW_GENERATORS_PATH"):
+    NEW_GENERATORS_PATH = os.environ.get("NEW_GENERATORS_PATH")
+else:
+    NEW_GENERATORS_PATH = str(Path(__file__).parent.parent.joinpath("generator", "generated_gemini").resolve())
+
 
 def get_generator_version():
     """Returns the current generator version being used."""
@@ -66,3 +72,28 @@ def get_new_generator_name(original_name):
     """
     module_name, _ = get_new_generator_info(original_name)
     return module_name
+
+GENERATOR_PROFILE = "gemini"
+
+def expected_generator_filename(module_name):
+    return f"{module_name}_generator.py"
+
+def find_generator_module_path(module_name):
+    path = Path(NEW_GENERATORS_PATH)
+    filename = expected_generator_filename(module_name)
+    # Search in common subdirectories
+    for subdir in ["general", "cvc5", "z3"]:
+        candidate = path / subdir / filename
+        if candidate.exists():
+            return str(candidate)
+    
+    # Check root as fallback
+    candidate = path / filename
+    if candidate.exists():
+        return str(candidate)
+    return None
+
+def new_generator_file_exists(original_name):
+    # Map original name (e.g. 'bv') to new module name (e.g. 'fixedsizebitvectors')
+    module_name = get_new_generator_name(original_name)
+    return find_generator_module_path(module_name) is not None

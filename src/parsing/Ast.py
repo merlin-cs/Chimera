@@ -21,6 +21,7 @@
 # SOFTWARE.
 
 import copy
+import random
 
 
 def extract_outer_parenthesis(s):
@@ -70,6 +71,7 @@ class Script:
         self.free_var_occs = []
         self.op_occs = []
         self.assert_cmd = []
+        self.const_occs = []
 
         for cmd in self.commands:
             if isinstance(cmd, Assert):
@@ -83,6 +85,7 @@ class Script:
         if isinstance(e, str):
             return
         if e.is_const:
+            self.const_occs.append(e)
             return
         if e.label:
             return
@@ -121,6 +124,7 @@ class Script:
 
         for sub in e.subterms:
             self._get_free_var_occs(sub, global_vars)
+
 
     def _decl_commands(self):
         vars, types = [], {}
@@ -190,7 +194,7 @@ class Script:
 
     def _get_new_name(self, sort, var_index):
         # print(type(sort))
-        if str(sort).startswith("(Array"):
+        if sort.startswith("(Array"):
             name = sort.strip("(")
             name = name.strip(")")
             name = extract_outer_parenthesis(name)
@@ -221,7 +225,6 @@ class Script:
         """
         var_index = 0
         name_map = {}
-        new_name = ""
         for cmd in self.commands:
             if isinstance(cmd, DeclareConst):
                 sort = cmd.sort
@@ -610,9 +613,9 @@ class SMTLIBCommand:
         return self.cmd_str
 
     def __eq__(self, other):
-        # Robust equality: only compare with same class (or having cmd_str attr)
-        # to avoid AttributeError when other is e.g., an Assert instance.
-        return isinstance(other, SMTLIBCommand) and other.cmd_str == self.cmd_str
+        if other.cmd_str == self.cmd_str:
+            return True
+        return False
 
     def __hash__(self):
         return self.cmd_str.__hash__()
@@ -734,6 +737,18 @@ class Term:
                 if not isinstance(term, str):
                     term.parent = self
 
+    def get_all_subterms(self):
+        """
+        Returns all subterms of an expression.
+        """
+        subterms = []
+        if self.subterms:
+            for sub in self.subterms:
+                subterms.append(sub)
+                if isinstance(sub, Term):
+                    subterms += sub.get_all_subterms()
+        return subterms
+
     def find_all(self, e, occs):
         """
         Find all expressions e in self and add them to the list occs.
@@ -745,7 +760,8 @@ class Term:
                 if sub == e:
                     occs.append(sub)
                 else:
-                    sub.find_all(e, occs)
+                    if isinstance(sub, Term):
+                        sub.find_all(e, occs)
 
     def substitute(self, e, repl):
         """
@@ -753,6 +769,75 @@ class Term:
         """
         occs = []
         self.find_all(e, occs)
+        if len(occs) == 1 and self == occs[0]:
+            occ = occs[0]
+            self._initialize(
+                name=copy.deepcopy(repl.name),
+                type=copy.deepcopy(repl.type),
+                is_const=copy.deepcopy(repl.is_const),
+                is_var=copy.deepcopy(repl.is_var),
+                label=copy.deepcopy(repl.label),
+                indices=copy.deepcopy(repl.indices),
+                quantifier=copy.deepcopy(repl.quantifier),
+                quantified_vars=copy.deepcopy(repl.quantified_vars),
+                var_binders=copy.deepcopy(repl.var_binders),
+                let_terms=copy.deepcopy(repl.let_terms),
+                op=copy.deepcopy(repl.op),
+                subterms=copy.deepcopy(repl.subterms),
+                is_indexed_id=copy.deepcopy(repl.is_indexed_id),
+                parent=occ.parent,
+            )
+        else:
+            for occ in occs:
+                occ._initialize(
+                    name=copy.deepcopy(repl.name),
+                    type=copy.deepcopy(repl.type),
+                    is_const=copy.deepcopy(repl.is_const),
+                    is_var=copy.deepcopy(repl.is_var),
+                    label=copy.deepcopy(repl.label),
+                    indices=copy.deepcopy(repl.indices),
+                    quantifier=copy.deepcopy(repl.quantifier),
+                    quantified_vars=copy.deepcopy(repl.quantified_vars),
+                    var_binders=copy.deepcopy(repl.var_binders),
+                    let_terms=copy.deepcopy(repl.let_terms),
+                    op=copy.deepcopy(repl.op),
+                    subterms=copy.deepcopy(repl.subterms),
+                    is_indexed_id=copy.deepcopy(repl.is_indexed_id),
+                    parent=occ.parent,
+                )
+        
+    def substitute_specific_num(self, e, repl, num=1):
+        """
+        Substitute a specific number of expressions e in self by repl.
+        """
+        occs = []
+        self.find_all(e, occs)
+        occs = random.sample(occs, num if num <= len(occs) else len(occs))
+        for occ in occs:
+            occ._initialize(
+                name=copy.deepcopy(repl.name),
+                type=copy.deepcopy(repl.type),
+                is_const=copy.deepcopy(repl.is_const),
+                is_var=copy.deepcopy(repl.is_var),
+                label=copy.deepcopy(repl.label),
+                indices=copy.deepcopy(repl.indices),
+                quantifier=copy.deepcopy(repl.quantifier),
+                quantified_vars=copy.deepcopy(repl.quantified_vars),
+                var_binders=copy.deepcopy(repl.var_binders),
+                let_terms=copy.deepcopy(repl.let_terms),
+                op=copy.deepcopy(repl.op),
+                subterms=copy.deepcopy(repl.subterms),
+                is_indexed_id=copy.deepcopy(repl.is_indexed_id),
+                parent=occ.parent,
+            )
+
+    def substitute_one_term(self, e, repl, idx=0):
+        """
+        Substitute a specific number of expressions e in self by repl.
+        """
+        occs = []
+        self.find_all(e, occs)
+        occs = [occs[idx]]
         for occ in occs:
             occ._initialize(
                 name=copy.deepcopy(repl.name),

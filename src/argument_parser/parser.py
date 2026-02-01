@@ -35,6 +35,12 @@ class MainArgumentParser(object):
                             help="timeout in seconds for each solver invocation (default: 10)")
         parser.add_argument("--iterations", "-i", type=int, default=10,
                             help="number of mutation iterations per seed file (default: 10)")
+        parser.add_argument("--standalone", action="store_true",
+                            help="run in standalone mode without seed files")
+        parser.add_argument("--generator_path", type=str, default=None,
+                            help="path to custom generators")
+        parser.add_argument("--temp", type=str, default="./temp/",
+                            help="directory for temporary files")
         arguments = vars(parser.parse_args())
 
         self.solverbin1 = arguments["solverbin1"]
@@ -46,6 +52,9 @@ class MainArgumentParser(object):
         self.processes = arguments["processes"]
         self.timeout = arguments["timeout"]
         self.iterations = arguments["iterations"]
+        self.standalone = arguments["standalone"]
+        self.generator_path = arguments["generator_path"]
+        self.temp = arguments["temp"]
 
     def get_arguments(self):
 
