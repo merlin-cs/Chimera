@@ -20,24 +20,6 @@ from src.config.generator_config import (
     new_generator_file_exists,
 )
 
-# Import original generators
-from src.generator.bag_generator import generate_bag_formula_with_decls as original_bag
-from src.generator.datatype_generator import generate_smtlib_datatype_with_decls as original_datatype
-from src.generator.ff_generator import generate_ff_formula_with_decls as original_ff
-from src.generator.ho_generator import produce_smtlib_formula_with_decls as original_ho
-from src.generator.seq_generator import generate_seq_formula_with_decls as original_seq
-from src.generator.set_generator import produce_smt_formula_with_decls as original_set
-from src.generator.tras_generator import generate_trans_formula as original_trans
-from src.generator.core_generator import generate_core_formula_with_decls as original_core
-from src.generator.strings_generator import generate_strings_formula_with_decls as original_strings
-from src.generator.real_generator import generate_real_formula_with_decls as original_real
-from src.generator.int_generator import generate_int_formula_with_decls as original_int
-from src.generator.fp_generator import generate_fp_formula_with_decls as original_fp
-from src.generator.bv_generator import generate_bv_formula_with_decls as original_bv
-from src.generator.array_generator import generate_array_formula_with_decls as original_array
-from src.generator.z3_seq_generator import generate_z3_seq_formula_with_decls as original_z3_seq
-from src.generator.real_int_generator import generate_reals_ints_formula_with_decls as original_reals_ints
-
 
 def _candidate_function_names(module_base: str, short_name: Optional[str]) -> List[str]:
     """Return likely function names across different LLM generator templates."""
@@ -120,36 +102,13 @@ def get_generator_function(generator_type):
     Returns:
         The generator function (either original or new)
     """
-    if USE_NEW_GENERATORS:
-        module_name, short_name = get_new_generator_info(generator_type)
-        new_func = load_new_generator(module_name, short_name)
-        if new_func:
-            return new_func
-        else:
-            print(f"Falling back to original generator for {generator_type}")
-    
-    # Fallback to original generators
-    original_generators = {
-        "bag": original_bag,
-        "datatype": original_datatype,
-        "ff": original_ff,
-        "ho": original_ho,
-        "seq": original_seq,
-        "set": original_set,
-        "trans": original_trans,
-        "core": original_core,
-        "strings": original_strings,
-        "real": original_real,
-        "int": original_int,
-        "fp": original_fp,
-        "bv": original_bv,
-        "array": original_array,
-        "z3_seq": original_z3_seq,
-        "reals_ints": original_reals_ints,
-        # Note: "sep" (separation logic) and "cvc5strings" only exist in new generators
-    }
-    
-    return original_generators.get(generator_type)
+    module_name, short_name = get_new_generator_info(generator_type)
+    new_func = load_new_generator(module_name, short_name)
+    if new_func:
+        return new_func
+    else:
+        print(f"Warning: No generator found for {generator_type}")
+        return None
 
 
 def validate_theory_coverage(theory_keys: List[str]) -> Dict[str, str]:
@@ -166,14 +125,7 @@ def validate_theory_coverage(theory_keys: List[str]) -> Dict[str, str]:
     for key in theory_keys:
         func = get_generator_function(key)
         if callable(func):
-            # If we can see an LLM file and new generators are enabled, call it ok:new.
-            if USE_NEW_GENERATORS:
-                if new_generator_file_exists(key):
-                    results[key] = "ok:new"
-                else:
-                    results[key] = "ok:original"
-            else:
-                results[key] = "ok:original"
+             results[key] = "ok:new"
         else:
             results[key] = "missing"
     return results

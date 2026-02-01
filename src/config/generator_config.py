@@ -10,14 +10,14 @@ import os
 from pathlib import Path
 
 # Configuration flag - set this to switch between generator versions
-USE_NEW_GENERATORS = os.environ.get('USE_NEW_GENERATORS', 'false').lower() == 'true'
+USE_NEW_GENERATORS = os.environ.get('USE_NEW_GENERATORS', 'true').lower() == 'true'
 
 # Path to new generators (adjust this path as needed)
 # NEW_GENERATORS_PATH = "/home/smtagent/generator/generated-gemini"
 if os.environ.get("NEW_GENERATORS_PATH"):
     NEW_GENERATORS_PATH = os.environ.get("NEW_GENERATORS_PATH")
 else:
-    NEW_GENERATORS_PATH = str(Path(__file__).parent.parent.joinpath("generator", "generated_gemini").resolve())
+    NEW_GENERATORS_PATH = str(Path(__file__).parent.parent.joinpath("generator").resolve())
 
 
 def get_generator_version():
