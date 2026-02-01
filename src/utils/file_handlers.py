@@ -34,3 +34,11 @@ def split_files(file_list, num_chunks):
         last += avg
         
     return chunks
+
+def get_txt_files_list(path_to_directory):
+    file_paths = list()
+    for r, d, f in os.walk(path_to_directory):
+        for file in f:
+            if ".txt" in file:
+                file_paths.append(os.path.join(r, file))
+    return file_paths

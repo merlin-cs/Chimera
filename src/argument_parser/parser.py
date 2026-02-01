@@ -1,4 +1,3 @@
-
 class MainArgumentParser(object):
 
     def __init__(self):
@@ -41,6 +40,8 @@ class MainArgumentParser(object):
                             help="path to custom generators")
         parser.add_argument("--temp", type=str, default="./temp/",
                             help="directory for temporary files")
+        parser.add_argument("--history", action="store_true",
+                            help="run in history mode using historical data")
         arguments = vars(parser.parse_args())
 
         self.solverbin1 = arguments["solverbin1"]

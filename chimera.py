@@ -1,4 +1,3 @@
-
 import os
 import sys
 import datetime
@@ -22,6 +21,7 @@ from src.constants import (
 )
 from src.config.generator_config import get_generator_version
 from src.config.theory_selection import get_compatible_theories
+from src.history.fuzz import fuzz as history_fuzz
 
 
 def main():
@@ -58,6 +58,7 @@ def main():
     theory = DEFAULT_THEORY
     temp = parsed_arguments.get("temp", TEMP_DIRECTORY)
     standalone = parsed_arguments.get("standalone", False)
+    history_mode = parsed_arguments.get("history", False)
     
     # Get number of processes from arguments or use CPU count
     num_processes = parsed_arguments["processes"]
@@ -70,7 +71,7 @@ def main():
 
     # Get the list of smt files
     smt_files = []
-    if not standalone:
+    if not standalone and not history_mode:
         files_path = parsed_arguments["bugs"]
         if files_path is None:
             files_path = rootpath + "/bug_triggering_formulas"
@@ -81,7 +82,10 @@ def main():
         print(f"Found {len(file_list)} SMT files in {files_path}")
         smt_files = file_list
     else:
-        print("Running in standalone mode")
+        if history_mode:
+            print("Running in history mode")
+        else:
+            print("Running in standalone mode")
 
     # Create a new directory for the current run
     current_time = datetime.datetime.now()
@@ -95,7 +99,7 @@ def main():
     generator_types = get_compatible_theories(solver1, solver2)
 
     file_chunks = []
-    if not standalone:
+    if not standalone and not history_mode:
         file_chunks = split_files(smt_files, num_processes)
         print(f"Split {len(smt_files)} files into {num_processes} chunks: {[len(chunk) for chunk in file_chunks]}")
 
@@ -124,7 +128,20 @@ def main():
         pool = Pool(processes=num_processes)
         # Prepare arguments for multiprocessing - each worker gets its own file chunk
         for i in range(num_processes):
-            if standalone:
+            if history_mode:
+                # History mode arguments
+                skeleton_path = rootpath + "/src/history/resource/skeleton.smt2"
+                buggy_path = rootpath + "/src/history/resource/"
+                rules = None # No rules for now as requested
+                
+                # fuzz(skeleton_path, solver1, solver2, solver1_path, solver2_path, timeout, incremental, core, add_option_flag, rules, buggy, temp, argument, mutant=None, tactic=None)
+                # Note: core corresponds to 'i' (worker id)
+                task_args = (
+                    skeleton_path, solver1, solver2, solver1_path, solver2_path, timeout,
+                    incremental, i, add_option, rules, buggy_path, temp, parsed_arguments
+                )
+                pool.apply_async(history_fuzz, args=task_args)
+            elif standalone:
                 task_args = (
                     DEFAULT_STANDALONE_ITERATIONS, generator_types, base_folder_name, 
                     f"worker_{i}", solver1_path, solver2_path, timeout, 
