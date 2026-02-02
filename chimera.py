@@ -15,14 +15,15 @@ sys.path.append(rootpath)
 from src.argument_parser.parser import MainArgumentParser
 from src.utils.file_handlers import get_all_smt_files_recursively, split_files
 from src.utils.timeout import register_timeout_handler
-from src.core.fuzzer import process_target_file, process_standalone_generation, print_stats
+from src.core.fuzzer import (
+    process_target_file, process_standalone_generation, print_stats,
+    process_history_fuzz, process_rewrite_fuzz
+)
 from src.constants import (
     TEMP_DIRECTORY, DEFAULT_INCREMENTAL, DEFAULT_THEORY, DEFAULT_STANDALONE_ITERATIONS
 )
 from src.config.generator_config import get_generator_version
 from src.config.theory_selection import get_compatible_theories
-from src.history.fuzz import fuzz as history_fuzz
-from src.rewrite.rewrite import fuzz as rewrite_fuzz
 
 
 def main():
@@ -142,7 +143,7 @@ def main():
                     skeleton_path, solver1, solver2, solver1_path, solver2_path, timeout,
                     incremental, i, add_option, rules, buggy_path, temp, parsed_arguments
                 )
-                pool.apply_async(history_fuzz, args=task_args)
+                pool.apply_async(process_history_fuzz, args=(task_args,))
             elif standalone:
                 task_args = (
                     DEFAULT_STANDALONE_ITERATIONS, generator_types, base_folder_name, 
@@ -154,7 +155,15 @@ def main():
                  task_args = (
                     file_chunks[i], solver1, solver1_path, temp, 2, parsed_arguments["iterations"], i, parsed_arguments["bug_type"], parsed_arguments["mimetic"]
                 )
-                 pool.apply_async(rewrite_fuzz, args=task_args)
+                 pool.apply_async(process_rewrite_fuzz, args=(task_args,))
+            else:
+                # Default mode: Mutation-based fuzzing using process_target_file
+                task_args = (
+                    file_chunks[i], generator_types, base_folder_name, 
+                    f"worker_{i}", solver1_path, solver2_path, timeout, 
+                    incremental, solver1, solver2, theory, add_option, temp, lock, stats
+                )
+                pool.apply_async(process_target_file, args=(task_args,))
         
         # Close the pool and wait for all tasks to complete
         pool.close()
