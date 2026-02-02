@@ -35,7 +35,7 @@ import time
 
 
 def record_bug(temp, bug_type, buggy_mutant_path1, buggy_mutant_path2, solver1=None, result1=None, solver2=None,
-               result2=None, option=None):
+               result2=None, option=None, rules=None):
     # Set the directory to store temporary files
     temp_dir = temp
     # Create the directory if it doesn't exist
@@ -63,8 +63,14 @@ def record_bug(temp, bug_type, buggy_mutant_path1, buggy_mutant_path2, solver1=N
     os.mkdir(path_to_bug_dir)
 
     # Copy the original file and the mutant to the bug subdirectory
-    shutil.copy2(buggy_mutant_path1, path_to_bug_dir)
-    shutil.copy2(buggy_mutant_path2, path_to_bug_dir)
+    if os.path.isfile(buggy_mutant_path1):
+        shutil.copy2(buggy_mutant_path1, path_to_bug_dir)
+    if os.path.isfile(buggy_mutant_path2):
+        shutil.copy2(buggy_mutant_path2, path_to_bug_dir)
+    if os.path.isfile(buggy_mutant_path1.replace(".smt2", "_tactic.smt2")):
+        shutil.copy2(buggy_mutant_path1.replace(".smt2", "_tactic.smt2"), path_to_bug_dir)
+    if os.path.isfile(buggy_mutant_path2.replace(".smt2", "_tactic.smt2")):
+        shutil.copy2(buggy_mutant_path2.replace(".smt2", "_tactic.smt2"), path_to_bug_dir)
 
     # Create a string to store information about the bug
     error_logs = "Some info on this bug:\n"
@@ -79,6 +85,9 @@ def record_bug(temp, bug_type, buggy_mutant_path1, buggy_mutant_path2, solver1=N
         error_logs += solver2 + " return " + result2 + "\n"
     if option is not None:
         error_logs += "\n" + "The chosen option: " + option + "\n"
+    if rules is not None:
+        error_logs += "\n" + "The transformation: \n" + rules + "\n"
+
     error_logs += "\n"
 
     # Write the bug information to a file within the bug subdirectory
@@ -89,6 +98,29 @@ def create_file(data, path):
     file = open(path, "w")
     file.write(data)
     file.close()
+
+def run_solver(solver_path, solver, smt_file, timeout, incremental, output_path, temp, opt, default=False, rules=None):
+    temp_file = output_path
+    if default is True:
+        command = command_line(solver_path, solver, smt_file, timeout, incremental, temp_file)
+    else:
+        add_check_sat_using_flag = random.choice([False, True])
+        if default == "options":
+            add_check_sat_using_flag = False
+        if add_check_sat_using_flag and solver == "z3":
+            tactic = z3_tactic(smt_file)
+            smt_file = tactic.add_check_sat_using()
+        z3_opt, cvc5_option = add_option_to_command("ALL", "regular")
+        command = command_line(solver_path, solver, smt_file, timeout, incremental, temp_file, z3_option=z3_opt,
+                               cvc5_opt=cvc5_option)
+    print(command)
+    solver_output, error_msg, exe_time = creat_process_and_get_result(command, temp_file, incremental)
+    if solver_output in ["nullpointer", "assertviolation", "segfault", "fatalfailure", "address error", "crash"]:
+        record_bug(temp, "crash", smt_file, "", solver, solver_output, "", "", option=command, rules=rules)
+        return "crash", error_msg, exe_time
+    if os.path.isfile(temp_file):
+        os.remove(temp_file)
+    return solver_output, error_msg, exe_time, command
 
 def solver_runner(solver1_path, solver2_path, smt_file, timeout, incremental, solver1, solver2,
                   theory, add_option, temp, tactic=None, base_solver1=None, base_solver2=None, target_bug=None):
@@ -326,7 +358,7 @@ def check_result(result1, result2, solver1, solver2, bug_file1_path, bug_file2_p
 def command_line(solver_path, solver, smt_file, timeout, incremental, output_path, check_bug_type="model",
                  z3_option=None, cvc5_opt=None, base=None):
     command = "timeout " + str(timeout) + "s "
-    if solver in ["yices2", "boolector"] and incremental == "incremental":
+    if solver in ["yices2", "boolector", "bitwuzla"] and incremental == "incremental":
         command += solver_path + " --incremental "
     elif solver == "cvc5":
         command += solver_path + " -q --strings-exp "
@@ -349,13 +381,15 @@ def command_line(solver_path, solver, smt_file, timeout, incremental, output_pat
         command += " " + z3_option
     if cvc5_opt is not None and solver == "cvc5":
         command += " " + cvc5_opt
-    command += " " + smt_file + " > " + output_path
-    if base is None:
-        return command
-    else:
-        command2 = command.replace(solver_path, base)
-        command2 = command2.replace(output_path, output_path+".base")
-        return [command, command2]
+    # command += " " + smt_file + " > " + output_path
+    # smt_file and output_path are PosixPath
+    command += " " + str(smt_file) + " > " + str(output_path)
+    # if base is None:
+    return command
+    # else:
+    #     command2 = command.replace(solver_path, base)
+    #     command2 = command2.replace(output_path, output_path+".base")
+    #     return [command, command2]
 
 
 class z3_tactic:
@@ -739,29 +773,32 @@ def creat_process_and_get_result(command, temp_file, incremental):
     :return: the solver output
     """ 
     exe_time = None
-    if type(command) is str:
-        p = subprocess.Popen(command, shell=True, stderr=subprocess.PIPE)
-        terminal_output = p.stderr.read().decode()
-        solver_output = None
-    elif type(command) is list:
-        # print(command[0])
-        start_p1 = time.time()
-        p1 = subprocess.Popen(command[0], stderr=subprocess.PIPE, shell=True)
-        terminal_output = p1.stderr.read().decode()
-        end_p1 = time.time()
-        p1_time = end_p1 - start_p1
-        # print(command[1])
-        start_p2 = time.time()
-        p2 = subprocess.Popen(command[1], stderr=subprocess.PIPE, shell=True)
-        temp = p2.stderr.read().decode()
-        end_p2 = time.time()
-        p2_time = end_p2 - start_p2
-        if p1_time >= 9 and p2_time < 5:
-        # if p1_time >= p2_time * 100 or (p1_time >= 9 and p2_time < 5):
-            solver_output = "performance"
-        else:
-            solver_output = None
-            exe_time = p1_time
+    start_time = time.time()
+    p = subprocess.Popen(command, shell=True, stderr=subprocess.PIPE)
+    end_time = time.time()
+    exe_time = end_time - start_time
+    terminal_output = p.stderr.read().decode()
+    solver_output = None
+    # elif type(command) is list:
+    #     # print(command[0])
+    #     start_p1 = time.time()
+    #     p1 = subprocess.Popen(command[0], stderr=subprocess.PIPE, shell=True)
+    #     terminal_output = p1.stderr.read().decode()
+    #     end_p1 = time.time()
+    #     p1_time = end_p1 - start_p1
+    #     # print(command[1])
+    #     start_p2 = time.time()
+    #     p2 = subprocess.Popen(command[1], stderr=subprocess.PIPE, shell=True)
+    #     temp = p2.stderr.read().decode()
+    #     end_p2 = time.time()
+    #     p2_time = end_p2 - start_p2
+    #     if p1_time >= 9 and p2_time < 5:
+    #     # if p1_time >= p2_time * 100 or (p1_time >= 9 and p2_time < 5):
+    #         solver_output = "performance"
+    #     else:
+    #         solver_output = None
+    #         exe_time = p1_time
+        
     # Process terminal output first before result parsing
     if check_crash(terminal_output) and ignore_crash(terminal_output):
         solver_output = "crash"
@@ -776,16 +813,16 @@ def creat_process_and_get_result(command, temp_file, incremental):
     if terminal_output.find("Error") != -1 and solver_output is None:
         solver_output = "error"
     if solver_output is None:
-        if type(command) is str:
-            solver_output = read_result(temp_file, incremental)
-        elif type(command) is list:
-            temp_output1 = read_result(temp_file, incremental)
-            temp_output2 = read_result(temp_file, incremental)
-            # if temp_output1 == "unknown" and temp_output2 in ["sat", "unsat"]:
-            if temp_output1 == "unknown":
-                solver_output = "completeness"
-            else:
-                solver_output = temp_output1
+        # if type(command) is str:
+        solver_output = read_result(temp_file, incremental)
+        # elif type(command) is list:
+        #     temp_output1 = read_result(temp_file, incremental)
+        #     temp_output2 = read_result(temp_file, incremental)
+        #     # if temp_output1 == "unknown" and temp_output2 in ["sat", "unsat"]:
+        #     if temp_output1 == "unknown":
+        #         solver_output = "completeness"
+        #     else:
+        #         solver_output = temp_output1
     return solver_output, terminal_output, exe_time
 
 
@@ -861,6 +898,24 @@ def extract_assistant_contents(text):
     #         contents.append(line[line.find("> Assistant: ") + len("> Assistant: "):])
     #     else:
     #         contents.append(line)
+
+    # if contents[-1].find("==================================") != -1:
+    #     contents = contents[:-1]
+    # if contents[-1].find("check-sat") != -1:
+    #     contents.append("(check-sat)")
+    # return "\n".join(contents)
+    new_text = text[text.find("> Assistant: ") + len("> Assistant: "):]
+    if new_text.find("==================================") != -1:
+        new_text = new_text.replace("==================================", "")
+    lines = new_text.split("\n")
+    new_lines = []
+    for line in lines:
+        if line.find("(set-option") != -1 or line.find("(set-info") != -1:
+            continue
+        elif line.strip().startswith("(set") or line.strip().startswith("(declare") or line.strip().startswith("(define") or line.strip().startswith("(assert") or line.strip().startswith("(check-sat"):
+            new_lines.append(line)
+    new_lines.append("\n(check-sat)")
+    return "\n".join(new_lines).strip()
 
     # if contents[-1].find("==================================") != -1:
     #     contents = contents[:-1]

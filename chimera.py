@@ -22,6 +22,7 @@ from src.constants import (
 from src.config.generator_config import get_generator_version
 from src.config.theory_selection import get_compatible_theories
 from src.history.fuzz import fuzz as history_fuzz
+from src.rewrite.rewrite import fuzz as rewrite_fuzz
 
 
 def main():
@@ -59,6 +60,7 @@ def main():
     temp = parsed_arguments.get("temp", TEMP_DIRECTORY)
     standalone = parsed_arguments.get("standalone", False)
     history_mode = parsed_arguments.get("history", False)
+    rewrite_mode = parsed_arguments.get("rewrite", False)
     
     # Get number of processes from arguments or use CPU count
     num_processes = parsed_arguments["processes"]
@@ -148,13 +150,11 @@ def main():
                     incremental, solver1, solver2, theory, add_option, temp, lock, stats
                 )
                 pool.apply_async(process_standalone_generation, args=(task_args,))
-            else:
-                task_args = (
-                    file_chunks[i], generator_types, base_folder_name, 
-                    f"worker_{i}", solver1_path, solver2_path, timeout, 
-                    incremental, solver1, solver2, theory, add_option, temp, lock, stats
+            elif rewrite_mode:
+                 task_args = (
+                    file_chunks[i], solver1, solver1_path, temp, 2, parsed_arguments["iterations"], i, parsed_arguments["bug_type"], parsed_arguments["mimetic"]
                 )
-                pool.apply_async(process_target_file, args=(task_args,))
+                 pool.apply_async(rewrite_fuzz, args=task_args)
         
         # Close the pool and wait for all tasks to complete
         pool.close()

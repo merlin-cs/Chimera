@@ -11,6 +11,9 @@ class MainArgumentParser(object):
         self.processes = None
         self.timeout = None
         self.iterations = None
+        self.rewrite = False
+        self.bug_type = None
+        self.mimetic = None
 
     def parse_arguments(self, parser):
 
@@ -42,6 +45,12 @@ class MainArgumentParser(object):
                             help="directory for temporary files")
         parser.add_argument("--history", action="store_true",
                             help="run in history mode using historical data")
+        parser.add_argument("--rewrite", action="store_true",
+                            help="run in rewrite mode")
+        parser.add_argument("--bug_type", type=str, choices=["common", "all"], default="common",
+                            help="the type of bugs to find (default: common)")
+        parser.add_argument("--mimetic", type=int, default=0,
+                            help="number of mimetic mutation iterations (default: 0)")
         arguments = vars(parser.parse_args())
 
         self.solverbin1 = arguments["solverbin1"]
@@ -56,6 +65,9 @@ class MainArgumentParser(object):
         self.standalone = arguments["standalone"]
         self.generator_path = arguments["generator_path"]
         self.temp = arguments["temp"]
+        self.rewrite = arguments["rewrite"]
+        self.bug_type = arguments["bug_type"]
+        self.mimetic = arguments["mimetic"]
 
     def get_arguments(self):
 
@@ -68,5 +80,8 @@ class MainArgumentParser(object):
         self.parsed_arguments["processes"] = self.processes
         self.parsed_arguments["timeout"] = self.timeout
         self.parsed_arguments["iterations"] = self.iterations
+        self.parsed_arguments["rewrite"] = self.rewrite
+        self.parsed_arguments["bug_type"] = self.bug_type
+        self.parsed_arguments["mimetic"] = self.mimetic
 
         return self.parsed_arguments
