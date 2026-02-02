@@ -1,6 +1,16 @@
 import os
+from typing import List
 
-def get_all_smt_files_recursively(path_to_directory):
+def get_all_smt_files_recursively(path_to_directory: str) -> List[str]:
+    """
+    Recursively find all .smt2 files in a directory.
+
+    Args:
+        path_to_directory: path to the directory to search
+
+    Returns:
+        List of paths to .smt2 files
+    """
     file_paths = list()
     for r, d, f in os.walk(path_to_directory):
         for file in f:
@@ -11,7 +21,7 @@ def get_all_smt_files_recursively(path_to_directory):
 
     return file_paths
 
-def split_files(file_list, num_chunks):
+def split_files(file_list: List[str], num_chunks: int) -> List[List[str]]:
     """
     Split a list of files into num_chunks.
     
@@ -35,7 +45,16 @@ def split_files(file_list, num_chunks):
         
     return chunks
 
-def get_txt_files_list(path_to_directory):
+def get_txt_files_list(path_to_directory: str) -> List[str]:
+    """
+    Recursively find all .txt files in a directory.
+
+    Args:
+        path_to_directory: path to the directory to search
+
+    Returns:
+        List of paths to .txt files
+    """
     file_paths = list()
     for r, d, f in os.walk(path_to_directory):
         for file in f:

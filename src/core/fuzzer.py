@@ -8,6 +8,7 @@ import subprocess
 import sys
 import signal
 from copy import deepcopy
+from typing import Optional, List, Any, Dict, Tuple, Union
 
 from src.config.generator_loader import GENERATORS
 from src.parsing.Parse import parse_file, parse_str
@@ -27,10 +28,16 @@ from src.utils.file_handlers import get_all_smt_files_recursively as recursively
 from src.rewrite.equality_saturation.helper import RewriteEGG, convert_to_IR, convert_IR_to_str, ALL_RULES
 from src.parsing.TimeoutDecorator import exit_after
 
-def generator_wrapper(generator):
+def generator_wrapper(generator: str) -> Optional[Tuple[Any, Any]]:
     """
     Wrapper function to call the appropriate generator.
     Now uses the flexible generator loader system.
+    
+    Args:
+        generator: Name of the generator to use.
+        
+    Returns:
+        A tuple of (declarations, formula) or None if generator not found or failed.
     """
     generator_func = GENERATORS.get(generator)
     if generator_func:
@@ -39,7 +46,14 @@ def generator_wrapper(generator):
         print(f"Warning: No generator found for type '{generator}'")
         return None
 
-def print_stats(stats, lock):
+def print_stats(stats: Dict[str, int], lock: Any) -> None:
+    """
+    Print statistics periodically.
+    
+    Args:
+        stats: Managed dictionary containing statistics.
+        lock: Multiprocessing lock.
+    """
     start_time = time.time()
     while True:
         time.sleep(5)
@@ -50,6 +64,112 @@ def print_stats(stats, lock):
             print(f"  Mutations: {stats.get('mutations', 0)}")
             print(f"  Bugs Found: {stats.get('bugs', 0)}")
             print(f"  Invalid: {stats.get('invalid', 0)}")
+
+def _extract_script_components(script: Any) -> Tuple[List[Any], str, str]:
+    """
+    Extract assertions and other commands from a parsed script.
+    
+    Args:
+        script: The parsed script object.
+        
+    Returns:
+        Tuple containing:
+        - assertions: List of assertion objects
+        - assertions_text: String representation of assertions
+        - other_cmd_text: String representation of other commands (declarations, etc.)
+    """
+    assertions = script.assert_cmd
+    assertions_text = "\n".join([assertion.__str__() for assertion in assertions])
+    other_cmd_text = ""
+    for cmd in script.commands:
+        cmd_str = cmd.__str__()
+        if (
+            cmd not in assertions
+            and cmd_str not in assertions_text
+            and not cmd_str.startswith("(set-logic")
+            and not cmd_str.startswith("(exit")
+            and not cmd_str.startswith("(check-sat")
+            and not cmd_str.startswith("(set-info")
+            and not cmd_str.startswith("(set-option")
+            and not cmd_str.startswith("(pop")
+            and not cmd_str.startswith("(push")
+        ):
+            other_cmd_text += cmd_str + "\n"
+    return assertions, assertions_text, other_cmd_text
+
+def _perform_mutation(removed_exprs: List[Any], generator_types: List[str]) -> Tuple[List[str], bool]:
+    """
+    Perform mutation on the selected expressions.
+    
+    Args:
+        removed_exprs: List of expressions to mutate.
+        generator_types: List of available generator types.
+        
+    Returns:
+        Tuple containing:
+        - List of new declarations generated during mutation.
+        - Boolean indicating if 'ho' generator was used.
+    """
+    all_new_declarations = []
+    has_ho = False
+    
+    for expr in removed_exprs:
+        generator_type = random.choice(generator_types)
+        if generator_type == "ho":
+            has_ho = True
+            
+        mutation_result = generator_wrapper(generator_type)
+
+        if mutation_result is None:
+            continue
+
+        new_decl, new_formula = mutation_result
+
+        if isinstance(new_formula, list):
+            new_formula = "\n".join(new_formula)
+
+        # Replace in AST
+        if new_formula is not None:
+            try:
+                # Parse new_formula into a Term
+                dummy_script_str = f"(assert {new_formula})"
+                dummy_script, _ = parse_str(dummy_script_str, silent=True)
+                if dummy_script and dummy_script.assert_cmd:
+                    new_term = dummy_script.assert_cmd[0].term
+                    
+                    # Modify expr[0] in place
+                    expr[0]._initialize(
+                        name=new_term.name,
+                        type=new_term.type,
+                        is_const=new_term.is_const,
+                        is_var=new_term.is_var,
+                        label=new_term.label,
+                        indices=new_term.indices,
+                        quantifier=new_term.quantifier,
+                        quantified_vars=new_term.quantified_vars,
+                        var_binders=new_term.var_binders,
+                        let_terms=new_term.let_terms,
+                        op=new_term.op,
+                        subterms=new_term.subterms,
+                        is_indexed_id=new_term.is_indexed_id,
+                        parent=expr[0].parent
+                    )
+                    expr[0]._add_parent_pointer()
+            except Exception as e:
+                # print(f"Failed to parse/replace: {e}")
+                pass
+        
+        # Collect new declarations from this mutation
+        if isinstance(new_decl, str):
+            new_decl = new_decl.strip().split("\n")
+        if isinstance(new_decl, list):
+            new_declarations = [
+                decl for decl in new_decl 
+                if decl.strip()
+            ]
+            all_new_declarations.extend(new_declarations)
+            
+    return all_new_declarations, has_ho
 
 def process_target_file(args):
     """Worker function that randomly selects a target file and processes all iterations for it"""
@@ -77,24 +197,9 @@ def process_target_file(args):
                     current_script, _ = parse_file(target_file_path, silent=True)
                     expr_list = get_all_basic_subformula(current_script, rename_flag=False)
                     script_text = current_script.__str__()
+                    
                     # Split assertions and other commands
-                    assertions = current_script.assert_cmd
-                    assertions_text = "\n".join([assertion.__str__() for assertion in assertions])
-                    other_cmd_text = ""
-                    for cmd in current_script.commands:
-                        cmd_str = cmd.__str__()
-                        if (
-                            cmd not in assertions
-                            and cmd_str not in assertions_text
-                            and not cmd_str.startswith("(set-logic")
-                            and not cmd_str.startswith("(exit")
-                            and not cmd_str.startswith("(check-sat")
-                            and not cmd_str.startswith("(set-info")
-                            and not cmd_str.startswith("(set-option")
-                            and not cmd_str.startswith("(pop")
-                            and not cmd_str.startswith("(push")
-                        ):
-                            other_cmd_text += cmd_str + "\n"
+                    assertions, assertions_text, other_cmd_text = _extract_script_components(current_script)
 
                 except Exception as e:
                     # with lock:
@@ -116,60 +221,7 @@ def process_target_file(args):
                         # --- Mutation Phase ---
                         removed_exprs = random.sample(expr_list, min(SAMPLE_SIZE, len(expr_list)))
                         # intermediate_formula = assertions_text
-                        all_new_declarations = []
-
-                        for expr in removed_exprs:
-                            generator_type = random.choice(generator_types)
-                            mutation_result = generator_wrapper(generator_type)
-
-                            if mutation_result is None:
-                                continue
-
-                            new_decl, new_formula = mutation_result
-
-                            if isinstance(new_formula, list):
-                                new_formula = "\n".join(new_formula)
-
-                            # Replace in AST
-                            if new_formula is not None:
-                                try:
-                                    # Parse new_formula into a Term
-                                    dummy_script_str = f"(assert {new_formula})"
-                                    dummy_script, _ = parse_str(dummy_script_str, silent=True)
-                                    if dummy_script and dummy_script.assert_cmd:
-                                        new_term = dummy_script.assert_cmd[0].term
-                                        
-                                        # Modify expr[0] in place
-                                        expr[0]._initialize(
-                                            name=new_term.name,
-                                            type=new_term.type,
-                                            is_const=new_term.is_const,
-                                            is_var=new_term.is_var,
-                                            label=new_term.label,
-                                            indices=new_term.indices,
-                                            quantifier=new_term.quantifier,
-                                            quantified_vars=new_term.quantified_vars,
-                                            var_binders=new_term.var_binders,
-                                            let_terms=new_term.let_terms,
-                                            op=new_term.op,
-                                            subterms=new_term.subterms,
-                                            is_indexed_id=new_term.is_indexed_id,
-                                            parent=expr[0].parent
-                                        )
-                                        expr[0]._add_parent_pointer()
-                                except Exception as e:
-                                    # print(f"Failed to parse/replace: {e}")
-                                    pass
-                            
-                            # Collect new declarations from this mutation
-                            if isinstance(new_decl, str):
-                                new_decl = new_decl.strip().split("\n")
-                            if isinstance(new_decl, list):
-                                new_declarations = [
-                                    decl for decl in new_decl 
-                                    if decl.strip()
-                                ]
-                                all_new_declarations.extend(new_declarations)
+                        all_new_declarations, has_ho = _perform_mutation(removed_exprs, generator_types)
                         
                         # Regenerate assertions text from modified AST
                         intermediate_formula = "\n".join([assertion.__str__() for assertion in assertions])
@@ -190,6 +242,12 @@ def process_target_file(args):
                         # Build final formula: new_declarations + original_declarations + mutated_assertions + check-sat
                         final_formula_parts = []
                         
+                        # Add HO logic if needed
+                        if has_ho:
+                            has_logic = any("(set-logic" in part for part in [original_decl_text, intermediate_formula] + all_new_declarations)
+                            if not has_logic:
+                                final_formula_parts.append("(set-logic HO_ALL)")
+                        
                         if all_new_declarations:
                             final_formula_parts.append("\n".join(all_new_declarations))
                         
@@ -205,7 +263,7 @@ def process_target_file(args):
                         smt_file_name = f'{process_folder}/mutant_{worker_id}_{iteration + 1}.smt2'
 
                         # Ensure proper logic declaration placement for HO logic
-                        if generator_type == "ho" or "(set-logic HO_ALL)" in intermediate_formula:
+                        if has_ho or "(set-logic HO_ALL)" in intermediate_formula:
                             if "(set-logic" not in intermediate_formula:
                                 intermediate_formula = "(set-logic HO_ALL)\n" + intermediate_formula
                             else:
@@ -253,23 +311,7 @@ def process_target_file(args):
                                 expr_list = new_expr_list
                                 script_text = current_script.__str__()
                                 # Update the assertions and other command texts for the next iteration
-                                assertions = current_script.assert_cmd
-                                assertions_text = "\n".join([assertion.__str__() for assertion in assertions])
-                                other_cmd_text = ""
-                                for cmd in current_script.commands:
-                                    cmd_str = cmd.__str__()
-                                    if (
-                                        cmd not in assertions
-                                        and cmd_str not in assertions_text
-                                        and not cmd_str.startswith("(set-logic")
-                                        and not cmd_str.startswith("(exit")
-                                        and not cmd_str.startswith("(check-sat")
-                                        and not cmd_str.startswith("(set-info")
-                                        and not cmd_str.startswith("(set-option")
-                                        and not cmd_str.startswith("(pop")
-                                        and not cmd_str.startswith("(push")
-                                    ):
-                                        other_cmd_text += cmd_str + "\n"
+                                assertions, assertions_text, other_cmd_text = _extract_script_components(current_script)
                             else:
                                 # If no expressions found in the new file, break the iteration loop
                                 # with lock:

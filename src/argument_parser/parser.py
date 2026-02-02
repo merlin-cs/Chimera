@@ -1,22 +1,30 @@
+import argparse
+from typing import Dict, Any, Optional
+
 class MainArgumentParser(object):
 
     def __init__(self):
-        self.parsed_arguments = dict()
-        self.solverbin1 = None
-        self.solverbin2 = None
-        self.solver1 = None
-        self.solver2 = None
-        self.option = None
-        self.bugs = None
-        self.processes = None
-        self.timeout = None
-        self.iterations = None
-        self.rewrite = False
-        self.bug_type = None
-        self.mimetic = None
+        self.parsed_arguments: Dict[str, Any] = dict()
+        self.solverbin1: Optional[str] = None
+        self.solverbin2: Optional[str] = None
+        self.solver1: Optional[str] = None
+        self.solver2: Optional[str] = None
+        self.option: Optional[str] = None
+        self.bugs: Optional[str] = None
+        self.processes: Optional[int] = None
+        self.timeout: Optional[int] = None
+        self.iterations: Optional[int] = None
+        self.rewrite: bool = False
+        self.bug_type: Optional[str] = None
+        self.mimetic: Optional[int] = None
 
-    def parse_arguments(self, parser):
+    def parse_arguments(self, parser: argparse.ArgumentParser) -> None:
+        """
+        Parse command line arguments.
 
+        Args:
+            parser: The argument parser object.
+        """
         parser.add_argument("--bugs", help="the directory of the historical bug-triggers, e.g. /home/bugs")
         parser.add_argument("--solverbin1", help="path to the first solver bin.\n"
                                                  "Note that: if only one solver provided, soundness bugs will be missed. "
@@ -69,8 +77,13 @@ class MainArgumentParser(object):
         self.bug_type = arguments["bug_type"]
         self.mimetic = arguments["mimetic"]
 
-    def get_arguments(self):
+    def get_arguments(self) -> Dict[str, Any]:
+        """
+        Get the parsed arguments.
 
+        Returns:
+            A dictionary containing the parsed arguments.
+        """
         self.parsed_arguments["solverbin1"] = self.solverbin1
         self.parsed_arguments["solverbin2"] = self.solverbin2
         self.parsed_arguments["solver1"] = self.solver1
@@ -83,5 +96,11 @@ class MainArgumentParser(object):
         self.parsed_arguments["rewrite"] = self.rewrite
         self.parsed_arguments["bug_type"] = self.bug_type
         self.parsed_arguments["mimetic"] = self.mimetic
+        
+        # Also include other arguments in the return dict
+        # Assuming we want all of them
+        self.parsed_arguments["standalone"] = self.standalone
+        self.parsed_arguments["generator_path"] = self.generator_path
+        self.parsed_arguments["temp"] = self.temp
 
         return self.parsed_arguments

@@ -26,7 +26,7 @@ from src.config.generator_config import get_generator_version
 from src.config.theory_selection import get_compatible_theories
 
 
-def main():
+def main() -> None:
     # Register timeout handler
     register_timeout_handler()
 
