@@ -4,6 +4,11 @@ import re
 import z3
 from typing import Set, Dict, Optional
 from pathlib import Path
+import sys
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 from src.parsing.Parse import parse_file
 from src.parsing.Ast import DeclareFun, Define, DeclareConst, DefineConst, FunDecl, Assert, CheckSat, Push, Pop, Term
 import shutil
