@@ -759,25 +759,57 @@ def classify_and_move(file_path):
 
     try:
         # Detect logic using SMTLogicDetector
-        logic = get_smt_logic(file_path)
-        
+        try:
+            logic = get_smt_logic(file_path)
+        except Exception:
+            logic = None
+
+        # Normalize logic string; default to UNKNOWN when detection fails or returns falsy value
+        logic = logic if isinstance(logic, str) and logic else "UNKNOWN"
+
         directory = os.path.dirname(file_path)
         filename = os.path.basename(file_path)
-        
-        # Create logic specific directory structure e.g. stored_dir/solver/QF_LIA/
+
+        # If file is already inside the correct logic directory, nothing to do
+        if os.path.basename(directory) == logic:
+            print(f"{filename} is already in {logic}/, skipping move")
+            return file_path
+
+        # Create logic-specific directory structure
         logic_dir = os.path.join(directory, logic)
-        
-        if not os.path.exists(logic_dir):
-            os.makedirs(logic_dir)
-            
+        os.makedirs(logic_dir, exist_ok=True)
+
+        # Build destination path; avoid overwriting existing files by adding suffix if needed
+        base, ext = os.path.splitext(filename)
         new_path = os.path.join(logic_dir, filename)
+        counter = 1
+        while os.path.exists(new_path):
+            new_path = os.path.join(logic_dir, f"{base}_{counter}{ext}")
+            counter += 1
+
         shutil.move(file_path, new_path)
         print(f"Classified {filename} as {logic}")
         return new_path
-        
+
     except Exception as e:
-        print(f"Failed to classify {file_path}: {e}")
-        return file_path
+        # On any unexpected failure, ensure the file ends up under UNKNOWN so it's not lost
+        unknown_dir = os.path.join(os.path.dirname(file_path), "UNKNOWN")
+        os.makedirs(unknown_dir, exist_ok=True)
+
+        base, ext = os.path.splitext(os.path.basename(file_path))
+        dest = os.path.join(unknown_dir, os.path.basename(file_path))
+        counter = 1
+        while os.path.exists(dest):
+            dest = os.path.join(unknown_dir, f"{base}_{counter}{ext}")
+            counter += 1
+
+        try:
+            shutil.move(file_path, dest)
+            logger.error(f"Failed to classify {file_path} cleanly; moved to UNKNOWN: {e}")
+            return dest
+        except Exception as e2:
+            logger.error(f"Failed to move {file_path} to UNKNOWN: {e2}")
+            return file_path
 
 
 
@@ -934,8 +966,8 @@ if __name__ == "__main__":
 Examples:
   # Collect formulas using a GitHub token and store in ./collected_formulas
   python collect.py --token YOUR_GITHUB_TOKEN --store ./collected_formulas
-    # Collect formulas using token from environment variable
-    python collect.py --store ./collected_formulas
+  # Collect formulas using token from environment variable
+  python collect.py --store ./collected_formulas
             '''
         )
     
