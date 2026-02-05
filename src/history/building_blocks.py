@@ -28,6 +28,7 @@ import shutil
 import string
 from copy import deepcopy
 import glob
+from typing import Dict, List, Set, Tuple
 
 from src.parsing.Ast import Var, Assert, Term, Const, Expr
 from src.parsing.TimeoutDecorator import exit_after
@@ -617,7 +618,7 @@ LOGIC_BUCKETS = [
 ]
 
 
-def _load_logic_mapping(bug_root: str) -> dict[str, list[str]]:
+def _load_logic_mapping(bug_root: str) -> Dict[str, List[str]]:
     """Load pre-analyzed logic mapping from CSVs named like results*.csv.
 
     CSV expected format: header with 'file,logic'. File paths may be relative.
@@ -625,14 +626,14 @@ def _load_logic_mapping(bug_root: str) -> dict[str, list[str]]:
     Returns dict: logic -> list of absolute file paths.
     """
     search_dirs = [bug_root, os.path.dirname(bug_root) or bug_root, os.getcwd()]
-    csv_files: list[str] = []
+    csv_files: List[str] = []
     for d in search_dirs:
         try:
             csv_files += glob.glob(os.path.join(d, "results*.csv"))
         except Exception:
             pass
-    buckets: dict[str, list[str]] = {k: [] for k in LOGIC_BUCKETS}
-    seen: set[tuple[str, str]] = set()
+    buckets: Dict[str, List[str]] = {k: [] for k in LOGIC_BUCKETS}
+    seen: Set[Tuple[str, str]] = set()
     for csv_path in csv_files:
         try:
             with open(csv_path, "r", encoding="utf-8", errors="ignore") as f:
