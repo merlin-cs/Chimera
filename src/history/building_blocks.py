@@ -32,7 +32,8 @@ import glob
 from src.parsing.Ast import Var, Assert, Term, Const, Expr
 from src.parsing.TimeoutDecorator import exit_after
 from src.parsing.Types import TYPES, FP_TYPE, BITVECTOR_TYPE, ARRAY_TYPE
-from src.history.skeleton import get_all_basic_subformula, process_seed, get_subterms
+# from src.history.skeleton import get_all_basic_subformula, process_seed, get_subterms
+from src.formula_utils import get_all_basic_subformula, process_seed, get_subterms 
 from src.utils.file_handlers import get_all_smt_files_recursively as get_all_smt2_file, get_txt_files_list
 from src.utils.type import return_type
 
@@ -126,7 +127,7 @@ class BuildingBlocks(object):
             for line in content:
                 if "declare-sort" in line or "define-sort" in line:
                     self.sort_list.append(line.replace("\n", ""))
-                if re.search(r"\(define-fun", line) or re.search(r"\(declare-fun", line):
+                if re.search(r"\(define-fun", line) or re.search(r"\(declare-fun", line) or re.search(r"\(declare-const", line) or re.search(r"\(define-const", line):
                     if re.search(r"\(\s*\)", line) or re.search(r"\(\n", line):
                         pass
                     else:
@@ -333,9 +334,27 @@ def export_basic_formula(formula_list, output):
         f.write("% var_Bool\nvar00; var00, Bool; \n% const_Bool\ntrue\nfalse")
         for i, formula in enumerate(formula_list):
             formula_str = str(formula[1])
-            for index, fun in enumerate(formula[3]):
-                signature = fun.split(" ")[1]
-                formula_str = formula_str.replace("(" + signature + " ", "(bug" + str(i) + "_" + signature + " ")
+            funcs_to_write = []
+            
+            # Use regex for robust function renaming in both formula usage and declaration
+            for index, fun_decl in enumerate(formula[3]):
+                match = re.search(r"\((?:declare-fun|define-fun|declare-const|define-const)\s+([^\s\)]+)", fun_decl)
+                if match:
+                    original_name = match.group(1)
+                    new_name = "bug" + str(i) + "_" + original_name
+                    
+                    # Rename usage in formula string: match word boundaries for SMT2
+                    # Pattern matches start-of-string or delimiters (space, parens)
+                    pattern = r'(^|[\s()])' + re.escape(original_name) + r'([\s()])'
+                    formula_str = re.sub(pattern, r'\1' + new_name + r'\2', formula_str)
+                    
+                    # Rename definitions/declarations
+                    decl_pattern = r'(\((?:declare-fun|define-fun|declare-const|define-const)\s+)' + re.escape(original_name) + r'([\s)])'
+                    new_decl = re.sub(decl_pattern, r'\1' + new_name + r'\2', fun_decl, count=1)
+                    funcs_to_write.append(new_decl)
+                else:
+                    funcs_to_write.append(fun_decl)
+
             if formula[0] in ["var_Bool", "const_Bool"]:
                 continue
             if i == 0 or formula_list[i - 1][0] != formula[0]:
@@ -350,13 +369,10 @@ def export_basic_formula(formula_list, output):
                 f.write("sort: ")
                 for sort in formula[2]:
                     f.write(sort + "; ")
-            if len(formula[3]) > 0:
+            if len(funcs_to_write) > 0:
                 f.write("func: ")
-                for func in formula[3]:
-                    if "(declare-fun " in func:
-                        f.write(func.replace("(declare-fun ", "(declare-fun bug" + str(i) + "_") + "; ")
-                    elif "(define-fun " in func:
-                        f.write(func.replace("(define-fun ", "(define-fun bug" + str(i) + "_") + "; ")
+                for func in funcs_to_write:
+                    f.write(func + "; ")
 
 
 
@@ -655,42 +671,50 @@ def _load_logic_mapping(bug_root: str) -> dict[str, list[str]]:
     return buckets
 
 
+def _get_files_grouped_by_logic(root_path):
+    logic_files = {}
+    if os.path.isfile(root_path):
+         logic = os.path.basename(os.path.dirname(root_path))
+         logic_files[logic] = [root_path]
+         return logic_files
+         
+    for root, _, files in os.walk(root_path):
+        for file in files:
+            if file.endswith(".smt2") or file.endswith(".smt"):
+                logic = os.path.basename(root)
+                full_path = os.path.join(root, file)
+                if logic not in logic_files:
+                    logic_files[logic] = []
+                logic_files[logic].append(full_path)
+    return logic_files
+
+
 def export_buggy_seed(file_path, output_path):
-    int_list, real_list, string_list, bv_list, fp_list, array_list = classify_formula([file_path])
     if os.path.exists(output_path):
         shutil.rmtree(output_path)
     os.makedirs(output_path)
 
-    # Existing per-type exports (backward compatible)
-    export_basic_formula(merge_file_and_rename_variable(bv_list), output_path + "/bv.txt")
-    export_basic_formula(merge_file_and_rename_variable(fp_list), output_path + "/fp.txt")
-    export_basic_formula(merge_file_and_rename_variable(int_list), output_path + "/int.txt")
-    export_basic_formula(merge_file_and_rename_variable(real_list), output_path + "/real.txt")
-    export_basic_formula(merge_file_and_rename_variable(string_list), output_path + "/string.txt")
-    export_basic_formula(merge_file_and_rename_variable(array_list), output_path + "/array.txt")
-
-    # New: logic-based basic formula exports using pre-analyzed mapping (if available)
-    all_files = [os.path.abspath(p) for p in (int_list + real_list + string_list + bv_list + fp_list + array_list)]
+    # 1. Try to load logic mapping from pre-analyzed metadata (results*.csv)
     logic_map = _load_logic_mapping(file_path)
-    # Filter mapping to only files we collected above
-    if logic_map:
-        for k in list(logic_map.keys()):
-            logic_map[k] = [p for p in logic_map[k] if os.path.abspath(p) in all_files]
-    logic_dir = os.path.join(output_path, "by_logic")
-    os.makedirs(logic_dir, exist_ok=True)
+    
+    # 2. Complement with files detected from the directory's logic-based structure
+    dir_logic_map = _get_files_grouped_by_logic(file_path)
+    for l, files in dir_logic_map.items():
+        if l not in logic_map:
+            logic_map[l] = []
+        existing_set = set(logic_map[l])
+        for f in files:
+            if f not in existing_set:
+                logic_map[l].append(f)
+    
+    # Export building blocks for each logic and simplify the results
     if logic_map:
         for logic_name, files in logic_map.items():
             if not files:
                 continue
             bb = merge_file_and_rename_variable(files)
-            out_file = os.path.join(logic_dir, f"{logic_name}.txt")
+            out_file = os.path.join(output_path, f"{logic_name}.txt")
             export_basic_formula(bb, out_file)
-
-    # Simplify existing outputs
-    simplify(output_path + "/bv.txt")
-    simplify(output_path + "/fp.txt")
-    simplify(output_path + "/int.txt")
-    simplify(output_path + "/real.txt")
-    simplify(output_path + "/string.txt")
-    simplify(output_path + "/array.txt")
+            simplify(out_file)
+            print(f"Exported building blocks for logic {logic_name} to {out_file}")
 

@@ -19,8 +19,8 @@ from src.constants import SAMPLE_SIZE, MAX_ITERATIONS, DEFAULT_STANDALONE_ITERAT
 
 # Imports for History Fuzzing
 from src.history.skeleton import Skeleton, obtain_hole, obtain_local_domain
-from src.history.building_blocks import BuggySeed, rename_variable_in_a_file, rule
-from src.parsing.Ast import DeclareFun, CheckSat, Assert
+from src.history.building_blocks import BuggySeed
+from src.parsing.Ast import DeclareFun
 
 # Imports for Rewrite Fuzzing
 from src.rewrite.mutate import Mutate, mimetic_mutation

@@ -11,6 +11,9 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 from src.parsing.Parse import parse_file
 from src.parsing.Ast import DeclareFun, Define, DeclareConst, DefineConst, FunDecl, Assert, CheckSat, Push, Pop, Term
+from src.formula_utils import process_seed
+from src.history.building_blocks import export_buggy_seed
+from src.history.skeleton import export_skeleton
 import shutil
 import logging
 import json
@@ -67,12 +70,23 @@ def collect_buggy_formula(github_token, solver, stored_dir):
         print(f"Unknown solver: {solver}")
         return
 
+    # Keep base directory for metadata/CSVs
+    base_stored_dir = stored_dir
     # create directory to store formulas
-    stored_dir = stored_dir + "/" + solver
+    stored_dir = os.path.join(base_stored_dir, solver)
     if not os.path.exists(stored_dir):
         os.makedirs(stored_dir)
 
     print(f"Updating {solver} from {repo_name}...")
+
+    # Initialize CSV to store logic mapping in the base directory
+    csv_path = os.path.join(base_stored_dir, f"results_{solver}.csv")
+    if not os.path.exists(csv_path):
+        try:
+            with open(csv_path, "w") as f:
+                f.write("file,logic\n")
+        except Exception as e:
+            logger.error(f"Failed to initialize CSV {csv_path}: {e}")
 
     # Iterate issues
     for issue in get_repo_issues_in_range(github_api, repo_name):
@@ -95,7 +109,11 @@ def collect_buggy_formula(github_token, solver, stored_dir):
                             with open(file_name, "w") as output:
                                 output.write(buggy_formulas)
                             standardize_single_instance(file_name)
-                            classify_and_move(file_name)
+                            new_path, logic = classify_and_move(file_name)
+                            
+                            # Log to CSV
+                            with open(csv_path, "a") as f:
+                                f.write(f"{new_path},{logic}\n")
                             count += 1
                 
                 # Check Comments
@@ -117,7 +135,11 @@ def collect_buggy_formula(github_token, solver, stored_dir):
                                             with open(file_name, "w") as output:
                                                 output.write(buggy_formulas)
                                             standardize_single_instance(file_name)
-                                            classify_and_move(file_name)
+                                            new_path, logic = classify_and_move(file_name)
+                                            
+                                            # Log to CSV
+                                            with open(csv_path, "a") as f:
+                                                f.write(f"{new_path},{logic}\n")
                                             count += 1
                     except Exception as e:
                         logger.error(f"Error fetching comments for issue {issue_number}: {e}")
@@ -229,10 +251,6 @@ def auto_collect_buggy_formulas(token, store_path):
                 # Remove the process from the pool if it has completed
                 process_pool.pop(index)
                 break
-
-def process_seed(seed):
-    script, glob = parse_file(seed, silent=True)
-    return script, glob
 
 
 def standardize_single_instance(file):
@@ -789,7 +807,7 @@ def classify_and_move(file_path):
 
         shutil.move(file_path, new_path)
         print(f"Classified {filename} as {logic}")
-        return new_path
+        return new_path, logic
 
     except Exception as e:
         # On any unexpected failure, ensure the file ends up under UNKNOWN so it's not lost
@@ -806,10 +824,10 @@ def classify_and_move(file_path):
         try:
             shutil.move(file_path, dest)
             logger.error(f"Failed to classify {file_path} cleanly; moved to UNKNOWN: {e}")
-            return dest
+            return dest, "UNKNOWN"
         except Exception as e2:
             logger.error(f"Failed to move {file_path} to UNKNOWN: {e2}")
-            return file_path
+            return file_path, "UNKNOWN"
 
 
 
@@ -975,8 +993,25 @@ Examples:
     parser.add_argument('--store', type=str, required=True, help='Directory to store collected formulas')
 
     args = parser.parse_args()
-    auto_collect_buggy_formulas(args.token, args.store)
 
+    # If the user supplied a GitHub token, fetch issues; otherwise assume
+    # the `--store` directory already contains SMT files to be processed.
+    if args.token:
+        auto_collect_buggy_formulas(args.token, args.store)
+    else:
+        logger.info("No GitHub token provided — skipping remote collection and using existing files in --store")
+
+    # Ensure store path exists before exporting resources
+    if not os.path.exists(args.store):
+        logger.error(f"Store path {args.store} does not exist. Nothing to export.")
+        sys.exit(1)
+
+    # Define resource directory and skeleton file paths (target inside repo)
+    resource_dir = REPO_ROOT / "src" / "history" / "resource"
+    skeleton_file = resource_dir / "skeleton.smt2"
+
+    export_buggy_seed(args.store, str(resource_dir))
+    export_skeleton(args.store, str(skeleton_file))
 
 
 

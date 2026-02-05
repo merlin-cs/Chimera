@@ -9,6 +9,40 @@ from src.parsing.Types import (
 )
 
 
+def process_seed(seed):
+    script, glob = parse_file(seed, silent=True)
+    return script, glob
+
+
+def get_subterms(expr):
+    """
+    Get all subexpression of term object expr.
+    :returns: av_expr list of expressions
+              expr_types list of types
+              (s.t. expression e = av_expr[i] has type expr_types[i])
+    """
+    av_expr = []
+    expr_types = []
+    if isinstance(expr, Term):
+        if expr.subterms:
+            for s in expr.subterms:
+                new_av, new_type = get_subterms(s)
+                av_expr += new_av
+                expr_types += new_type
+            new_type = expr.type
+            expr_types.append(new_type)
+            av_expr.append(expr)
+        else:
+            av_expr.append(expr)
+            expr_types.append(expr.type)
+    elif type(expr) != str:
+        if expr.term:
+            new_av, new_type = get_subterms(expr.term)
+            av_expr += new_av
+            expr_types += new_type
+    return av_expr, expr_types
+
+
 def get_basic_subterms(expr, index, rename_flag=False):
     """
     Get all basic subexpression of term object expr.
@@ -32,7 +66,7 @@ def get_basic_subterms(expr, index, rename_flag=False):
             for s in expr.subterms:
                 new_av, new_type = get_basic_subterms(s, index, rename_flag)
                 basic_expr += new_av
-                expr_types += expr_types
+                expr_types += new_type
         else:
             # This is a basic subexpression, so add it to the list
             basic_expr.append([expr, index])
