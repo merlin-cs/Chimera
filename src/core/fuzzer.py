@@ -442,6 +442,133 @@ def process_standalone_generation(args):
 # History Fuzzing Logic
 # -----------------------------------------------------------------------------
 
+def analyze_logic_capabilities(logic_name):
+    """
+    Parse logic name to set of capabilities.
+    """
+    caps = set()
+    name = logic_name.upper()
+    
+    # Quantifiers
+    if name.startswith("QF_"):
+        caps.add("QF")
+        body = name[3:]
+    else:
+        # If not explicitly QF, it allows quantifiers
+        caps.add("QUANTIFIERS")
+        body = name
+
+    # Sorts/Theories
+    if "BV" in body: caps.add("BV")
+    if "FP" in body: caps.add("FP")
+    
+    # Arrays often denoted by 'A' at start of body, e.g. AB, AUF, A
+    # or inside e.g. QF_ABV
+    # Check for 'A' not part of RA, IA, NA
+    # Heuristic: 'A' that is not followed by 'I' or 'R' or 'L' might be array?
+    # Better: explicit check for known array patterns or just containment of 'A' excluding 'IA', 'RA' 
+    # But 'LIA' has 'IA'. 'NRA' has 'RA'.
+    # A simple but not perfect check:
+    # Remove known arithmetic suffixes first
+    temp_body = body
+    if "IRA" in temp_body: temp_body = temp_body.replace("IRA", "")
+    elif "IA" in temp_body: temp_body = temp_body.replace("IA", "")
+    elif "RA" in temp_body: temp_body = temp_body.replace("RA", "")
+    
+    # Now check for Arrays
+    if "A" in temp_body:
+        caps.add("ARRAYS")
+
+    # Arithmetic Types
+    if "IRA" in body:
+        caps.add("INT")
+        caps.add("REAL")
+    elif "IA" in body:
+        caps.add("INT")
+    elif "RA" in body:
+        caps.add("REAL")
+        
+    # Difference Logic
+    if "IDL" in body:
+        caps.add("INT")
+        caps.add("DL")
+    if "RDL" in body:
+        caps.add("REAL")
+        caps.add("DL")
+
+    # Linearity
+    # If N (nonlinear) is present
+    if "N" in body and ("IA" in body or "RA" in body):
+        caps.add("NONLINEAR")
+    # Note: If not nonlinear, and has arithmetic, it's Linear or DL. 
+    # We treat Linear as default for arithmetic unless DL is specific.
+
+    # Uninterpreted Functions
+    if "UF" in body:
+        caps.add("UF")
+    
+    # Edge case: Empty body or just 'UF' -> QF_UF has no arithmetic
+    
+    return caps
+
+def is_logic_compatible(candidate_logic, target_logic):
+    """
+    Returns True if candidate_logic components can be used in target_logic.
+    Rule: Target must support all features required by Candidate.
+    """
+    if candidate_logic == target_logic:
+        return True
+    
+    cand_caps = analyze_logic_capabilities(candidate_logic)
+    targ_caps = analyze_logic_capabilities(target_logic)
+    
+    # 1. Quantifier Restriction
+    # If Target is QF (and thus has 'QF' in caps), Candidate CANNOT have Quantifiers.
+    # Candidates with 'QF' are safe for QF targets.
+    # Candidates with 'QUANTIFIERS' are NOT safe for QF targets (Targets with 'QF' cap).
+    if "QF" in targ_caps and "QUANTIFIERS" in cand_caps:
+        return False
+        
+    # 2. Sort Compatibility (BV, FP, Arrays)
+    for sort in ["BV", "FP", "ARRAYS"]:
+        if sort in cand_caps and sort not in targ_caps:
+            return False
+            
+    # 3. Arithmetic Sorts (Int, Real)
+    # If candidate needs Int, Target must support Int
+    if "INT" in cand_caps and "INT" not in targ_caps:
+        # Exception: Some logics mix them, but strictly SMT-LIB separates them.
+        return False
+        
+    if "REAL" in cand_caps and "REAL" not in targ_caps:
+        return False
+        
+    # 4. Arithmetic Expressiveness (Linear vs NonLinear vs DiffLogic)
+    # Hierarchy: DiffLogic < Linear < NonLinear
+    
+    # If Candidate is NonLinear, Target must be NonLinear
+    if "NONLINEAR" in cand_caps and "NONLINEAR" not in targ_caps:
+        return False
+        
+    # If Candidate is Linear (default if Int/Real and not DL/NonLinear)
+    # And Target is DiffLogic -> Incompatible (Candidate is too expressive)
+    cand_is_arith = ("INT" in cand_caps or "REAL" in cand_caps)
+    cand_is_dl = "DL" in cand_caps
+    cand_is_nl = "NONLINEAR" in cand_caps
+    # Candidate is "Standard Linear" if Arith + !DL + !NL
+    cand_is_linear = cand_is_arith and not cand_is_dl and not cand_is_nl
+    
+    targ_is_dl = "DL" in targ_caps
+    
+    if cand_is_linear and targ_is_dl:
+        return False
+        
+    # 5. Uninterpreted Functions
+    if "UF" in cand_caps and "UF" not in targ_caps:
+        return False
+        
+    return True
+
 def process_history_fuzz(args):
     """
     Worker function for history-based fuzzing.
@@ -466,7 +593,59 @@ def process_history_fuzz(args):
     os.makedirs(temp_core_dir)
     start_time = time.time()
     total_count = 0
-    theory = random.choice(["int", "real", "string", "bv", "fp", "array"])
+    
+    available_logics = list(buggy_corpus.corpus.keys())
+    user_logic = argument.get("logic") if argument else None
+    
+    target_corpus_data = None
+    fixed_theory = None
+
+    if user_logic and user_logic in available_logics:
+        fixed_theory = user_logic
+        # Logic compatibility Mode
+        compatible_logics = [l for l in available_logics if is_logic_compatible(l, user_logic)]
+        
+        target_corpus_data = {
+            'formula': {},
+            'formula_type': {},
+            'var': {},
+            'formula_sort': {},
+            'formula_func': {}
+        }
+        for log in compatible_logics:
+            data = buggy_corpus.corpus[log]
+            for typ, exprs in data['formula'].items():
+                target_corpus_data['formula'].setdefault(typ, []).extend(exprs)
+            target_corpus_data['formula_type'].update(data['formula_type'])
+            target_corpus_data['var'].update(data['var'])
+            target_corpus_data['formula_sort'].update(data['formula_sort'])
+            target_corpus_data['formula_func'].update(data['formula_func'])
+        
+        # If no compatible logics found (should at least find itself), fallback to self
+        if not target_corpus_data['formula']:
+             target_corpus_data = buggy_corpus.corpus[user_logic]
+
+    elif available_logics:
+        # Mix all available logics
+        fixed_theory = None
+        target_corpus_data = {
+            'formula': {},
+            'formula_type': {},
+            'var': {},
+            'formula_sort': {},
+            'formula_func': {}
+        }
+        for log in available_logics:
+            data = buggy_corpus.corpus[log]
+            for typ, exprs in data['formula'].items():
+                target_corpus_data['formula'].setdefault(typ, []).extend(exprs)
+            target_corpus_data['formula_type'].update(data['formula_type'])
+            target_corpus_data['var'].update(data['var'])
+            target_corpus_data['formula_sort'].update(data['formula_sort'])
+            target_corpus_data['formula_func'].update(data['formula_func'])
+    else:
+        fixed_theory = random.choice(["int", "real", "string", "bv", "fp", "array"])
+
     sort_list = []
     type_expr, expr_type, expr_var, seed_sort, seed_func = None, None, None, None, None
     
@@ -478,45 +657,21 @@ def process_history_fuzz(args):
                 incremental_mode = incremental
             skeleton_list, dynamic_list = skeleton_obj.choose_skeleton_and_remove(dynamic_list, incremental_mode)
             
-            if theory == "real":
-                buggy_typ_expr = buggy_corpus.real_formula
-                buggy_expr_typ = buggy_corpus.real_formula_type
-                buggy_expr_var = buggy_corpus.real_var
-                buggy_expr_sort = buggy_corpus.real_formula_sort
-                buggy_expr_func = buggy_corpus.real_formula_func
-            elif theory == "int":
-                buggy_typ_expr = buggy_corpus.int_formula
-                buggy_expr_typ = buggy_corpus.int_formula_type
-                buggy_expr_var = buggy_corpus.int_var
-                buggy_expr_sort = buggy_corpus.int_formula_sort
-                buggy_expr_func = buggy_corpus.int_formula_func
-            elif theory == "string":
-                buggy_typ_expr = buggy_corpus.string_formula
-                buggy_expr_typ = buggy_corpus.string_formula_type
-                buggy_expr_var = buggy_corpus.string_var
-                buggy_expr_sort = buggy_corpus.string_formula_sort
-                buggy_expr_func = buggy_corpus.string_formula_func
-            elif theory == "bv":
-                buggy_typ_expr = buggy_corpus.bv_formula
-                buggy_expr_typ = buggy_corpus.bv_formula_type
-                buggy_expr_var = buggy_corpus.bv_var
-                buggy_expr_sort = buggy_corpus.bv_formula_sort
-                buggy_expr_func = buggy_corpus.bv_formula_func
-            elif theory == "fp":
-                buggy_typ_expr = buggy_corpus.fp_formula
-                buggy_expr_typ = buggy_corpus.fp_formula_type
-                buggy_expr_var = buggy_corpus.fp_var
-                buggy_expr_sort = buggy_corpus.fp_formula_sort
-                buggy_expr_func = buggy_corpus.fp_formula_func
-            elif theory == "array":
-                buggy_typ_expr = buggy_corpus.array_formula
-                buggy_expr_typ = buggy_corpus.array_formula_type
-                buggy_expr_var = buggy_corpus.array_var
-                buggy_expr_sort = buggy_corpus.array_formula_sort
-                buggy_expr_func = buggy_corpus.array_formula_func
+            if target_corpus_data:
+                buggy_typ_expr = target_corpus_data['formula']
+                buggy_expr_typ = target_corpus_data['formula_type']
+                buggy_expr_var = target_corpus_data['var']
+                buggy_expr_sort = target_corpus_data['formula_sort']
+                buggy_expr_func = target_corpus_data['formula_func']
+                
+                if fixed_theory:
+                    theory = fixed_theory
+                elif available_logics:
+                    theory = random.choice(available_logics)
+                else:
+                     theory = "unknown"
             else: 
                 dynamic_list = deepcopy(initial_skeletons)
-                theory = random.choice(["int", "real", "string", "bv", "fp", "array"])
                 continue
 
             new_ast, ast_var, _, func_list = construct_formula(skeleton_list, type_expr, expr_type, expr_var,
@@ -554,7 +709,6 @@ def process_history_fuzz(args):
                         return
 
             if dynamic_list is None:
-                theory = random.choice(["int", "real", "string", "bv", "fp", "array"])
                 sort_list = []
                 type_expr, expr_type, expr_var, seed_sort, seed_func = None, None, None, None, None
                 dynamic_list = deepcopy(initial_skeletons)

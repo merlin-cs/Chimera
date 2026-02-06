@@ -488,59 +488,35 @@ class rule(object):
 class BuggySeed(object):
     def __init__(self, path):
         self.path = path
-        self.int_formula = dict()
-        self.int_formula_type = dict()
-        self.int_var = dict()
-        self.int_formula_sort = dict()
-        self.int_formula_func = dict()
-        self.real_formula = dict()
-        self.real_formula_type = dict()
-        self.real_var = dict()
-        self.real_formula_sort = dict()
-        self.real_formula_func = dict()
-        self.string_formula = dict()
-        self.string_formula_type = dict()
-        self.string_var = dict()
-        self.string_formula_sort = dict()
-        self.string_formula_func = dict()
-        self.bv_formula = dict()
-        self.bv_formula_type = dict()
-        self.bv_var = dict()
-        self.bv_formula_sort = dict()
-        self.bv_formula_func = dict()
-        self.fp_formula = dict()
-        self.fp_formula_type = dict()
-        self.fp_var = dict()
-        self.fp_formula_sort = dict()
-        self.fp_formula_func = dict()
-        self.array_formula = dict()
-        self.array_formula_type = dict()
-        self.array_var = dict()
-        self.array_formula_sort = dict()
-        self.array_formula_func = dict()
+        self.corpus = {}
         self.read_corpus()
 
     def read_corpus(self):
         files = get_txt_files_list(self.path)
         for file in files:
-            if "int.txt" in file:
-                self.read_single_file(file, self.int_formula, self.int_formula_type, self.int_var, self.int_formula_sort
-                                      , self.int_formula_func)
-            elif "real.txt" in file:
-                self.read_single_file(file, self.real_formula, self.real_formula_type, self.real_var,
-                                      self.real_formula_sort, self.real_formula_func)
-            elif "string.txt" in file:
-                self.read_single_file(file, self.string_formula, self.string_formula_type, self.string_var,
-                                      self.string_formula_sort, self.string_formula_func)
-            elif "bv.txt" in file:
-                self.read_single_file(file, self.bv_formula, self.bv_formula_type, self.bv_var, self.bv_formula_sort,
-                                      self.bv_formula_func)
-            elif "fp.txt" in file:
-                self.read_single_file(file, self.fp_formula, self.fp_formula_type, self.fp_var, self.fp_formula_sort,
-                                      self.fp_formula_func)
-            elif "array.txt" in file:
-                self.read_single_file(file, self.array_formula, self.array_formula_type, self.array_var,
-                                      self.array_formula_sort, self.array_formula_func)
+            # logic = os.path.splitext(os.path.basename(file))[0]
+            # normalized_logic = logic.upper()
+            
+            # Use filename as logic/theory key (including old ones like 'int', 'real' if they exist)
+            key = os.path.splitext(os.path.basename(file))[0]
+            
+            self.corpus[key] = {
+                'formula': {},
+                'formula_type': {},
+                'var': {},
+                'formula_sort': {},
+                'formula_func': {}
+            }
+            
+            target = self.corpus[key]
+            self.read_single_file(
+                file, 
+                target['formula'], 
+                target['formula_type'], 
+                target['var'], 
+                target['formula_sort'], 
+                target['formula_func']
+            )
 
     @staticmethod
     def read_single_file(path, type_formula: dict, formula_type: dict, formula_var: dict, formula_sort: dict,

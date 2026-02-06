@@ -24,6 +24,7 @@ SOFTWARE.
 
 
 import random
+import os
 
 from src.parsing.Ast import Term, Expr
 from src.parsing.Parse import parse_file
@@ -190,8 +191,21 @@ def obtain_skeleton_set(file_list):
 
 class Skeleton(object):
     def __init__(self, path_to_skeleton):
-        self.script, self.global_var = parse_file(path_to_skeleton)
-        self.skeleton_list = self.script.assert_cmd
+        if isinstance(path_to_skeleton, list):
+            paths = path_to_skeleton
+        else:
+            paths = [path_to_skeleton]
+
+        self.skeleton_list = []
+        for path in paths:
+            if os.path.exists(path):
+                try:
+                    script, global_var = parse_file(path)
+                    if script and script.assert_cmd:
+                        self.skeleton_list.extend(script.assert_cmd)
+                except Exception as e:
+                    print(f"Error parsing skeleton {path}: {e}")
+        
         # self.SEED = random_seed
         # self.dynamic_skeleton_list = self.skeleton_list
 

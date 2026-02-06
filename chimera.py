@@ -133,14 +133,28 @@ def main() -> None:
         for i in range(num_processes):
             if history_mode:
                 # History mode arguments
+                resource_dir = rootpath + "/src/history/resource/"
                 skeleton_path = rootpath + "/src/history/resource/skeleton.smt2"
-                buggy_path = rootpath + "/src/history/resource/"
+
+                # Try to find all skeleton smt2 files
+                skeletons = []
+                if os.path.exists(resource_dir):
+                    import glob
+                    found_skeletons = glob.glob(os.path.join(resource_dir, "skeleton*.smt2"))
+                    if found_skeletons:
+                        skeletons = found_skeletons
+                
+                # Fallback to single path if list is empty, though Skeleton class handles list
+                if not skeletons:
+                    skeletons = [skeleton_path]
+
+                buggy_path = resource_dir
                 rules = None # No rules for now as requested
                 
                 # fuzz(skeleton_path, solver1, solver2, solver1_path, solver2_path, timeout, incremental, core, add_option_flag, rules, buggy, temp, argument, mutant=None, tactic=None)
                 # Note: core corresponds to 'i' (worker id)
                 task_args = (
-                    skeleton_path, solver1, solver2, solver1_path, solver2_path, timeout,
+                    skeletons, solver1, solver2, solver1_path, solver2_path, timeout,
                     incremental, i, add_option, rules, buggy_path, temp, parsed_arguments
                 )
                 pool.apply_async(process_history_fuzz, args=(task_args,))

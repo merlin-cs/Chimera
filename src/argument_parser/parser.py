@@ -59,6 +59,8 @@ class MainArgumentParser(object):
                             help="the type of bugs to find (default: common)")
         parser.add_argument("--mimetic", type=int, default=0,
                             help="number of mimetic mutation iterations (default: 0)")
+        parser.add_argument("--logic", type=str, default=None,
+                            help="the target logic/theory to use (e.g. QF_LIA, int, real)")
         arguments = vars(parser.parse_args())
 
         self.solverbin1 = arguments["solverbin1"]
@@ -76,6 +78,7 @@ class MainArgumentParser(object):
         self.rewrite = arguments["rewrite"]
         self.bug_type = arguments["bug_type"]
         self.mimetic = arguments["mimetic"]
+        self.logic = arguments["logic"]
 
     def get_arguments(self) -> Dict[str, Any]:
         """
@@ -96,6 +99,7 @@ class MainArgumentParser(object):
         self.parsed_arguments["rewrite"] = self.rewrite
         self.parsed_arguments["bug_type"] = self.bug_type
         self.parsed_arguments["mimetic"] = self.mimetic
+        self.parsed_arguments["logic"] = self.logic
         
         # Also include other arguments in the return dict
         # Assuming we want all of them
