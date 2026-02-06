@@ -965,11 +965,12 @@ def get_repo_issues_in_range(github, repo_full_name, start_date=None):
     base_url = "https://api.github.com/search/issues"
     # Basic query: repo and type
     base_query = f'repo:{repo_full_name} is:issue state:closed'
-    
+    end_date = datetime.now(timezone.utc)
+
     # We chunk by date to avoid the 1000 items limit of Search API
+
     if not start_date:
         # Ensure end_date is timezone-aware
-        end_date = datetime.now(timezone.utc)
         current_start = datetime(1970, 1, 1, tzinfo=timezone.utc)  # Include all issues by default
     else:
         # Ensure start_date is timezone-aware
