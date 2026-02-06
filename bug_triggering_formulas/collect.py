@@ -5,6 +5,7 @@ import z3
 from typing import Set, Dict, Optional
 from pathlib import Path
 import sys
+from datetime import timezone
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
@@ -967,13 +968,15 @@ def get_repo_issues_in_range(github, repo_full_name, start_date=None):
     
     # We chunk by date to avoid the 1000 items limit of Search API
     if not start_date:
-        start_date = datetime(2000, 1, 1)
-    
-    end_date = datetime.now()
+        # Ensure end_date is timezone-aware
+        end_date = datetime.now(timezone.utc)
+        current_start = datetime(1970, 1, 1, tzinfo=timezone.utc)  # Include all issues by default
+    else:
+        # Ensure start_date is timezone-aware
+        current_start = start_date.replace(tzinfo=timezone.utc)
+
     chunk = timedelta(days=90) # 3 months per chunk
-    
-    current_start = start_date
-    
+
     while current_start <= end_date:
         current_end = current_start + chunk
         if current_end > end_date:
