@@ -36,6 +36,23 @@ CACHE_DIR = CURRENT_DIR / "github_cache"
 CACHE_EXPIRATION = timedelta(hours=24)
 CACHE_DIR.mkdir(exist_ok=True)
 
+def get_last_scanned_date(solver):
+    status_file = CURRENT_DIR / f"status_{solver}.json"
+    if status_file.exists():
+        try:
+            with open(status_file, 'r') as f:
+                return f.read().strip()
+        except Exception as e:
+            logger.error(f"Error reading status file: {e}")
+    return None
+
+def save_last_scanned_date(solver, date_str):
+    status_file = CURRENT_DIR / f"status_{solver}.json"
+    try:
+        with open(status_file, 'w') as f:
+            f.write(date_str)
+    except Exception as e:
+        logger.error(f"Error saving status file: {e}")
 
 def check_title(title: str):
     title = title.lower()
@@ -88,79 +105,102 @@ def collect_buggy_formula(github_token, solver, stored_dir):
         except Exception as e:
             logger.error(f"Failed to initialize CSV {csv_path}: {e}")
 
+    # Get last scanned date for incremental updates
+    last_scanned = get_last_scanned_date(solver)
+    start_dt = None
+    if last_scanned:
+        try:
+            start_dt = datetime.fromisoformat(last_scanned.replace('Z', '+00:00'))
+        except Exception:
+            start_dt = datetime(2018, 1, 1)
+    
+    # Pre-scan existing files recursively across ALL solver directories to avoid re-processing
+    existing_files = set()
+    for root, _, files in os.walk(base_stored_dir):
+        for f in files:
+            if f.endswith(".smt2"):
+                existing_files.add(f)
+    
+    latest_date = last_scanned
+
     # Iterate issues
-    for issue in get_repo_issues_in_range(github_api, repo_name):
+    for issue in get_repo_issues_in_range(github_api, repo_name, start_date=start_dt):
         try:
             issue_number = issue['number']
             issue_title = issue['title']
             issue_body = issue.get('body', '') or ''
+            issue_date = issue['created_at']
+
+            # Update latest_date tracker
+            if not latest_date or issue_date > latest_date:
+                latest_date = issue_date
+
+            # Skip if date is strictly before last scanned
+            if last_scanned and issue_date <= last_scanned:
+                continue
             
-            if check_title(issue_title):
-                print(f"{issue_number} {issue_title}")
-                count = 0
-                
-                # Check Issue Body
-                if "```" in issue_body or "~~~" in issue_body or "cat " in issue_body or "declare-" in issue_body:
-                    buggy_formulas = extract_formula(issue_body)
-                    
-                    if buggy_formulas.strip():
-                        file_name = f"{stored_dir}/{solver}_{issue_number}_{count}.smt2"
-                        if not os.path.exists(file_name):
-                            with open(file_name, "w") as output:
-                                output.write(buggy_formulas)
-                            standardize_single_instance(file_name)
-                            new_path, logic = classify_and_move(file_name)
+            if not check_title(issue_title):
+                continue
+
+            print(f"Processing issue {issue_number}: {issue_title}")
+            count = 0
+            
+            # Extract content from body and all comments
+            contents = [issue_body]
+            comments_count = issue.get('comments', 0)
+            if comments_count > 0:
+                comments_url = issue.get('comments_url')
+                comments_cache_key = f"comments_{repo_name}_{issue_number}"
+                try:
+                    comments = github_api.request(comments_url, params={"per_page": 100}, cache_key=comments_cache_key)
+                    if isinstance(comments, list):
+                        for c in comments:
+                            contents.append(c.get('body', '') or '')
+                except Exception as e:
+                    logger.error(f"Error fetching comments for issue {issue_number}: {e}")
+
+            for content in contents:
+                # Heuristic check for SMT content
+                if any(x in content for x in ["```", "~~~", "cat ", "declare-"]):
+                    extracted = extract_formulas(content)
+                    for formula in extracted:
+                        file_base = f"{solver}_{issue_number}_{count}.smt2"
+                        
+                        if file_base not in existing_files:
+                            file_path = os.path.join(stored_dir, file_base)
+                            with open(file_path, "w") as f:
+                                f.write(formula)
                             
-                            # Log to CSV
-                            with open(csv_path, "a") as f:
-                                f.write(f"{new_path},{logic}\n")
-                            count += 1
-                
-                # Check Comments
-                comments_count = issue.get('comments', 0)
-                if comments_count > 0:
-                    comments_url = issue.get('comments_url')
-                    # Flatten comments just in case, but usually just fetch
-                    comments_cache_key = f"comments_{repo_name}_{issue_number}"
-                    try:
-                        comments = github_api.request(comments_url, params={"per_page": 100}, cache_key=comments_cache_key)
-                        if isinstance(comments, list):
-                            for comment in comments:
-                                comment_body = comment.get('body', '') or ''
-                                if "```" in comment_body or "~~~" in comment_body or "cat " in comment_body or "declare-" in comment_body:
-                                    buggy_formulas = extract_formula(comment_body)
-                                    if buggy_formulas.strip():
-                                        file_name = f"{stored_dir}/{solver}_{issue_number}_{count}.smt2"
-                                        if not os.path.exists(file_name):
-                                            with open(file_name, "w") as output:
-                                                output.write(buggy_formulas)
-                                            standardize_single_instance(file_name)
-                                            new_path, logic = classify_and_move(file_name)
-                                            
-                                            # Log to CSV
-                                            with open(csv_path, "a") as f:
-                                                f.write(f"{new_path},{logic}\n")
-                                            count += 1
-                    except Exception as e:
-                        logger.error(f"Error fetching comments for issue {issue_number}: {e}")
+                            standardized_file = standardize_single_instance(file_path)
+                            if standardized_file:
+                                final_path, logic = classify_and_move(standardized_file)
+                                
+                                # Log to CSV
+                                with open(csv_path, "a") as csv_f:
+                                    csv_f.write(f"{final_path},{logic}\n")
+                        
+                        count += 1
+            
+            # Save progress after each successful issue
+            save_last_scanned_date(solver, issue_date)
 
         except Exception as e:
             logger.error(f"Error processing issue {issue.get('number', 'unknown')}: {e}")
-            pass
+            continue
 
 
 
 
 
-def extract_formula(content):
+
+def extract_formulas(content):
     """
-    Extracts SMT2 formula from text content (issue body or comment).
+    Extracts all SMT2 formulas from text content (issue body or comment).
     Handles markdown code blocks and heuristic extraction.
     """
     formulas = []
     
     # Regex to find code blocks (``` or ~~~)
-    # Use non-greedy match for content
     block_pattern = r"(?:```|~~~)(?:[\w\-]*)?\r?\n(.*?)[\r\n]+(?:```|~~~)"
     blocks = re.findall(block_pattern, content, re.DOTALL)
     
@@ -175,7 +215,7 @@ def extract_formula(content):
         if smt2:
             formulas.append(smt2)
             
-    return "\n".join(formulas)
+    return formulas
 
 
 def clean_smt2_payload(text):
@@ -280,9 +320,12 @@ def standardize_single_instance(file):
         with open(file, "w") as f2:
             for l in new_script:
                 f2.write(l + "\n")
+        return file
     else:
         # If the formula could not be processed, remove the file
-        os.remove(file)
+        if os.path.exists(file):
+            os.remove(file)
+        return None
 
 def check_ast_type(ast_type):
     if ast_type in [Define, DefineConst, DeclareConst, DeclareFun, FunDecl, Assert, Push, Pop, CheckSat]:
@@ -791,7 +834,7 @@ def classify_and_move(file_path):
         # If file is already inside the correct logic directory, nothing to do
         if os.path.basename(directory) == logic:
             print(f"{filename} is already in {logic}/, skipping move")
-            return file_path
+            return file_path, logic
 
         # Create logic-specific directory structure
         logic_dir = os.path.join(directory, logic)
@@ -916,16 +959,16 @@ class GitHubAPI:
                     raise
         raise Exception("Failed after multiple retries")
 
-def get_repo_issues_in_range(github, repo_full_name):
+def get_repo_issues_in_range(github, repo_full_name, start_date=None):
     # Search API approach for better filtering and bulk retrieval
     base_url = "https://api.github.com/search/issues"
     # Basic query: repo and type
     base_query = f'repo:{repo_full_name} is:issue state:closed'
     
     # We chunk by date to avoid the 1000 items limit of Search API
-    # Adjust range as needed. 
-    # Let's go back 5 years or user configuration? 
-    start_date = datetime(2018, 1, 1)
+    if not start_date:
+        start_date = datetime(2000, 1, 1)
+    
     end_date = datetime.now()
     chunk = timedelta(days=90) # 3 months per chunk
     
@@ -1012,7 +1055,6 @@ Examples:
 
     export_buggy_seed(args.store, str(resource_dir))
     export_skeleton(args.store, str(skeleton_file))
-
 
 
 
