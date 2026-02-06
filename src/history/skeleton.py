@@ -117,7 +117,7 @@ def export_skeleton(formula_path, skeleton_file):
                 continue
             # Flatten the string to ensure it occupies a single line in the output file
             sk = sk.replace("\n", " ").replace("\r", " ")
-            if _term_has_quantifier(term):
+            if _term_has_quantifier(term.term):
                 q_skeletons[sk] = q_skeletons.get(sk, 0) + 1
             else:
                 qf_skeletons[sk] = qf_skeletons.get(sk, 0) + 1
