@@ -280,7 +280,7 @@ def process_target_file(args):
 
                         # Format and write the mutated formula
                         formatted_formula = format_smt_string(intermediate_formula)
-                        with open(smt_file_name, 'w') as f:
+                        with open(smt_file_name, 'w', encoding='utf-8') as f:
                             f.write(formatted_formula)
 
                         # with lock:
@@ -405,7 +405,7 @@ def process_standalone_generation(args):
                 formatted_formula = format_smt_string(content)
                 smt_file_name = f'{process_folder}/gen_{worker_id}_{i}.smt2'
                 
-                with open(smt_file_name, 'w') as f:
+                with open(smt_file_name, 'w', encoding='utf-8') as f:
                     f.write(formatted_formula)
 
                 with lock:
@@ -569,6 +569,26 @@ def is_logic_compatible(candidate_logic, target_logic):
         
     return True
 
+def _merge_corpus_data(buggy_corpus: 'BuggySeed', logics: List[str]) -> Dict[str, Dict]:
+    """Merge corpus entries for *logics* into a single unified corpus dict (DRY)."""
+    merged: Dict[str, Dict] = {
+        'formula': {},
+        'formula_type': {},
+        'var': {},
+        'formula_sort': {},
+        'formula_func': {},
+    }
+    for logic in logics:
+        data = buggy_corpus.corpus[logic]
+        for typ, exprs in data['formula'].items():
+            merged['formula'].setdefault(typ, []).extend(exprs)
+        merged['formula_type'].update(data['formula_type'])
+        merged['var'].update(data['var'])
+        merged['formula_sort'].update(data['formula_sort'])
+        merged['formula_func'].update(data['formula_func'])
+    return merged
+
+
 def process_history_fuzz(args):
     """
     Worker function for history-based fuzzing.
@@ -602,47 +622,15 @@ def process_history_fuzz(args):
 
     if user_logic and user_logic in available_logics:
         fixed_theory = user_logic
-        # Logic compatibility Mode
         compatible_logics = [l for l in available_logics if is_logic_compatible(l, user_logic)]
-        
-        target_corpus_data = {
-            'formula': {},
-            'formula_type': {},
-            'var': {},
-            'formula_sort': {},
-            'formula_func': {}
-        }
-        for log in compatible_logics:
-            data = buggy_corpus.corpus[log]
-            for typ, exprs in data['formula'].items():
-                target_corpus_data['formula'].setdefault(typ, []).extend(exprs)
-            target_corpus_data['formula_type'].update(data['formula_type'])
-            target_corpus_data['var'].update(data['var'])
-            target_corpus_data['formula_sort'].update(data['formula_sort'])
-            target_corpus_data['formula_func'].update(data['formula_func'])
-        
-        # If no compatible logics found (should at least find itself), fallback to self
+        target_corpus_data = _merge_corpus_data(buggy_corpus, compatible_logics)
+        # Fallback to self if no compatible formulas found
         if not target_corpus_data['formula']:
-             target_corpus_data = buggy_corpus.corpus[user_logic]
+            target_corpus_data = buggy_corpus.corpus[user_logic]
 
     elif available_logics:
-        # Mix all available logics
         fixed_theory = None
-        target_corpus_data = {
-            'formula': {},
-            'formula_type': {},
-            'var': {},
-            'formula_sort': {},
-            'formula_func': {}
-        }
-        for log in available_logics:
-            data = buggy_corpus.corpus[log]
-            for typ, exprs in data['formula'].items():
-                target_corpus_data['formula'].setdefault(typ, []).extend(exprs)
-            target_corpus_data['formula_type'].update(data['formula_type'])
-            target_corpus_data['var'].update(data['var'])
-            target_corpus_data['formula_sort'].update(data['formula_sort'])
-            target_corpus_data['formula_func'].update(data['formula_func'])
+        target_corpus_data = _merge_corpus_data(buggy_corpus, available_logics)
     else:
         fixed_theory = random.choice(["int", "real", "string", "bv", "fp", "array"])
 
@@ -718,9 +706,9 @@ def process_history_fuzz(args):
         except Exception:
             traceback.print_exc()
             try:
-                with open("exception.txt", "a") as e:
+                with open("exception.txt", "a", encoding="utf-8") as e:
                     e.write(traceback.format_exc())
-            except:
+            except OSError:
                 pass
             time.sleep(1)
             dynamic_list = deepcopy(initial_skeletons)
@@ -747,27 +735,23 @@ def construct_formula(skeleton, seed_type_expr, seed_expr_type, seed_var, bug_ty
             assertion = str(ske)
             while len(blanks) > 0:
                 blank = random.choice(blanks)
-                candidate = None
-                if candidate is not None:
-                    pass
+                replacer_type = random.choice(["seed", "seed", "seed", "buggy"])
+                if replacer_type == "seed" and len(list(seed_var.keys())) > 0:
+                    replacer = random.choice(list(seed_var.keys()))
+                    single_hole_var = seed_var[replacer]
+                    if seed_expr_type.get(replacer) and bug_association and seed_expr_type[replacer] in bug_association.rule_set:
+                        abstract_set.add(seed_expr_type[replacer])
                 else:
-                    replacer_type = random.choice(["seed", "seed", "seed", "buggy"])
-                    if replacer_type == "seed" and len(list(seed_var.keys())) > 0:
-                        replacer = random.choice(list(seed_var.keys()))
-                        single_hole_var = seed_var[replacer]
-                        if seed_expr_type.get(replacer) and bug_association and seed_expr_type[replacer] in bug_association.rule_set:
-                            abstract_set.add(seed_expr_type[replacer])
+                    if len(list(bug_formula_var.keys())) > 0:
+                        replacer = random.choice(list(bug_formula_var.keys()))
+                        single_hole_var = bug_formula_var[replacer]
+                        sort_list += bug_formula_sort.get(replacer, [])
+                        func_list += bug_formula_func.get(replacer, [])
+                        if bug_association and bug_formula_typ.get(replacer) and bug_formula_typ[replacer] in bug_association.rule_set:
+                            abstract_set.add(bug_formula_typ[replacer])
                     else:
-                        if len(list(bug_formula_var.keys())) > 0:
-                            replacer = random.choice(list(bug_formula_var.keys()))
-                            single_hole_var = bug_formula_var[replacer]
-                            sort_list += bug_formula_sort.get(replacer, [])
-                            func_list += bug_formula_func.get(replacer, [])
-                            if bug_association and bug_formula_typ.get(replacer) and bug_formula_typ[replacer] in bug_association.rule_set:
-                                abstract_set.add(bug_formula_typ[replacer])
-                        else:
-                             single_hole_var = []
-                             replacer = "true" 
+                        single_hole_var = []
+                        replacer = "true"
                 
                 assertion = assertion.replace(str(blank), replacer)
                 hole_replacer_dic[str(blank)] = single_hole_var
@@ -887,18 +871,16 @@ def insert_push_and_pop(ast_list):
 
 def collect_sort(file):
     sort_list = []
-    with open(file, "r") as smt_file:
-        content = smt_file.readlines()
-        for line in content:
+    with open(file, "r", encoding="utf-8", errors="replace") as smt_file:
+        for line in smt_file:
             if "declare-sort" in line or "define-sort" in line:
                 sort_list.append(line)
     return sort_list
 
 def export_smt2(script, direct, index):
-    if not os.path.exists(direct):
-        os.mkdir(direct)
-    file_path = direct + "/case" + str(index) + ".smt2"
-    with open(file_path, "w") as f:
+    os.makedirs(direct, exist_ok=True)
+    file_path = os.path.join(direct, f"case{index}.smt2")
+    with open(file_path, "w", encoding="utf-8") as f:
         f.write(script)
     return file_path
 
@@ -918,8 +900,7 @@ def process_rewrite_fuzz(args):
         Fuzz a seed file.
         """
         script_dir = "{}/script/core{}/{}/".format(temp_dir, str(core), seed_file.split('/')[-1].replace('.smt2', ''))
-        if not os.path.exists(script_dir):
-            os.makedirs(script_dir)
+        os.makedirs(script_dir, exist_ok=True)
         initial_seed_filename = seed_file.split("/")[-1]
         
         logic = None 
@@ -1019,7 +1000,7 @@ def process_rewrite_fuzz(args):
                     continue
 
                 mutant_path = script_dir + "/{}_mutant_{}.smt2".format(initial_seed_filename, str(iter))
-                with open(mutant_path, "w") as f:
+                with open(mutant_path, "w", encoding="utf-8") as f:
                     f.write(mutated_formula)
                 
                 try:
@@ -1057,15 +1038,13 @@ def process_rewrite_fuzz(args):
             orig_file_path = mutant_path
 
     # Main loop for process_rewrite_fuzz
-    if not os.path.exists(temp_dir):
-        os.makedirs(temp_dir)
-    if not os.path.exists("{}/script".format(temp_dir)):
-        os.mkdir("{}/script".format(temp_dir))
+    os.makedirs(temp_dir, exist_ok=True)
+    os.makedirs(f"{temp_dir}/script", exist_ok=True)
     
-    script_core_dir = "{}/script/core{}".format(temp_dir, str(core))
+    script_core_dir = f"{temp_dir}/script/core{core}"
     if os.path.exists(script_core_dir):
         shutil.rmtree(script_core_dir)
-    os.mkdir(script_core_dir)
+    os.makedirs(script_core_dir)
     
     try:
         for seed in seeds:
@@ -1076,7 +1055,7 @@ def process_rewrite_fuzz(args):
             except KeyboardInterrupt:
                 break
             except Exception as e:
-                with open(f"{temp_dir}/exception_core_{core}.txt", "w") as f:
+                with open(f"{temp_dir}/exception_core_{core}.txt", "w", encoding="utf-8") as f:
                     f.write(str(e))
                     f.write(traceback.format_exc())
                 continue

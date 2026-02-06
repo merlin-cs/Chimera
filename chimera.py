@@ -1,202 +1,181 @@
+"""
+Chimera – grammar-based SMT solver fuzzer.
+
+Entry point: orchestrates worker processes for mutation-based,
+standalone, history-based, and rewrite-based fuzzing.
+"""
+
 import os
 import sys
+import glob
 import datetime
-import argparse
 import traceback
 import multiprocessing
 from pathlib import Path
+from copy import deepcopy
 from multiprocessing import Pool, Manager
 
 # Set up path
-path = Path(__file__)
-rootpath = str(path.parent.absolute())
-sys.path.append(rootpath)
+ROOT_PATH = str(Path(__file__).parent.resolve())
+if ROOT_PATH not in sys.path:
+    sys.path.append(ROOT_PATH)
 
 from src.argument_parser.parser import MainArgumentParser
 from src.utils.file_handlers import get_all_smt_files_recursively, split_files
 from src.utils.timeout import register_timeout_handler
 from src.core.fuzzer import (
     process_target_file, process_standalone_generation, print_stats,
-    process_history_fuzz, process_rewrite_fuzz
+    process_history_fuzz, process_rewrite_fuzz,
 )
 from src.constants import (
-    TEMP_DIRECTORY, DEFAULT_INCREMENTAL, DEFAULT_THEORY, DEFAULT_STANDALONE_ITERATIONS
+    TEMP_DIRECTORY, DEFAULT_INCREMENTAL, DEFAULT_THEORY, DEFAULT_STANDALONE_ITERATIONS,
 )
 from src.config.generator_config import get_generator_version
 from src.config.theory_selection import get_compatible_theories
 
 
+def _configure_generators(parsed_arguments: dict) -> None:
+    """Hot-reload generator modules if a custom path was supplied."""
+    generator_path = parsed_arguments.get("generator_path")
+    if not generator_path:
+        return
+    os.environ["NEW_GENERATORS_PATH"] = generator_path
+    os.environ["USE_NEW_GENERATORS"] = "true"
+    import importlib
+    import src.config.generator_config
+    import src.config.generator_loader
+    importlib.reload(src.config.generator_config)
+    importlib.reload(src.config.generator_loader)
+
+
+def _discover_skeletons(resource_dir: str, fallback: str):
+    """Return a list of skeleton .smt2 paths found in *resource_dir*."""
+    skeletons = []
+    if os.path.isdir(resource_dir):
+        skeletons = glob.glob(os.path.join(resource_dir, "skeleton*.smt2"))
+    return skeletons if skeletons else [fallback]
+
+
 def main() -> None:
-    # Register timeout handler
     register_timeout_handler()
 
-    # Parse command line arguments
+    # Parse CLI
+    import argparse
     arguments = MainArgumentParser()
     arguments.parse_arguments(argparse.ArgumentParser())
-    parsed_arguments = arguments.get_arguments()
+    parsed = arguments.get_arguments()
 
-    generator_path = parsed_arguments.get("generator_path")
-    if generator_path:
-        os.environ["NEW_GENERATORS_PATH"] = generator_path
-        os.environ["USE_NEW_GENERATORS"] = "true"
-        import importlib
-        import src.config.generator_config
-        import src.config.generator_loader
-        importlib.reload(src.config.generator_config)
-        importlib.reload(src.config.generator_loader)
-
-    # Print which generator version is being used
-    from src.config.generator_config import get_generator_version
+    # Hot-reload generators if needed
+    _configure_generators(parsed)
     print(f"Using {get_generator_version()} generators")
-    
-    # Retrieve parsed command line arguments
-    solver1 = parsed_arguments["solver1"]
-    solver2 = parsed_arguments["solver2"]
-    solver1_path = parsed_arguments["solverbin1"]
-    solver2_path = parsed_arguments["solverbin2"]
-    add_option = parsed_arguments["option"]
-    timeout = parsed_arguments["timeout"]
+
+    # Unpack arguments
+    solver1 = parsed["solver1"]
+    solver2 = parsed["solver2"]
+    solver1_path = parsed["solverbin1"]
+    solver2_path = parsed["solverbin2"]
+    add_option = parsed["option"]
+    timeout = parsed["timeout"]
     incremental = DEFAULT_INCREMENTAL
     theory = DEFAULT_THEORY
-    temp = parsed_arguments.get("temp", TEMP_DIRECTORY)
-    standalone = parsed_arguments.get("standalone", False)
-    history_mode = parsed_arguments.get("history", False)
-    rewrite_mode = parsed_arguments.get("rewrite", False)
-    
-    # Get number of processes from arguments or use CPU count
-    num_processes = parsed_arguments["processes"]
-    if num_processes is None:
-        num_processes = os.cpu_count() or 4
-    
-    # Create temporary directory if it doesn't exist
-    if not os.path.exists(temp):
-        os.mkdir(temp)
+    temp = parsed.get("temp", TEMP_DIRECTORY)
+    standalone = parsed.get("standalone", False)
+    history_mode = parsed.get("history", False)
+    rewrite_mode = parsed.get("rewrite", False)
 
-    # Get the list of smt files
+    num_processes = parsed["processes"] or (os.cpu_count() or 4)
+    os.makedirs(temp, exist_ok=True)
+
+    # ── Seed file discovery ──────────────────────────────────────────────
     smt_files = []
     if not standalone and not history_mode:
-        files_path = parsed_arguments["bugs"]
-        if files_path is None:
-            files_path = rootpath + "/bug_triggering_formulas"
-        if not os.path.exists(files_path):
-            print("bugs path does not exist")
-            exit(0)
-        file_list = get_all_smt_files_recursively(files_path)
-        print(f"Found {len(file_list)} SMT files in {files_path}")
-        smt_files = file_list
+        files_path = parsed.get("bugs") or os.path.join(ROOT_PATH, "bug_triggering_formulas")
+        if not os.path.isdir(files_path):
+            print(f"bugs path does not exist: {files_path}")
+            sys.exit(1)
+        smt_files = get_all_smt_files_recursively(files_path)
+        print(f"Found {len(smt_files)} SMT files in {files_path}")
     else:
-        if history_mode:
-            print("Running in history mode")
-        else:
-            print("Running in standalone mode")
+        print(f"Running in {'history' if history_mode else 'standalone'} mode")
 
-    # Create a new directory for the current run
-    current_time = datetime.datetime.now()
-    base_folder_name = current_time.strftime("%Y-%m-%d-%H-%M-%S")
-    
-    # Create base directory if it doesn't exist
-    if not os.path.exists(base_folder_name):
-        os.mkdir(base_folder_name)
+    # Output directory
+    base_folder = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+    os.makedirs(base_folder, exist_ok=True)
 
-    # Pre-compute generator types for better performance
     generator_types = get_compatible_theories(solver1, solver2)
 
     file_chunks = []
     if not standalone and not history_mode:
         file_chunks = split_files(smt_files, num_processes)
-        print(f"Split {len(smt_files)} files into {num_processes} chunks: {[len(chunk) for chunk in file_chunks]}")
+        print(f"Split {len(smt_files)} files into {num_processes} chunks: {[len(c) for c in file_chunks]}")
 
-    # Create a multiprocessing manager for shared resources
+    # ── Shared state via Manager ─────────────────────────────────────────
     manager = Manager()
     lock = manager.Lock()
-    stats = manager.dict()
-    stats['files_processed'] = 0
-    stats['mutations'] = 0
-    stats['bugs'] = 0
-    stats['invalid'] = 0
-    
-    # Get max iterations from arguments (ignored in standalone mode if using default mostly)
-    # The snippet used a constant, but we can reuse this if needed, 
-    # but fuzzer now uses MAX_ITERATIONS constant.
-    
+    stats = manager.dict(files_processed=0, mutations=0, bugs=0, invalid=0)
+
     print(f"Starting multiprocessing with {num_processes} processes")
-    
+
     pool = None
     try:
-        # Start stats printer thread
-        stats_process = multiprocessing.Process(target=print_stats, args=(stats, lock))
-        stats_process.daemon = True
-        stats_process.start()
+        # Background stats printer
+        stats_proc = multiprocessing.Process(target=print_stats, args=(stats, lock), daemon=True)
+        stats_proc.start()
 
         pool = Pool(processes=num_processes)
-        # Prepare arguments for multiprocessing - each worker gets its own file chunk
+
         for i in range(num_processes):
             if history_mode:
-                # History mode arguments
-                resource_dir = rootpath + "/src/history/resource/"
-                skeleton_path = rootpath + "/src/history/resource/skeleton.smt2"
+                resource_dir = os.path.join(ROOT_PATH, "src", "history", "resource")
+                skeleton_fallback = os.path.join(resource_dir, "skeleton.smt2")
+                skeletons = _discover_skeletons(resource_dir, skeleton_fallback)
 
-                # Try to find all skeleton smt2 files
-                skeletons = []
-                if os.path.exists(resource_dir):
-                    import glob
-                    found_skeletons = glob.glob(os.path.join(resource_dir, "skeleton*.smt2"))
-                    if found_skeletons:
-                        skeletons = found_skeletons
-                
-                # Fallback to single path if list is empty, though Skeleton class handles list
-                if not skeletons:
-                    skeletons = [skeleton_path]
-
-                buggy_path = resource_dir
-                rules = None # No rules for now as requested
-                
-                # fuzz(skeleton_path, solver1, solver2, solver1_path, solver2_path, timeout, incremental, core, add_option_flag, rules, buggy, temp, argument, mutant=None, tactic=None)
-                # Note: core corresponds to 'i' (worker id)
                 task_args = (
                     skeletons, solver1, solver2, solver1_path, solver2_path, timeout,
-                    incremental, i, add_option, rules, buggy_path, temp, parsed_arguments
+                    incremental, i, add_option, None, resource_dir, temp, parsed,
                 )
                 pool.apply_async(process_history_fuzz, args=(task_args,))
+
             elif standalone:
                 task_args = (
-                    DEFAULT_STANDALONE_ITERATIONS, generator_types, base_folder_name, 
-                    f"worker_{i}", solver1_path, solver2_path, timeout, 
-                    incremental, solver1, solver2, theory, add_option, temp, lock, stats
+                    DEFAULT_STANDALONE_ITERATIONS, generator_types, base_folder,
+                    f"worker_{i}", solver1_path, solver2_path, timeout,
+                    incremental, solver1, solver2, theory, add_option, temp, lock, stats,
                 )
                 pool.apply_async(process_standalone_generation, args=(task_args,))
+
             elif rewrite_mode:
-                 task_args = (
-                    file_chunks[i], solver1, solver1_path, temp, 2, parsed_arguments["iterations"], i, parsed_arguments["bug_type"], parsed_arguments["mimetic"]
-                )
-                 pool.apply_async(process_rewrite_fuzz, args=(task_args,))
-            else:
-                # Default mode: Mutation-based fuzzing using process_target_file
                 task_args = (
-                    file_chunks[i], generator_types, base_folder_name, 
-                    f"worker_{i}", solver1_path, solver2_path, timeout, 
-                    incremental, solver1, solver2, theory, add_option, temp, lock, stats
+                    file_chunks[i], solver1, solver1_path, temp, 2,
+                    parsed["iterations"], i, parsed["bug_type"], parsed["mimetic"],
+                )
+                pool.apply_async(process_rewrite_fuzz, args=(task_args,))
+
+            else:
+                task_args = (
+                    file_chunks[i], generator_types, base_folder,
+                    f"worker_{i}", solver1_path, solver2_path, timeout,
+                    incremental, solver1, solver2, theory, add_option, temp, lock, stats,
                 )
                 pool.apply_async(process_target_file, args=(task_args,))
-        
-        # Close the pool and wait for all tasks to complete
+
         pool.close()
         pool.join()
-        
         print("All workers completed successfully.")
-    
+
     except KeyboardInterrupt:
-        print("\nTerminating processes...")
+        print("\nTerminating processes…")
         if pool:
             pool.terminate()
             pool.join()
         print("Bye!")
-    except Exception as e:
-        print(f"Error in main loop: {e}")
+    except Exception as exc:
+        print(f"Error in main loop: {exc}")
         print(traceback.format_exc())
         if pool:
             pool.terminate()
             pool.join()
+
 
 if __name__ == "__main__":
     main()

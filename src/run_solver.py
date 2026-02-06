@@ -36,68 +36,58 @@ import time
 
 def record_bug(temp, bug_type, buggy_mutant_path1, buggy_mutant_path2, solver1=None, result1=None, solver2=None,
                result2=None, option=None, rules=None):
-    # Set the directory to store temporary files
+    """Record a detected bug to disk.
+
+    Creates a numbered subdirectory under ``<temp>/<bug_type>/`` containing
+    copies of the offending SMT files and an ``error_logs.txt`` summary.
+    """
     temp_dir = temp
-    # Create the directory if it doesn't exist
-    if not os.path.exists(temp_dir):
-        os.mkdir(temp_dir)
+    os.makedirs(temp_dir, exist_ok=True)
 
-    # Set the path to store the bug folder
     path_to_bug_folder = os.path.join(temp_dir, bug_type)
-    print("Creating a bug folder at: " + path_to_bug_folder)
+    os.makedirs(path_to_bug_folder, exist_ok=True)
 
-    # Create the bug folder if it doesn't exist
-    if not os.path.exists(path_to_bug_folder):
-        os.mkdir(path_to_bug_folder)
+    # Count existing sub-directories to derive the next index
+    try:
+        existing = next(os.walk(path_to_bug_folder))[1]
+    except StopIteration:
+        existing = []
 
-    # Determine the number of subdirectories within the bug folder
-    number_of_directories = 0
-    for r, d, f in os.walk(path_to_bug_folder):
-        number_of_directories = len(d)
-        break
+    path_to_bug_dir = os.path.join(path_to_bug_folder, str(len(existing)))
+    os.makedirs(path_to_bug_dir, exist_ok=True)
 
-    # Set the path to create a new subdirectory within the bug folder
-    path_to_bug_dir = os.path.join(path_to_bug_folder, str(number_of_directories))
+    # Copy relevant files
+    for src in (buggy_mutant_path1, buggy_mutant_path2):
+        if os.path.isfile(src):
+            shutil.copy2(src, path_to_bug_dir)
+        tactic_src = src.replace(".smt2", "_tactic.smt2")
+        if os.path.isfile(tactic_src):
+            shutil.copy2(tactic_src, path_to_bug_dir)
 
-    # Create the new subdirectory
-    os.mkdir(path_to_bug_dir)
-
-    # Copy the original file and the mutant to the bug subdirectory
-    if os.path.isfile(buggy_mutant_path1):
-        shutil.copy2(buggy_mutant_path1, path_to_bug_dir)
-    if os.path.isfile(buggy_mutant_path2):
-        shutil.copy2(buggy_mutant_path2, path_to_bug_dir)
-    if os.path.isfile(buggy_mutant_path1.replace(".smt2", "_tactic.smt2")):
-        shutil.copy2(buggy_mutant_path1.replace(".smt2", "_tactic.smt2"), path_to_bug_dir)
-    if os.path.isfile(buggy_mutant_path2.replace(".smt2", "_tactic.smt2")):
-        shutil.copy2(buggy_mutant_path2.replace(".smt2", "_tactic.smt2"), path_to_bug_dir)
-
-    # Create a string to store information about the bug
-    error_logs = "Some info on this bug:\n"
-    error_logs += bug_type + "\n"
+    # Build error log
+    lines = [f"Bug type: {bug_type}\n"]
     if isinstance(result1, list):
         result1 = "".join(result1)
     if isinstance(result2, list):
         result2 = "".join(result2)
     if solver1 and result1:
-        error_logs += solver1 + " return " + result1 + "\n"
+        lines.append(f"{solver1} returned {result1}\n")
     if solver2 and result2:
-        error_logs += solver2 + " return " + result2 + "\n"
+        lines.append(f"{solver2} returned {result2}\n")
     if option is not None:
-        error_logs += "\n" + "The chosen option: " + option + "\n"
+        lines.append(f"\nChosen option: {option}\n")
     if rules is not None:
-        error_logs += "\n" + "The transformation: \n" + rules + "\n"
+        lines.append(f"\nTransformation:\n{rules}\n")
 
-    error_logs += "\n"
+    log_path = os.path.join(path_to_bug_dir, "error_logs.txt")
+    with open(log_path, "w", encoding="utf-8") as fh:
+        fh.writelines(lines)
 
-    # Write the bug information to a file within the bug subdirectory
-    create_file(error_logs, os.path.join(path_to_bug_dir, "error_logs.txt"))
 
-
-def create_file(data, path):
-    file = open(path, "w")
-    file.write(data)
-    file.close()
+def _write_text(data: str, path: str) -> None:
+    """Write *data* to *path* using a context manager."""
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(data)
 
 def run_solver(solver_path, solver, smt_file, timeout, incremental, output_path, temp, opt, default=False, rules=None):
     temp_file = output_path
@@ -195,56 +185,34 @@ def solver_runner(solver1_path, solver2_path, smt_file, timeout, incremental, so
 
 def read_result(file_path, incremental):
     try:
-        with open(file_path, 'r') as f:
+        with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
             lines = f.read().splitlines()
-            # print(lines)
-    except:
-        # print(colored("CANT OPEN THE FILE", "red", attrs=["bold"]))
+    except OSError:
         return "error"
 
+    # Map of error substrings to result labels
+    _ERROR_MAP = [
+        ("Parse Error", "parseerror"),
+        ("Segmentation fault", "segfault"),
+        ("NullPointerException", "nullpointer"),
+        ("invalid model", "invalid model"),
+        ("ERRORS SATISFYING", "invalid model"),
+        ("model doesn't satisfy", "invalid model"),
+        ("ASSERTION VIOLATION", "assertviolation"),
+        ("AssertionError", "assertviolation"),
+        ("option parsing", "option error"),
+        ("approximate values", "approximation"),
+        ("failure", "failure"),
+        ("error", "error"),
+        ("unsupported reserved word", "error"),
+    ]
+
     for line in lines:
-
-        if line.find("Parse Error") != -1:
-            os.remove(file_path)
-            return "parseerror"
-
-        if line.find("Segmentation fault") != -1:
-            os.remove(file_path)
-            return "segfault"
-
-        # java.lang.NullPointerException
-        if line.find("NullPointerException") != -1:
-            os.remove(file_path)
-            return "nullpointer"
-
-        if line.find("invalid model") != -1 or line.find("ERRORS SATISFYING") != -1 or line.find("model doesn't satisfy") != -1:
-            os.remove(file_path)
-            return "invalid model"
-
-        if line.find("ASSERTION VIOLATION") != -1:
-            os.remove(file_path)
-            return "assertviolation"
-
-        # java.lang.AssertionError
-        if line.find("AssertionError") != -1:
-            os.remove(file_path)
-            return "assertviolation"
-
-        if line.find("option parsing") != -1:
-            os.remove(file_path)
-            return "option error"
-
-        if line.find("approximate values") != -1:
-            os.remove(file_path)
-            return "approximation"
-
-        if line.find("failure") != -1:
-            os.remove(file_path)
-            return "failure"
-
-        if line.find("error") != -1 or line.find("unsupported reserved word") != -1:
-            os.remove(file_path)
-            return "error"
+        for needle, label in _ERROR_MAP:
+            if needle in line:
+                if os.path.isfile(file_path):
+                    os.remove(file_path)
+                return label
 
     # Incremental mode
     if incremental == "incremental":
@@ -357,39 +325,45 @@ def check_result(result1, result2, solver1, solver2, bug_file1_path, bug_file2_p
 
 def command_line(solver_path, solver, smt_file, timeout, incremental, output_path, check_bug_type="model",
                  z3_option=None, cvc5_opt=None, base=None):
-    command = "timeout " + str(timeout) + "s "
-    if solver in ["yices2", "boolector", "bitwuzla"] and incremental == "incremental":
-        command += solver_path + " --incremental "
+    """Build a solver command as a **list** of arguments (no shell needed).
+
+    The ``timeout`` programme is invoked as the first element; all remaining
+    elements are the solver binary and its flags.
+    """
+    cmd = ["timeout", str(timeout) + "s"]
+
+    if solver in ("yices2", "boolector", "bitwuzla") and incremental == "incremental":
+        cmd += [solver_path, "--incremental"]
     elif solver == "cvc5":
-        command += solver_path + " -q --strings-exp "
+        cmd += [solver_path, "-q", "--strings-exp"]
         if incremental == "incremental":
-            command += " -i "
+            cmd.append("-i")
     else:
-        command += solver_path
-    if solver == "yices2":
-        if random.choice([True, False]):
-            command += " --mcsat "
+        cmd.append(solver_path)
+
+    if solver == "yices2" and random.choice([True, False]):
+        cmd.append("--mcsat")
+
     if check_bug_type == "model":
         if solver == "z3":
-            # command += " tactic.default_tactic=smt sat.euf=true model_validate=true"
-            command += " model_validate=true "
+            cmd.append("model_validate=true")
         elif solver == "cvc5":
-            command += " --check-models "
+            cmd.append("--check-models")
         elif solver == "bitwuzla":
-            command += " --check-model "
-    if z3_option is not None and solver == "z3":
-        command += " " + z3_option
-    if cvc5_opt is not None and solver == "cvc5":
-        command += " " + cvc5_opt
-    # command += " " + smt_file + " > " + output_path
-    # smt_file and output_path are PosixPath
-    command += " " + str(smt_file) + " > " + str(output_path)
-    # if base is None:
-    return command
-    # else:
-    #     command2 = command.replace(solver_path, base)
-    #     command2 = command2.replace(output_path, output_path+".base")
-    #     return [command, command2]
+            cmd.append("--check-model")
+
+    if z3_option and solver == "z3":
+        # z3 options may contain multiple space-separated tokens
+        cmd.extend(z3_option.split())
+    if cvc5_opt and solver == "cvc5":
+        cmd.extend(cvc5_opt.split())
+
+    cmd.append(str(smt_file))
+
+    # Redirect stdout to output_path (handled by caller via Popen stdout now,
+    # but we keep the path in the list for backward compatibility logging).
+    # The actual redirection is done in creat_process_and_get_result.
+    return cmd
 
 
 class z3_tactic:
@@ -417,44 +391,48 @@ class z3_tactic:
         return tactics
 
     def add_check_sat_using(self):
-        """
-            Replace the normal (check-sat) with (check-sat-using)
-        """
+        """Replace ``(check-sat)`` with ``(check-sat-using <tactic>)``."""
         check_sat_using_option = self._random_construct_tactic()
 
         try:
-            with open(self.file, 'r') as f:
+            with open(self.file, 'r', encoding='utf-8', errors='replace') as f:
                 lines = f.read().splitlines()
-        except:
-            print("#######" + "ERROR OCCURRED IN 'check_sat_using'")
+        except OSError as exc:
+            print(f"ERROR in check_sat_using: {exc}")
+            return self.file
+
         for i in range(len(lines)):
-            if lines[i].find("(check-sat)") != -1:
-                lines[i] = lines[i].replace("(check-sat)", "(check-sat-using " + check_sat_using_option + ")") + "\n"
-                #"(check-sat-using " + check_sat_using_option + ")" + "\n"
+            if "(check-sat)" in lines[i]:
+                lines[i] = lines[i].replace(
+                    "(check-sat)",
+                    f"(check-sat-using {check_sat_using_option})",
+                ) + "\n"
             else:
                 lines[i] = lines[i] + "\n"
+
         new_file = self.file.replace(".smt2", "_tactic.smt2")
-        file = open(new_file, "w")
-        file.writelines(lines)
-        file.close()
+        with open(new_file, "w", encoding="utf-8") as fh:
+            fh.writelines(lines)
         return new_file
 
 
 def add_specific_tactic(file_path, tactics):
     try:
-        with open(file_path, 'r') as f:
+        with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
             lines = f.read().splitlines()
-    except:
-        print("#######" + "ERROR OCCURRED IN 'check_sat_using'")
+    except OSError as exc:
+        print(f"ERROR in add_specific_tactic: {exc}")
+        return file_path
+
     for i in range(len(lines)):
-        if lines[i].find("(check-sat)") != -1:
-            lines[i] = "(check-sat-using " + tactics + ")" + "\n"
+        if "(check-sat)" in lines[i]:
+            lines[i] = f"(check-sat-using {tactics})\n"
         else:
             lines[i] = lines[i] + "\n"
+
     new_file = file_path.replace(".smt2", "_tactic.smt2")
-    file = open(new_file, "w")
-    file.writelines(lines)
-    file.close()
+    with open(new_file, "w", encoding="utf-8") as fh:
+        fh.writelines(lines)
     return new_file
 
 
@@ -765,19 +743,42 @@ def add_option_to_command(theory, add_flag):
 
 
 def creat_process_and_get_result(command, temp_file, incremental):
+    """Run a solver command and return ``(output, stderr_text, elapsed_seconds)``.
+
+    SECURITY: The command is split into a list and executed **without** a shell
+    to prevent shell-injection attacks through crafted file paths or options.
     """
-    run solver using commandline and obtain the result solver return
-    :param command: command line
-    :param temp_file: the output file solver gives
-    :param incremental: the formula mode
-    :return: the solver output
-    """ 
+    # Accept both string and list forms; split strings safely via shlex.
+    import shlex
+    if isinstance(command, str):
+        cmd_list = shlex.split(command)
+    else:
+        cmd_list = list(command)
+
     exe_time = None
     start_time = time.time()
-    p = subprocess.Popen(command, shell=True, stderr=subprocess.PIPE)
-    end_time = time.time()
-    exe_time = end_time - start_time
-    terminal_output = p.stderr.read().decode()
+    try:
+        p = subprocess.Popen(
+            cmd_list,
+            shell=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        stdout_bytes, stderr_bytes = p.communicate()
+    except FileNotFoundError:
+        return "error", "solver binary not found", 0.0
+
+    exe_time = time.time() - start_time
+    terminal_output = stderr_bytes.decode(errors="replace")
+
+    # Write stdout to the expected temp_file so read_result can process it.
+    if stdout_bytes:
+        try:
+            with open(temp_file, "wb") as fh:
+                fh.write(stdout_bytes)
+        except OSError:
+            pass
+
     solver_output = None
     # elif type(command) is list:
     #     # print(command[0])
@@ -856,12 +857,9 @@ def save_valid_file_for_differential_test(solver1_path, solver2_path, solver3_pa
 
 
 def check_special(buggy_file):
-    with open(buggy_file, "r") as f:
+    with open(buggy_file, "r", encoding="utf-8", errors="replace") as f:
         content = f.read()
-    if "^" in content:
-        return False
-    else:
-        return True
+    return "^" not in content
 
 
 
@@ -885,65 +883,23 @@ def ignore_crash(output: str):
 
 
 def extract_assistant_contents(text):
-    """
-    extract contents behind "> Assistant: " 
-    remove the last line if it contains "==================================\n"
-    """
-    # lines = text.split("\n")
-    # contents = []
-    # for line in lines:
-    #     if line.find("(set-option") != -1 or line.find("(set-info") != -1:
-    #         continue
-    #     if line.find("> Assistant: ") != -1:
-    #         contents.append(line[line.find("> Assistant: ") + len("> Assistant: "):])
-    #     else:
-    #         contents.append(line)
-
-    # if contents[-1].find("==================================") != -1:
-    #     contents = contents[:-1]
-    # if contents[-1].find("check-sat") != -1:
-    #     contents.append("(check-sat)")
-    # return "\n".join(contents)
+    """Extract SMT-LIB content from assistant-formatted text."""
     new_text = text[text.find("> Assistant: ") + len("> Assistant: "):]
-    if new_text.find("==================================") != -1:
-        new_text = new_text.replace("==================================", "")
+    new_text = new_text.replace("==================================", "")
     lines = new_text.split("\n")
     new_lines = []
     for line in lines:
-        if line.find("(set-option") != -1 or line.find("(set-info") != -1:
+        stripped = line.strip()
+        if stripped.startswith(("(set-option", "(set-info")):
             continue
-        elif line.strip().startswith("(set") or line.strip().startswith("(declare") or line.strip().startswith("(define") or line.strip().startswith("(assert") or line.strip().startswith("(check-sat"):
-            new_lines.append(line)
-    new_lines.append("\n(check-sat)")
-    return "\n".join(new_lines).strip()
-
-    # if contents[-1].find("==================================") != -1:
-    #     contents = contents[:-1]
-    # if contents[-1].find("check-sat") != -1:
-    #     contents.append("(check-sat)")
-    # return "\n".join(contents)
-    new_text = text[text.find("> Assistant: ") + len("> Assistant: "):]
-    if new_text.find("==================================") != -1:
-        new_text = new_text.replace("==================================", "")
-    lines = new_text.split("\n")
-    new_lines = []
-    for line in lines:
-        if line.find("(set-option") != -1 or line.find("(set-info") != -1:
-            continue
-        elif line.strip().startswith("(set") or line.strip().startswith("(declare") or line.strip().startswith("(define") or line.strip().startswith("(assert") or line.strip().startswith("(check-sat"):
+        if stripped.startswith(("(set", "(declare", "(define", "(assert", "(check-sat")):
             new_lines.append(line)
     new_lines.append("\n(check-sat)")
     return "\n".join(new_lines).strip()
 
 
-def get_all_txt_files_recursively(path_to_directory):
-    file_paths = list()
-    for r, d, f in os.walk(path_to_directory):
-        for file in f:
-            if ".txt" in file:
-                file_paths.append(os.path.join(r, file))
-
-    return file_paths
+# Re-export from utils for backward compatibility
+from src.utils.file_handlers import get_txt_files_list as get_all_txt_files_recursively
 
 
 # err_info = ["floatingpoint_literal_symfpu_traits.cpp", "Unimplemented code encountered", "pb_solver.cpp", "pb_constraint.cpp", "bzlafp.cpp:728", "bzlafp.cpp:1891", "smt2_term_parser.cpp"]

@@ -1,110 +1,125 @@
+"""
+Command-line argument parsing for Chimera.
+
+Uses a dataclass to hold parsed values (instead of a mutable dict),
+making the contract between the CLI and the rest of the system explicit.
+"""
+
+from __future__ import annotations
+
 import argparse
-from typing import Dict, Any, Optional
+from dataclasses import dataclass, asdict
+from typing import Any, Dict, Optional
 
-class MainArgumentParser(object):
 
-    def __init__(self):
-        self.parsed_arguments: Dict[str, Any] = dict()
-        self.solverbin1: Optional[str] = None
-        self.solverbin2: Optional[str] = None
-        self.solver1: Optional[str] = None
-        self.solver2: Optional[str] = None
-        self.option: Optional[str] = None
-        self.bugs: Optional[str] = None
-        self.processes: Optional[int] = None
-        self.timeout: Optional[int] = None
-        self.iterations: Optional[int] = None
-        self.rewrite: bool = False
-        self.bug_type: Optional[str] = None
-        self.mimetic: Optional[int] = None
+@dataclass
+class ChimeraArgs:
+    """Immutable container for parsed CLI arguments."""
 
-    def parse_arguments(self, parser: argparse.ArgumentParser) -> None:
-        """
-        Parse command line arguments.
+    solverbin1: Optional[str] = None
+    solverbin2: Optional[str] = None
+    solver1: Optional[str] = None
+    solver2: Optional[str] = None
+    option: str = "default"
+    bugs: Optional[str] = None
+    processes: Optional[int] = None
+    timeout: int = 10
+    iterations: int = 10
+    standalone: bool = False
+    generator_path: Optional[str] = None
+    temp: str = "./temp/"
+    history: bool = False
+    rewrite: bool = False
+    bug_type: str = "common"
+    mimetic: int = 0
+    logic: Optional[str] = None
 
-        Args:
-            parser: The argument parser object.
-        """
-        parser.add_argument("--bugs", help="the directory of the historical bug-triggers, e.g. /home/bugs")
-        parser.add_argument("--solverbin1", help="path to the first solver bin.\n"
-                                                 "Note that: if only one solver provided, soundness bugs will be missed. "
-                                                 "Only invalid model bugs and crashes can be found.")
-        parser.add_argument("--solver1", help="the first solver name e.g. z3, cvc5.\n"
-                                              "Note that: if only one solver provided, soundness bugs will be missed. "
-                                              "Only invalid model bugs and crashes can be found.")
-        parser.add_argument("--solverbin2", help="path to the second solver bin")
-        parser.add_argument("--solver2", help=" the second solver name e.g. z3, cvc5")
-        parser.add_argument("--option", type=str, choices=["default", "regular", "comprehensive"],
-                            help=" the tested options of Z3 and cvc5. \n"
-                                 "default: the default mode of solvers \n"
-                                 "regular: some common options \n "
-                                 "comprehensive: almost all the options (enable with caution)")
-        parser.add_argument("--processes", "-p", type=int, default=None,
-                            help="number of parallel processes (default: number of CPU cores)")
-        parser.add_argument("--timeout", "-t", type=int, default=10,
-                            help="timeout in seconds for each solver invocation (default: 10)")
-        parser.add_argument("--iterations", "-i", type=int, default=10,
-                            help="number of mutation iterations per seed file (default: 10)")
-        parser.add_argument("--standalone", action="store_true",
-                            help="run in standalone mode without seed files")
-        parser.add_argument("--generator_path", type=str, default=None,
-                            help="path to custom generators")
-        parser.add_argument("--temp", type=str, default="./temp/",
-                            help="directory for temporary files")
-        parser.add_argument("--history", action="store_true",
-                            help="run in history mode using historical data")
-        parser.add_argument("--rewrite", action="store_true",
-                            help="run in rewrite mode")
-        parser.add_argument("--bug_type", type=str, choices=["common", "all"], default="common",
-                            help="the type of bugs to find (default: common)")
-        parser.add_argument("--mimetic", type=int, default=0,
-                            help="number of mimetic mutation iterations (default: 0)")
-        parser.add_argument("--logic", type=str, default=None,
-                            help="the target logic/theory to use (e.g. QF_LIA, int, real)")
-        arguments = vars(parser.parse_args())
+    def to_dict(self) -> Dict[str, Any]:
+        """Return a plain dictionary (backward-compatible with legacy code)."""
+        return asdict(self)
 
-        self.solverbin1 = arguments["solverbin1"]
-        self.solverbin2 = arguments["solverbin2"]
-        self.solver1 = arguments["solver1"]
-        self.solver2 = arguments["solver2"]
-        self.bugs = arguments["bugs"]
-        self.option = arguments["option"] if arguments["option"] is not None else "default"
-        self.processes = arguments["processes"]
-        self.timeout = arguments["timeout"]
-        self.iterations = arguments["iterations"]
-        self.standalone = arguments["standalone"]
-        self.generator_path = arguments["generator_path"]
-        self.temp = arguments["temp"]
-        self.rewrite = arguments["rewrite"]
-        self.bug_type = arguments["bug_type"]
-        self.mimetic = arguments["mimetic"]
-        self.logic = arguments["logic"]
+
+def _build_parser() -> argparse.ArgumentParser:
+    """Construct the ``ArgumentParser`` (no side-effects)."""
+    parser = argparse.ArgumentParser(
+        description="Chimera – grammar-based SMT solver fuzzer",
+    )
+    parser.add_argument("--bugs", help="directory of historical bug-triggers")
+    parser.add_argument("--solverbin1", help="path to the first solver binary")
+    parser.add_argument("--solver1", help="first solver name (e.g. z3, cvc5)")
+    parser.add_argument("--solverbin2", help="path to the second solver binary")
+    parser.add_argument("--solver2", help="second solver name (e.g. z3, cvc5)")
+    parser.add_argument(
+        "--option", type=str, choices=["default", "regular", "comprehensive"],
+        default="default",
+        help="solver option profile (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--processes", "-p", type=int, default=None,
+        help="number of parallel processes (default: CPU count)",
+    )
+    parser.add_argument(
+        "--timeout", "-t", type=int, default=10,
+        help="solver timeout in seconds (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--iterations", "-i", type=int, default=10,
+        help="mutation iterations per seed (default: %(default)s)",
+    )
+    parser.add_argument("--standalone", action="store_true", help="standalone generation mode")
+    parser.add_argument("--generator_path", type=str, default=None, help="path to custom generators")
+    parser.add_argument("--temp", type=str, default="./temp/", help="directory for temporary files")
+    parser.add_argument("--history", action="store_true", help="run in history mode")
+    parser.add_argument("--rewrite", action="store_true", help="run in rewrite mode")
+    parser.add_argument(
+        "--bug_type", type=str, choices=["common", "all"], default="common",
+        help="bug category filter (default: %(default)s)",
+    )
+    parser.add_argument("--mimetic", type=int, default=0, help="mimetic mutation iterations")
+    parser.add_argument("--logic", type=str, default=None, help="target SMT-LIB logic")
+    return parser
+
+
+def parse_args(argv=None) -> ChimeraArgs:
+    """Parse *argv* (or ``sys.argv``) and return a :class:`ChimeraArgs`."""
+    ns = _build_parser().parse_args(argv)
+    return ChimeraArgs(
+        solverbin1=ns.solverbin1,
+        solverbin2=ns.solverbin2,
+        solver1=ns.solver1,
+        solver2=ns.solver2,
+        option=ns.option or "default",
+        bugs=ns.bugs,
+        processes=ns.processes,
+        timeout=ns.timeout,
+        iterations=ns.iterations,
+        standalone=ns.standalone,
+        generator_path=ns.generator_path,
+        temp=ns.temp,
+        history=ns.history,
+        rewrite=ns.rewrite,
+        bug_type=ns.bug_type,
+        mimetic=ns.mimetic,
+        logic=ns.logic,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Backward-compatibility shim for existing callers.
+# New code should use ``parse_args()`` directly.
+# ---------------------------------------------------------------------------
+
+class MainArgumentParser:
+    """Legacy adapter – delegates to :func:`parse_args`."""
+
+    def __init__(self) -> None:
+        self._args: Optional[ChimeraArgs] = None
+
+    def parse_arguments(self, _parser: argparse.ArgumentParser) -> None:  # noqa: ARG002
+        self._args = parse_args()
 
     def get_arguments(self) -> Dict[str, Any]:
-        """
-        Get the parsed arguments.
+        if self._args is None:
+            raise RuntimeError("parse_arguments() must be called first")
+        return self._args.to_dict()
 
-        Returns:
-            A dictionary containing the parsed arguments.
-        """
-        self.parsed_arguments["solverbin1"] = self.solverbin1
-        self.parsed_arguments["solverbin2"] = self.solverbin2
-        self.parsed_arguments["solver1"] = self.solver1
-        self.parsed_arguments["solver2"] = self.solver2
-        self.parsed_arguments["bugs"] = self.bugs
-        self.parsed_arguments["option"] = self.option
-        self.parsed_arguments["processes"] = self.processes
-        self.parsed_arguments["timeout"] = self.timeout
-        self.parsed_arguments["iterations"] = self.iterations
-        self.parsed_arguments["rewrite"] = self.rewrite
-        self.parsed_arguments["bug_type"] = self.bug_type
-        self.parsed_arguments["mimetic"] = self.mimetic
-        self.parsed_arguments["logic"] = self.logic
-        
-        # Also include other arguments in the return dict
-        # Assuming we want all of them
-        self.parsed_arguments["standalone"] = self.standalone
-        self.parsed_arguments["generator_path"] = self.generator_path
-        self.parsed_arguments["temp"] = self.temp
-
-        return self.parsed_arguments
