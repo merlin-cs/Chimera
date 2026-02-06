@@ -113,7 +113,7 @@ def collect_buggy_formula(github_token, solver, stored_dir):
         try:
             start_dt = datetime.fromisoformat(last_scanned.replace('Z', '+00:00'))
         except Exception:
-            start_dt = datetime(2018, 1, 1)
+            start_dt = datetime(1970, 1, 1)
     
     # Pre-scan existing files recursively across ALL solver directories to avoid re-processing
     existing_files = set()
