@@ -1,0 +1,21 @@
+% var_Bool
+var00; var00, Bool; 
+% const_Bool
+true
+false
+% (! var_Bool :named p1)
+(! (distinct (bvand #x01 (bvsub var3 var4)) #x00) :named p1); var3, (_ BitVec 8); ; var4, (_ BitVec 8); sort: (define-sort A () (Array (_ BitVec 16) (_ BitVec 8))); 
+% (! var_Bool :named p2)
+(! (= var4 (select var5 var6)) :named p2); var4, (_ BitVec 8); ; var5, A; ; var6, (_ BitVec 16); sort: (define-sort A () (Array (_ BitVec 16) (_ BitVec 8))); 
+% (! var_Bool :named p3)
+(! (= var7 (select var5 var6)) :named p3); var7, (_ BitVec 8); ; var5, A; ; var6, (_ BitVec 16); sort: (define-sort A () (Array (_ BitVec 16) (_ BitVec 8))); 
+% (! var_Bool :named p4)
+(! (= var3 (select var5 var6)) :named p4); var3, (_ BitVec 8); ; var5, A; ; var6, (_ BitVec 16); sort: (define-sort A () (Array (_ BitVec 16) (_ BitVec 8))); 
+% (= const_Int const_Int)
+(= 0 (bv2nat ((_ int2bv 3) (bv2nat (bvor ((_ int2bv 3) (bv2nat ((_ int2bv 3) 7))))))))func: (declare-const bug4_x Bool); 
+% (= const_Int select var_S37 fp.min fp const_BitVec const_BitVec const_BitVec) fp const_BitVec const_BitVec const_BitVec))))
+(= 0 (select var8 (fp.min (fp (_ bv0 1) (_ bv0 11) (_ bv0 52)) (fp (_ bv1 1) (_ bv0 11) (_ bv0 52))))); var8, S37; sort: (define-sort S16 () Float64); (define-sort S37 () (Array S16 Int)); func: (declare-const bug5_c S37); 
+% (= var_Array (_ map or) var_Array var_Array))
+(= var1 ((_ map or) var1 var1)); var1, (Array Int Bool); ; var1, (Array Int Bool); ; var1, (Array Int Bool); func: (declare-const bug7_x Bool); 
+% (> const_Int var_Int)
+(> 1 var2); var2, Int; func: (declare-const bug8_x Bool); 

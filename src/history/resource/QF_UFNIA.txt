@@ -1,0 +1,22 @@
+% var_Bool
+var00; var00, Bool; 
+% const_Bool
+true
+false
+% (<= var_Int var_Int)
+(<= (mod (abs (+ 77 var0 77)) (+ 641 76 (div var1 var2) var0)) var3); var0, Int; ; var1, Int; ; var2, Int; ; var0, Int; ; var3, Int; sort: (declare-sort S0 0); (declare-sort S1 0); func: (declare-const bug0_i0 Int); (declare-const bug0_i2 Int); (declare-const bug0_i3 Int); (declare-const bug0_i4 Int); (declare-const bug0_i8 Int); (declare-const bug0_i10 Int); (declare-const bug0_i17 Int); (declare-const bug0_i19 Int); (declare-const bug0_i20 Int); (declare-const bug0_i22 Int); (declare-const bug0_i23 Int); (declare-const bug0_i24 Int); 
+% (= const_Int var_Int)
+(= 1 (mod (mod (- var6) (+ 1 (- (- 3)))) (+ 2 1))); var6, Int; func: (declare-fun bug1_p (Int) Int); 
+(= 1 (* var7 var8)); var7, Int; ; var8, Int; func: (declare-fun bug2_g (Int) Bool); 
+(= 1 (+ var7 var8)); var7, Int; ; var8, Int; func: (declare-fun bug3_g (Int) Bool); 
+(= 1 (+ var9 var10)); var9, Int; ; var10, Int; func: (declare-fun bug5_g (Int) Bool); 
+% (= var_Int var_Int var_Int var_Int)
+(= (abs (+ 77 var0 77)) (div (+ 77 var0 77) (div (- var1) 68)) var4 (+ 77 var0 77)); var0, Int; ; var0, Int; ; var1, Int; ; var4, Int; ; var0, Int; sort: (declare-sort S0 0); (declare-sort S1 0); func: (declare-const bug6_i0 Int); (declare-const bug6_i2 Int); (declare-const bug6_i3 Int); (declare-const bug6_i4 Int); (declare-const bug6_i8 Int); (declare-const bug6_i10 Int); (declare-const bug6_i17 Int); (declare-const bug6_i19 Int); (declare-const bug6_i20 Int); (declare-const bug6_i22 Int); (declare-const bug6_i23 Int); (declare-const bug6_i24 Int); 
+% (g const_Int)
+(bug7_g 1)func: (declare-fun bug7_g (Int) Bool); 
+(bug8_g 1)func: (declare-fun bug8_g (Int) Bool); 
+% Null
+(= (* var5 var5) (bug9_b var5) 1); var5, Int; ; var5, Int; ; var5, Int; func: (declare-const bug9_a Int); (declare-fun bug9_b (Int) Int); 
+(= (bug10_b 1) (bug10_b (- 1)) 0)func: (declare-const bug10_a Int); (declare-fun bug10_b (Int) Int); 
+(< (bug11_p 3) (bug11_p var6)); var6, Int; func: (declare-fun bug11_p (Int) Int); 
+(= (bug12_ControlFlow 0 0) 67)func: (declare-fun bug12_ControlFlow (Int Int) Int); 
