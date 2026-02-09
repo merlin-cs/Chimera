@@ -370,9 +370,21 @@ def export_basic_formula(formula_list, output):
             clean_sorts = [s.strip() for s in formula[2] if s.strip()]
             if clean_sorts:
                 f.write("sort: " + "; ".join(clean_sorts) + "; ")
-            clean_funcs = [fn.strip() for fn in funcs_to_write if fn.strip()]
-            if clean_funcs:
-                f.write("func: " + "; ".join(clean_funcs) + "; ")
+            # Filter funcs to only those whose (renamed) name appears in
+            # the formula expression – prevents carrying over irrelevant
+            # declarations from the original source file.
+            relevant_funcs = []
+            for fn in funcs_to_write:
+                fn = fn.strip()
+                if not fn:
+                    continue
+                m = re.search(
+                    r'\((?:declare-fun|define-fun|declare-const|define-const)\s+([^\s)]+)', fn
+                )
+                if m and m.group(1) in formula_str:
+                    relevant_funcs.append(fn)
+            if relevant_funcs:
+                f.write("func: " + "; ".join(relevant_funcs) + "; ")
 
 
 
@@ -518,6 +530,17 @@ class BuggySeed(object):
             )
 
     @staticmethod
+    def _strip_named(expr: str) -> str:
+        """Strip ``(! expr :named label)`` wrapper from a corpus expression."""
+        s = expr.strip()
+        if s.startswith("(!") and ":named" in s:
+            import re
+            m = re.match(r'^\(\!\s+(.*?)\s+:named\s+\S+\s*\)$', s, re.DOTALL)
+            if m:
+                return m.group(1).strip()
+        return expr
+
+    @staticmethod
     def read_single_file(path, type_formula: dict, formula_type: dict, formula_var: dict, formula_sort: dict,
                          formula_func: dict):
         with open(path, "r") as f:
@@ -531,7 +554,9 @@ class BuggySeed(object):
                 elif line[0] == "%":
                     if formula is not None:
                         type_formula[typ] = formula
-                    typ = line.replace("% ", "")
+                    raw_typ = line.replace("% ", "")
+                    # Strip :named annotations from type headers
+                    typ = BuggySeed._strip_named(raw_typ)
                     formula = []
                 else:
                     if ";" in line:
@@ -554,22 +579,26 @@ class BuggySeed(object):
                         content_list = [c.strip() for c in content_list if c.strip()]
                         if not content_list:
                             continue
-                        formula.append(content_list[0])
-                        formula_type[content_list[0]] = typ
-                        formula_var[content_list[0]] = content_list[1:]
+                        # Strip :named from the formula expression key
+                        expr_key = BuggySeed._strip_named(content_list[0])
+                        formula.append(expr_key)
+                        formula_type[expr_key] = typ
+                        formula_var[expr_key] = content_list[1:]
                         # Filter empty entries from func/sort splits
-                        formula_func[content_list[0]] = [
+                        formula_func[expr_key] = [
                             f.strip() for f in func_line.split("; ") if f.strip()
                         ]
-                        formula_sort[content_list[0]] = [
+                        formula_sort[expr_key] = [
                             s.strip() for s in sort_line.split("; ") if s.strip()
                         ]
                     else:
-                        formula.append(line)
-                        formula_type[line] = typ
-                        formula_var[line] = []
-                        formula_func[line] = []
-                        formula_sort[line] = []
+                        # Strip :named from bare formula lines too
+                        clean_line = BuggySeed._strip_named(line)
+                        formula.append(clean_line)
+                        formula_type[clean_line] = typ
+                        formula_var[clean_line] = []
+                        formula_func[clean_line] = []
+                        formula_sort[clean_line] = []
 
 
 def simplify(file1):

@@ -57,6 +57,43 @@ def _debug_log(msg: str, *args) -> None:
         _fuzzer_logger.debug(msg, *args)
 
 
+def _strip_named_annotation(expr: str) -> str:
+    """Strip ``(! expr :named label)`` wrapping from an SMT expression.
+
+    Corpus building-block expressions are sometimes wrapped with
+    ``:named`` annotations from the original source file.  When these
+    fragments are inserted into skeleton holes the annotation becomes a
+    nested annotation that many solvers reject.  This function removes
+    the outermost ``(! … :named …)`` layer (if present) leaving just the
+    inner expression.
+
+    Examples
+    --------
+    >>> _strip_named_annotation("(! (=> a b) :named IP_1)")
+    '(=> a b)'
+    >>> _strip_named_annotation("(+ x 1)")
+    '(+ x 1)'
+    """
+    stripped = expr.strip()
+    if stripped.startswith("(!") and ":named" in stripped:
+        # Pattern: (! <inner-expr> :named <label>)
+        m = re.match(r'^\(\!\s+(.*?)\s+:named\s+\S+\s*\)$', stripped, re.DOTALL)
+        if m:
+            return m.group(1).strip()
+    return expr
+
+
+def _extract_func_name(decl: str) -> Optional[str]:
+    """Return the symbol name from a ``declare-fun/declare-const`` string.
+
+    Returns *None* if the declaration cannot be parsed.
+    """
+    m = re.search(
+        r'\((?:declare-fun|define-fun|declare-const|define-const)\s+([^\s)]+)', decl
+    )
+    return m.group(1) if m else None
+
+
 def _smt_paren_depth(text: str) -> int:
     """Return net parenthesis depth (positive = more opens than closes).
 
@@ -731,10 +768,27 @@ def process_history_fuzz(args):
                            len(new_ast), len(ast_var) if ast_var else 0, len(sorts), len(funcs))
 
                 new_formula = construct_scripts(new_ast, ast_var, sorts, funcs, incremental_mode, argument)
+
+                # -- Pre-export validation: skip structurally invalid formulas --
+                if not _validate_smt_formula(new_formula):
+                    _debug_log("process_history_fuzz: SKIPPING invalid formula (pre-validation failed)")
+                    continue
+
                 smt_file = export_smt2(new_formula, temp_core_dir, file_count)
                 if smt_file is not None:
                     bug_flag = solver_runner(solver1_path, solver2_path, smt_file, timeout, incremental_mode,
                                              solver1, solver2, theory, add_option_flag, temp, tactic)
+
+                    # -- Debug: log when solver rejects the formula --------
+                    if bug_flag == "invalid" and _debug_enabled():
+                        _debug_log("process_history_fuzz: solver returned 'invalid' for %s", smt_file)
+                        try:
+                            with open(smt_file, "r", encoding="utf-8", errors="replace") as _f:
+                                head = "".join(_f.readlines()[:20])
+                            _debug_log("  first 20 lines:\n%s", head)
+                        except OSError:
+                            pass
+
                     file_count += 1
                     total_count += 1
                     if bug_flag:
@@ -797,18 +851,21 @@ def construct_formula(skeleton, seed_type_expr, seed_expr_type, seed_var, bug_ty
                 replacer_type = random.choice(["seed", "seed", "seed", "buggy"])
                 if replacer_type == "seed" and len(list(seed_var.keys())) > 0:
                     replacer = random.choice(list(seed_var.keys()))
-                    single_hole_var = seed_var[replacer]
+                    replacer = _strip_named_annotation(replacer)
+                    single_hole_var = seed_var.get(replacer, seed_var.get(
+                        random.choice(list(seed_var.keys())), []))
                     if seed_expr_type.get(replacer) and bug_association and seed_expr_type[replacer] in bug_association.rule_set:
                         abstract_set.add(seed_expr_type[replacer])
                 else:
                     if len(list(bug_formula_var.keys())) > 0:
-                        replacer = random.choice(list(bug_formula_var.keys()))
-                        single_hole_var = bug_formula_var[replacer]
+                        orig_replacer = random.choice(list(bug_formula_var.keys()))
+                        replacer = _strip_named_annotation(orig_replacer)
+                        single_hole_var = bug_formula_var[orig_replacer]
                         # Filter empty sort/func entries from corpus
-                        sort_list += [s for s in bug_formula_sort.get(replacer, []) if s.strip()]
-                        func_list += [f for f in bug_formula_func.get(replacer, []) if f.strip()]
-                        if bug_association and bug_formula_typ.get(replacer) and bug_formula_typ[replacer] in bug_association.rule_set:
-                            abstract_set.add(bug_formula_typ[replacer])
+                        sort_list += [s for s in bug_formula_sort.get(orig_replacer, []) if s.strip()]
+                        func_list += [f for f in bug_formula_func.get(orig_replacer, []) if f.strip()]
+                        if bug_association and bug_formula_typ.get(orig_replacer) and bug_formula_typ[orig_replacer] in bug_association.rule_set:
+                            abstract_set.add(bug_formula_typ[orig_replacer])
                     else:
                         single_hole_var = []
                         replacer = "true"
@@ -890,30 +947,59 @@ def variable_translocation(ast, ast_var: dict):
     return ast
 
 
+def _build_type_var(var_list) -> Dict[str, list]:
+    """Build a ``{type: [name, ...]}`` dict from corpus variable entries."""
+    type_var: Dict[str, list] = {}
+    if var_list:
+        for v in var_list:
+            if ", " in v:
+                name = v.split(", ")[0].strip()
+                typ = v.split(", ")[1].strip()
+                if name and typ:
+                    type_var.setdefault(typ, []).append(name)
+    return type_var
+
+
 def construct_scripts(ast, var_list, sort, func, incremental, argument):
-    formula = list()
+    """Assemble the final SMT-LIB script from assertions, vars, sorts, funcs.
+
+    Key validity improvements:
+    * Func/sort declarations are filtered to only those whose declared
+      symbol name actually appears inside the assertion body – this
+      eliminates the hundreds of irrelevant declarations that corpus
+      entries carry from their original source files.
+    * Declarations are deduplicated *by symbol name* (first wins) so
+      conflicting types from different corpus entries don't collide.
+    * :named annotations are stripped from assertion text to prevent
+      nested annotations that solvers reject.
+    """
     type_var = {}
-    seen_decls = set()  # track emitted declarations to avoid duplicates
+    seen_names: set = set()        # track declared symbol *names*
+    seen_decl_strs: set = set()    # track exact declaration strings
 
-    if sort:
-        for i, s in enumerate(sort):
-            sort[i] = s.replace("\n", "").strip()
-        # Filter empty / whitespace-only sort declarations
-        for s in set(sort):
-            if s and s not in seen_decls:
-                formula.append(s)
-                seen_decls.add(s)
-    
-    if func:
-        for i, f in enumerate(func):
-            func[i] = f.replace(";", "").strip()
-        # Filter empty / whitespace-only func declarations
-        for f in set(func):
-            if f and f not in seen_decls:
-                formula.append(f)
-                seen_decls.add(f)
+    # ------------------------------------------------------------------
+    # 1. Build the assertion body FIRST so we can check which names it
+    #    actually references.
+    # ------------------------------------------------------------------
+    # Strip any remaining :named annotations that survived hole-filling
+    ast = [_strip_named_annotation(a) for a in ast]
 
-    if var_list and len(var_list) > 0:
+    ast = variable_translocation(ast, _build_type_var(var_list))
+
+    if incremental == "incremental":
+        ast = insert_push_and_pop(ast)
+    else:
+        ast.append("(check-sat)")
+
+    body_text = "\n".join(ast)
+
+    # ------------------------------------------------------------------
+    # 2. Collect variable declarations (these are always needed – they
+    #    come from the hole-filler's own variable list, not from the
+    #    original source file).
+    # ------------------------------------------------------------------
+    var_decls: list = []
+    if var_list:
         for v in var_list:
             if ", " in v:
                 name = v.split(", ")[0].strip()
@@ -922,18 +1008,58 @@ def construct_scripts(ast, var_list, sort, func, incremental, argument):
                     continue
                 type_var.setdefault(typ, []).append(name)
                 decl = str(DeclareFun(name, '', typ))
-                if decl not in seen_decls:
-                    formula.append(decl)
-                    seen_decls.add(decl)
+                if name not in seen_names:
+                    var_decls.append(decl)
+                    seen_names.add(name)
+                    seen_decl_strs.add(decl)
 
-    ast = variable_translocation(ast, type_var)
+    # ------------------------------------------------------------------
+    # 3. Filter sort declarations – keep only those whose name appears
+    #    in the body or in a func declaration we might keep.
+    # ------------------------------------------------------------------
+    sort_decls: list = []
+    if sort:
+        for s in sort:
+            s = s.replace("\n", "").strip()
+            if not s or s in seen_decl_strs:
+                continue
+            # Sort declarations are generally harmless; keep them but
+            # still deduplicate.
+            sname = re.search(r'\((?:declare-sort|define-sort)\s+([^\s)]+)', s)
+            key = sname.group(1) if sname else s
+            if key not in seen_names:
+                sort_decls.append(s)
+                seen_names.add(key)
+                seen_decl_strs.add(s)
 
-    if incremental == "incremental":
-        ast = insert_push_and_pop(ast)
-    else:
-        ast.append("(check-sat)")
+    # ------------------------------------------------------------------
+    # 4. Filter func declarations – ONLY keep those whose declared name
+    #    actually appears in the assertion body.  This is the critical
+    #    filter that removes ~300+ irrelevant declarations carried over
+    #    from the original corpus source files.
+    # ------------------------------------------------------------------
+    func_decls: list = []
+    if func:
+        for f in func:
+            f = f.replace(";", "").strip()
+            if not f or f in seen_decl_strs:
+                continue
+            fname = _extract_func_name(f)
+            if fname is None:
+                continue
+            # Skip if already declared (name conflict from another corpus entry)
+            if fname in seen_names:
+                continue
+            # Only emit the declaration if the name is referenced in body
+            if fname in body_text:
+                func_decls.append(f)
+                seen_names.add(fname)
+                seen_decl_strs.add(f)
 
-    formula = formula + ast
+    # ------------------------------------------------------------------
+    # 5. Assemble: sorts → funcs → vars → assertions
+    # ------------------------------------------------------------------
+    formula = sort_decls + func_decls + var_decls + ast
 
     # Filter out any remaining empty lines
     formula = [line for line in formula if line.strip()]
@@ -949,7 +1075,7 @@ def construct_scripts(ast, var_list, sort, func, incremental, argument):
             _debug_log("construct_scripts: UNBALANCED output (depth=%d), first 200 chars: %.200s",
                        depth, s)
         else:
-            _debug_log("construct_scripts: OK (%d declarations, paren-balanced)", len(seen_decls))
+            _debug_log("construct_scripts: OK (%d declarations, paren-balanced)", len(seen_decl_strs))
 
     return s
 
@@ -994,6 +1120,50 @@ def collect_sort(file):
             if "declare-sort" in line or "define-sort" in line:
                 sort_list.append(line)
     return sort_list
+
+
+def _validate_smt_formula(script: str) -> bool:
+    """Lightweight pre-export validation of an SMT-LIB formula.
+
+    Checks:
+    1. Parenthesis balance (respecting string literals).
+    2. Presence of ``(check-sat)`` (or ``(push`` for incremental).
+    3. No stray ``(! … :named …)`` annotations at the assertion level
+       (these often indicate an un-stripped corpus fragment).
+    4. Every ``(assert ...)`` is properly closed.
+
+    Returns *True* when the formula looks structurally valid, *False*
+    otherwise.  This is intentionally a *lightweight* check – it won't
+    catch all semantic problems, but it's fast enough to run on every
+    generated formula.
+    """
+    # 1. Paren balance
+    if _smt_paren_depth(script) != 0:
+        _debug_log("_validate_smt_formula: FAIL – unbalanced parentheses")
+        return False
+
+    # 2. Must have check-sat or be incremental (push)
+    if "(check-sat)" not in script and "(push" not in script:
+        _debug_log("_validate_smt_formula: FAIL – no (check-sat) or (push")
+        return False
+
+    # 3. Check each line for common issues
+    for line in script.split("\n"):
+        stripped = line.strip()
+        # Bare :named at assertion level is suspicious
+        if stripped.startswith("(assert") and ":named" in stripped:
+            # Check if :named is directly inside assert (not inside a deeper subexpr)
+            # Quick heuristic: count parens before :named — if depth is 2 it's
+            # (assert (! expr :named …)) which is legal; depth 1 would be broken.
+            idx = stripped.find(":named")
+            prefix = stripped[:idx]
+            d = prefix.count("(") - prefix.count(")")
+            if d < 2:
+                _debug_log("_validate_smt_formula: FAIL – :named at wrong depth in: %.100s", stripped)
+                return False
+
+    return True
+
 
 def export_smt2(script, direct, index):
     os.makedirs(direct, exist_ok=True)
