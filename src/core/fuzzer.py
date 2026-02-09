@@ -97,6 +97,8 @@ def _extract_func_name(decl: str) -> Optional[str]:
 # Built-in SMT-LIB sorts that never need a ``declare-sort``.
 _BUILTIN_SORTS = frozenset({
     "Bool", "Int", "Real", "String", "RegLan", "RoundingMode",
+    # Z3/SMT 2.6 extensions
+    "Seq",
     # These appear as indexed families – we also accept the *base* name.
     "BitVec", "FloatingPoint", "Float16", "Float32", "Float64", "Float128",
     "Array",
@@ -1038,42 +1040,17 @@ def construct_scripts(ast, var_list, sort, func, incremental, argument):
     """Assemble the final SMT-LIB script from assertions, vars, sorts, funcs.
 
     Key validity improvements:
-    * Sort declarations are collected from corpus entries, deduplicated,
-      and emitted before any func/var that references them.
-    * Func declarations are filtered to only those whose declared symbol
-      name actually appears in the assertion body **and** whose sort
-      dependencies are all resolvable (built-in or declared).
-    * Variable declarations whose type requires a custom sort that is
-      not declared are silently dropped.
-    * Declarations are deduplicated *by symbol name* (first wins) so
-      conflicting types from different corpus entries don't collide.
-    * :named annotations are stripped from assertion text to prevent
-      nested annotations that solvers reject.
+    * Sort declarations are collected first.
+    * Func/Var declarations with unresolved sorts are dropped.
+    * Assertions using dropped symbols are removed to prevent "unknown constant".
+    * Sorts provided by user/corpus are only emitted if used.
     """
-    type_var = {}
     seen_names: set = set()        # track declared symbol *names*
     seen_decl_strs: set = set()    # track exact declaration strings
 
     # ------------------------------------------------------------------
-    # 1. Build the assertion body FIRST so we can check which names it
-    #    actually references.
-    # ------------------------------------------------------------------
-    # Strip any remaining :named annotations that survived hole-filling
-    ast = [_strip_named_annotation(a) for a in ast]
-
-    ast = variable_translocation(ast, _build_type_var(var_list))
-
-    if incremental == "incremental":
-        ast = insert_push_and_pop(ast)
-    else:
-        ast.append("(check-sat)")
-
-    body_text = "\n".join(ast)
-
-    # ------------------------------------------------------------------
-    # 2. Collect ALL candidate sort declarations and build a set of
-    #    available sort names.  This set is used later to validate that
-    #    func/var declarations only reference sorts that are declared.
+    # 1. Collect ALL candidate sort declarations and build a set of
+    #    available sort names.
     # ------------------------------------------------------------------
     available_sorts: set = set()    # sort names that will be declared
     sort_decl_map: Dict[str, str] = {}  # sort_name -> declaration string
@@ -1090,45 +1067,11 @@ def construct_scripts(ast, var_list, sort, func, incremental, argument):
                 available_sorts.add(key)
 
     # ------------------------------------------------------------------
-    # 3. Filter func declarations – ONLY keep those whose declared name
-    #    actually appears in the assertion body AND whose sort deps are
-    #    all resolvable (either built-in or in available_sorts).
+    # 2. Pre-filter Variable Declarations based on Sort Availability
     # ------------------------------------------------------------------
-    func_decls: list = []
-    func_needed_sorts: set = set()  # sorts actually needed by kept funcs
+    clean_var_list = []
+    dropped_symbols = set() # Vars or Funcs we can't declare
 
-    if func:
-        for f in func:
-            f = f.replace(";", "").strip()
-            if not f or f in seen_decl_strs:
-                continue
-            fname = _extract_func_name(f)
-            if fname is None:
-                continue
-            # Skip if already declared (name conflict from another corpus entry)
-            if fname in seen_names:
-                continue
-            # Only emit the declaration if the name is referenced in body
-            if fname not in body_text:
-                continue
-            # Check sort dependencies
-            required_sorts = _extract_sorts_from_decl(f)
-            unresolved = [rs for rs in required_sorts
-                          if rs not in available_sorts and not _is_builtin_sort(rs)]
-            if unresolved:
-                _debug_log("construct_scripts: DROPPING func %s – unresolved sorts: %s",
-                           fname, unresolved)
-                continue
-            func_decls.append(f)
-            seen_names.add(fname)
-            seen_decl_strs.add(f)
-            func_needed_sorts.update(required_sorts)
-
-    # ------------------------------------------------------------------
-    # 4. Collect variable declarations.  Only emit those whose type sort
-    #    is either built-in or will be declared (available_sorts).
-    # ------------------------------------------------------------------
-    var_decls: list = []
     if var_list:
         for v in var_list:
             if ", " not in v:
@@ -1137,31 +1080,115 @@ def construct_scripts(ast, var_list, sort, func, incremental, argument):
             typ = v.split(", ")[1].strip()
             if not name or not typ:
                 continue
-            # Check if the variable's sort is resolvable
-            var_sorts = _extract_sorts_from_decl(
-                f"(declare-fun {name} () {typ})"
-            )
+            
+            # Check sorts
+            var_sorts = _extract_sorts_from_decl(f"(declare-fun {name} () {typ})")
             unresolved = [vs for vs in var_sorts
                           if vs not in available_sorts and not _is_builtin_sort(vs)]
+            
             if unresolved:
                 _debug_log("construct_scripts: DROPPING var %s (%s) – unresolved sorts: %s",
                            name, typ, unresolved)
-                continue
-
-            type_var.setdefault(typ, []).append(name)
-            decl = str(DeclareFun(name, '', typ))
-            if name not in seen_names:
-                var_decls.append(decl)
-                seen_names.add(name)
-                seen_decl_strs.add(decl)
+                dropped_symbols.add(name)
+            else:
+                clean_var_list.append(v)
 
     # ------------------------------------------------------------------
-    # 5. Emit only those sort declarations that are actually NEEDED by
-    #    the kept func or var declarations.  This avoids declaring sorts
-    #    that were only used by dropped declarations.
+    # 3. Pre-filter Function Declarations based on Sort Availability
+    #    (We don't check body usage yet, just sorts)
+    # ------------------------------------------------------------------
+    potential_func_decls = []
+    
+    if func:
+        for f in func:
+            f = f.replace(";", "").strip()
+            if not f: 
+                continue
+            fname = _extract_func_name(f)
+            if fname is None:
+                continue
+            
+            required_sorts = _extract_sorts_from_decl(f)
+            unresolved = [rs for rs in required_sorts
+                          if rs not in available_sorts and not _is_builtin_sort(rs)]
+            
+            if unresolved:
+                _debug_log("construct_scripts: DROPPING func %s – unresolved sorts: %s",
+                           fname, unresolved)
+                dropped_symbols.add(fname)
+            else:
+                potential_func_decls.append(f)
+
+    # ------------------------------------------------------------------
+    # 4. Prepare AST: Strip :named, Filter dropped symbols, Translocate
+    # ------------------------------------------------------------------
+    ast = [_strip_named_annotation(a) for a in ast]
+
+    # Filter assertions that use dropped symbols
+    if dropped_symbols:
+        clean_ast = []
+        for assertion in ast:
+            # Simple tokenization: match SMT symbols
+            tokens = set(re.findall(r'[a-zA-Z0-9_.~!@$%^&*+=<>.?/-]+', assertion))
+            if not tokens.isdisjoint(dropped_symbols):
+                inter = tokens.intersection(dropped_symbols)
+                _debug_log("construct_scripts: REMOVING assertion using dropped symbol(s): %s", inter)
+                continue
+            clean_ast.append(assertion)
+        ast = clean_ast
+
+    # Allow variable swapping (only using valid variables)
+    ast = variable_translocation(ast, _build_type_var(clean_var_list))
+
+    if incremental == "incremental":
+        ast = insert_push_and_pop(ast)
+    else:
+        ast.append("(check-sat)")
+
+    body_text = "\n".join(ast)
+
+    # ------------------------------------------------------------------
+    # 5. Emit Function Declarations (only if used in body)
+    # ------------------------------------------------------------------
+    func_decls: list = []
+    func_needed_sorts: set = set()
+
+    for f in potential_func_decls:
+        if f in seen_decl_strs:
+            continue
+        fname = _extract_func_name(f)
+        if fname in seen_names:
+            continue
+        
+        # Only emit if referenced
+        if fname not in body_text:
+            continue
+            
+        func_decls.append(f)
+        seen_names.add(fname)
+        seen_decl_strs.add(f)
+        func_needed_sorts.update(_extract_sorts_from_decl(f))
+
+    # ------------------------------------------------------------------
+    # 6. Emit Variable Declarations
+    # ------------------------------------------------------------------
+    var_decls: list = []
+    
+    # helper for variable types mapping
+    for v in clean_var_list:
+        name = v.split(", ")[0].strip()
+        typ = v.split(", ")[1].strip()
+        
+        decl = str(DeclareFun(name, '', typ))
+        if name not in seen_names:
+            var_decls.append(decl)
+            seen_names.add(name)
+            seen_decl_strs.add(decl)
+
+    # ------------------------------------------------------------------
+    # 7. Emit Sort Declarations (only needed ones)
     # ------------------------------------------------------------------
     sort_decls: list = []
-    # Collect sorts needed by var declarations too
     var_needed_sorts: set = set()
     for vd in var_decls:
         var_needed_sorts.update(
@@ -1176,25 +1203,24 @@ def construct_scripts(ast, var_list, sort, func, incremental, argument):
             seen_decl_strs.add(sdecl)
 
     # ------------------------------------------------------------------
-    # 6. Assemble: sorts → funcs → vars → assertions
+    # 8. Assemble
     # ------------------------------------------------------------------
     formula = sort_decls + func_decls + var_decls + ast
 
-    # Filter out any remaining empty lines
+    # Filter out empty lines
     formula = [line for line in formula if line.strip()]
 
     s = "(set-logic ALL)\n"
     for content in formula:
         s = s + content + "\n"
 
-    # -- Debug: validate parenthesis balance of the final formula ----------
+    # -- Debug --
     if _debug_enabled():
         depth = _smt_paren_depth(s)
         if depth != 0:
-            _debug_log("construct_scripts: UNBALANCED output (depth=%d), first 200 chars: %.200s",
-                       depth, s)
+            _debug_log("construct_scripts: UNBALANCED output (depth=%d)", depth)
         else:
-            _debug_log("construct_scripts: OK (%d sorts, %d funcs, %d vars, paren-balanced)",
+            _debug_log("construct_scripts: OK (%d sorts, %d funcs, %d vars)",
                        len(sort_decls), len(func_decls), len(var_decls))
 
     return s
