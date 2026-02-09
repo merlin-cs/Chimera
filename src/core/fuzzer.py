@@ -1072,30 +1072,52 @@ def construct_scripts(ast, var_list, sort, func, incremental, argument):
     clean_var_list = []
     dropped_symbols = set() # Vars or Funcs we can't declare
 
+    # Reserved keywords and built-in sorts to prevent shadowing/parsing errors
+    reserved_names = {
+        "Int", "Real", "Bool", "String", "Array", "BitVec", "FloatingPoint",
+        "let", "assert", "check-sat", "declare-fun", "define-fun", "match",
+        "par", "forall", "exists", "_", "as", "!"
+    }
+    # Regex for valid SMT2 simple symbols (simplified for common cases)
+    valid_symbol_re = re.compile(r'^[a-zA-Z0-9_.~!@$%^&*+=<>.?/-]+$')
+
     if var_list:
         for v in var_list:
             if ", " not in v:
                 continue
-            name = v.split(", ")[0].strip()
-            typ = v.split(", ")[1].strip()
-            if not name or not typ:
+            parts = v.split(", ")
+            name = parts[0].strip()
+            # Handle cases where split might be affected by type string structure
+            typ = parts[1].strip() if len(parts) > 1 else ""
+
+            # Check for invalid names (empty, reserved, or containing illegal chars)
+            if not name or name in reserved_names or not valid_symbol_re.match(name):
+                # Dropping invalid name prevents "unknown constant p. (Int)" and similar errors
+                dropped_symbols.add(name)
+                continue
+
+            if not typ:
+                dropped_symbols.add(name)
                 continue
             
             # Check sorts
-            var_sorts = _extract_sorts_from_decl(f"(declare-fun {name} () {typ})")
-            unresolved = [vs for vs in var_sorts
-                          if vs not in available_sorts and not _is_builtin_sort(vs)]
-            
-            if unresolved:
-                _debug_log("construct_scripts: DROPPING var %s (%s) – unresolved sorts: %s",
-                           name, typ, unresolved)
+            try:
+                var_sorts = _extract_sorts_from_decl(f"(declare-fun {name} () {typ})")
+                unresolved = [vs for vs in var_sorts
+                              if vs not in available_sorts and not _is_builtin_sort(vs)]
+                
+                if unresolved:
+                    _debug_log("construct_scripts: DROPPING var %s (%s) – unresolved sorts: %s",
+                               name, typ, unresolved)
+                    dropped_symbols.add(name)
+                else:
+                    clean_var_list.append(v)
+            except Exception:
                 dropped_symbols.add(name)
-            else:
-                clean_var_list.append(v)
 
     # ------------------------------------------------------------------
     # 3. Pre-filter Function Declarations based on Sort Availability
-    #    (We don't check body usage yet, just sorts)
+    #    (Include both sort checks and transitive dependency checks)
     # ------------------------------------------------------------------
     potential_func_decls = []
     
@@ -1105,7 +1127,8 @@ def construct_scripts(ast, var_list, sort, func, incremental, argument):
             if not f: 
                 continue
             fname = _extract_func_name(f)
-            if fname is None:
+            if fname is None or fname in reserved_names:
+                if fname: dropped_symbols.add(fname)
                 continue
             
             required_sorts = _extract_sorts_from_decl(f)
@@ -1119,21 +1142,67 @@ def construct_scripts(ast, var_list, sort, func, incremental, argument):
             else:
                 potential_func_decls.append(f)
 
+    # Iteratively drop functions that use already-dropped symbols
+    # (e.g. if f uses g, and g is dropped, f must be dropped)
+    while True:
+        dropped_count_before = len(dropped_symbols)
+        kept_funcs = []
+        for f in potential_func_decls:
+            fname = _extract_func_name(f)
+            # Scan function body for usage of ANY dropped symbol
+            # We use the same loose tokenization as for assertions
+            tokens = set(re.findall(r'[a-zA-Z0-9_.~!@$%^&*+=<>.?/-]+', f))
+            if not tokens.isdisjoint(dropped_symbols):
+                _debug_log("construct_scripts: DROPPING func %s due to dependency on dropped symbols", fname)
+                dropped_symbols.add(fname)
+            else:
+                kept_funcs.append(f)
+        potential_func_decls = kept_funcs
+        if len(dropped_symbols) == dropped_count_before:
+            break
+
     # ------------------------------------------------------------------
     # 4. Prepare AST: Strip :named, Filter dropped symbols, Translocate
     # ------------------------------------------------------------------
     ast = [_strip_named_annotation(a) for a in ast]
 
-    # Filter assertions that use dropped symbols
-    if dropped_symbols:
+    # Build known lookup for undeclared variable detection (Heuristic)
+    # We trust that vars in clean_var_list and funcs in potential_func_decls are valid and will be declared.
+    known_vars = {v.split(", ")[0].strip() for v in clean_var_list}
+    known_funcs = set()
+    for f in potential_func_decls:
+        fn = _extract_func_name(f)
+        if fn: known_funcs.add(fn)
+        
+    # Relaxed check: Symbols that look like generated vars (s\d+, Z_\d+, etc) must be known.
+    # We avoid strict checking on short names (x, y) to respect bound variables.
+    suspicious_pattern = re.compile(r'^(s\d+|Z_\d+|assertion_\w+|[A-Z]_\d+)$')
+
+    # Filter assertions that use dropped symbols OR undeclared global-like symbols
+    if dropped_symbols or True: # Force check for implicit missing vars
         clean_ast = []
         for assertion in ast:
             # Simple tokenization: match SMT symbols
             tokens = set(re.findall(r'[a-zA-Z0-9_.~!@$%^&*+=<>.?/-]+', assertion))
+            
+            # Check 1: Explicit drops (symbols we explicitly decided not to emit)
             if not tokens.isdisjoint(dropped_symbols):
                 inter = tokens.intersection(dropped_symbols)
                 _debug_log("construct_scripts: REMOVING assertion using dropped symbol(s): %s", inter)
                 continue
+
+            # Check 2: Undeclared probable globals (symbols that look global but aren't declared)
+            undeclared_suspects = []
+            for t in tokens:
+                if suspicious_pattern.match(t):
+                    # If it looks like a generated global, it MUST be declared or reserved
+                    if t not in known_vars and t not in known_funcs and t not in reserved_names and t not in available_sorts:
+                         undeclared_suspects.append(t)
+            
+            if undeclared_suspects:
+                 _debug_log("construct_scripts: REMOVING assertion with undeclared globals: %s", undeclared_suspects)
+                 continue
+
             clean_ast.append(assertion)
         ast = clean_ast
 
