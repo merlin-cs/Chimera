@@ -867,7 +867,7 @@ def process_history_fuzz(args):
 
                     file_count += 1
                     total_count += 1
-                    if bug_flag:
+                    if bug_flag == "bug":
                         bug_count += 1
                     if time.time() - start_time > 10:
                         start_time = time.time()
