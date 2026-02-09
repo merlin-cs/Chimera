@@ -104,29 +104,6 @@ _BUILTIN_SORTS = frozenset({
     "Array",
 })
 
-# SMT-LIB keywords to exclude from detailed symbol checking
-_SMT_KEYWORDS = frozenset({
-    "assert", "check-sat", "set-logic", "set-info", "set-option", "declare-sort", 
-    "declare-fun", "define-fun", "declare-const", "define-const", "push", "pop",
-    "model", "exit", "get-model", "get-assertions", "get-proof", "get-unsat-core",
-    "get-value", "get-assignment", "get-option", "get-info",
-    "let", "forall", "exists", "match", "par", "!", "_", "as",
-    "and", "or", "not", "=>", "xor", "distinct", "ite", "=",
-    "true", "false",
-    "map", "select", "store", "const", "default", "is",
-    "to_real", "to_int", "is_int", "abs", "div", "mod", "rem",
-    "str", "str.len", "str.substr", "str.indexof", "str.replace", "str.at",
-    "str.prefixof", "str.suffixof", "str.contains", "int.to.str", "str.to.int",
-    "bvadd", "bvsub", "bvmul", "bvurem", "bvudiv", "bvsrem", "bvsdiv", "bvsmod", 
-    "bvshl", "bvlshr", "bvashr", "bvor", "bvand", "bvnot", "bvxor", "bvnand", 
-    "bvnor", "bvxnor", "bvcomp", "bvneg", "bvsignextend", "bvzeroextend", 
-    "repeat", "rotate_left", "rotate_right",
-    "fp.abs", "fp.neg", "fp.add", "fp.sub", "fp.mul", "fp.div", "fp.fma", "fp.sqrt",
-    "fp.rem", "fp.roundToIntegral", "fp.min", "fp.max", "fp.leq", "fp.lt", "fp.geq",
-    "fp.gt", "fp.eq", "fp.isNormal", "fp.isSubnormal", "fp.isZero", "fp.isInfinite",
-    "fp.isNaN", "fp.isNegative", "fp.isPositive", "fp.to_ubv", "fp.to_sbv", "fp.to_real"
-})
-
 
 def _is_builtin_sort(sort_name: str) -> bool:
     """Return *True* if *sort_name* is a built-in SMT-LIB sort.
@@ -1059,72 +1036,202 @@ def _build_type_var(var_list) -> Dict[str, list]:
     return type_var
 
 
-def sanitize_identifier(name: str) -> str:
-    """Rename identifiers that collide with SMT keywords."""
-    if name in _SMT_KEYWORDS or _is_builtin_sort(name):
-        return f"{name}_safe"
-    return name
+def construct_scripts(ast, var_list, sort, func, incremental, argument):
+    """Assemble the final SMT-LIB script from assertions, vars, sorts, funcs.
 
-def filter_ill_typed_assertions(assertions: List[str], var_list: List[str]) -> List[str]:
-    """Drop assertions that misuse functions (e.g. str.len on Bool)."""
-    
-    # 1. Parse var types
-    var_types = {} # name -> type
+    Key validity improvements:
+    * Sort declarations are collected first.
+    * Func/Var declarations with unresolved sorts are dropped.
+    * Assertions using dropped symbols are removed to prevent "unknown constant".
+    * Sorts provided by user/corpus are only emitted if used.
+    """
+    seen_names: set = set()        # track declared symbol *names*
+    seen_decl_strs: set = set()    # track exact declaration strings
+
+    # ------------------------------------------------------------------
+    # 1. Collect ALL candidate sort declarations and build a set of
+    #    available sort names.
+    # ------------------------------------------------------------------
+    available_sorts: set = set()    # sort names that will be declared
+    sort_decl_map: Dict[str, str] = {}  # sort_name -> declaration string
+
+    if sort:
+        for s in sort:
+            s = s.replace("\n", "").strip()
+            if not s:
+                continue
+            sname_m = re.search(r'\((?:declare-sort|define-sort)\s+([^\s)]+)', s)
+            key = sname_m.group(1) if sname_m else None
+            if key and key not in sort_decl_map:
+                sort_decl_map[key] = s
+                available_sorts.add(key)
+
+    # ------------------------------------------------------------------
+    # 2. Pre-filter Variable Declarations based on Sort Availability
+    # ------------------------------------------------------------------
+    clean_var_list = []
+    dropped_symbols = set() # Vars or Funcs we can't declare
+
     if var_list:
         for v in var_list:
-            if ", " in v:
-                parts = v.split(', ')
-                if len(parts) >= 2:
-                    nm = parts[0].strip()
-                    ty = parts[1].strip()
-                    var_types[nm] = ty
-
-    valid_assertions = []
-    
-    # Regex patterns for string functions that require String args
-    # (str.len <string>)
-    re_str_len = re.compile(r'\(str\.len\s+([^\s\)]+)\)')
-    # (str.indexof <string> <string> <int>)
-    re_str_idx = re.compile(r'\(str\.indexof\s+([^\s\)]+)\s+([^\s\)]+)\s+([^\s\)]+)\)')
-
-    for assertion in assertions:
-        is_valid = True
-        
-        # Check str.len
-        for match in re_str_len.finditer(assertion):
-            arg = match.group(1)
-            # If arg is a variable, check its type
-            if arg in var_types:
-                if var_types[arg] != "String":
-                    # Mismatch!
-                    is_valid = False
-                    break
-        
-        if not is_valid: 
-            # _debug_log("Dropping ill-typed assertion (str.len mismatch): %s", assertion)
-            continue
-
-        # Check str.indexof
-        for match in re_str_idx.finditer(assertion):
-            arg1, arg2, arg3 = match.group(1), match.group(2), match.group(3)
-            # arg1, arg2 must be String
-            if arg1 in var_types and var_types[arg1] != "String":
-                is_valid = False
-                break
-            if arg2 in var_types and var_types[arg2] != "String":
-                is_valid = False
-                break
-        
-        if not is_valid:
-            # _debug_log("Dropping ill-typed assertion (str.indexof mismatch): %s", assertion)
-            continue
-        
-        valid_assertions.append(assertion)
+            if ", " not in v:
+                continue
+            name = v.split(", ")[0].strip()
+            typ = v.split(", ")[1].strip()
+            if not name or not typ:
+                continue
             
-    return valid_assertions
+            # Check sorts
+            var_sorts = _extract_sorts_from_decl(f"(declare-fun {name} () {typ})")
+            unresolved = [vs for vs in var_sorts
+                          if vs not in available_sorts and not _is_builtin_sort(vs)]
+            
+            if unresolved:
+                _debug_log("construct_scripts: DROPPING var %s (%s) – unresolved sorts: %s",
+                           name, typ, unresolved)
+                dropped_symbols.add(name)
+            else:
+                clean_var_list.append(v)
+
+    # ------------------------------------------------------------------
+    # 3. Pre-filter Function Declarations based on Sort Availability
+    #    (We don't check body usage yet, just sorts)
+    # ------------------------------------------------------------------
+    potential_func_decls = []
+    
+    if func:
+        for f in func:
+            f = f.replace(";", "").strip()
+            if not f: 
+                continue
+            fname = _extract_func_name(f)
+            if fname is None:
+                continue
+            
+            required_sorts = _extract_sorts_from_decl(f)
+            unresolved = [rs for rs in required_sorts
+                          if rs not in available_sorts and not _is_builtin_sort(rs)]
+            
+            if unresolved:
+                _debug_log("construct_scripts: DROPPING func %s – unresolved sorts: %s",
+                           fname, unresolved)
+                dropped_symbols.add(fname)
+            else:
+                potential_func_decls.append(f)
+
+    # ------------------------------------------------------------------
+    # 4. Prepare AST: Strip :named, Filter dropped symbols, Translocate
+    # ------------------------------------------------------------------
+    ast = [_strip_named_annotation(a) for a in ast]
+
+    # Filter assertions that use dropped symbols
+    if dropped_symbols:
+        clean_ast = []
+        for assertion in ast:
+            # Simple tokenization: match SMT symbols
+            tokens = set(re.findall(r'[a-zA-Z0-9_.~!@$%^&*+=<>.?/-]+', assertion))
+            if not tokens.isdisjoint(dropped_symbols):
+                inter = tokens.intersection(dropped_symbols)
+                _debug_log("construct_scripts: REMOVING assertion using dropped symbol(s): %s", inter)
+                continue
+            clean_ast.append(assertion)
+        ast = clean_ast
+
+    # Allow variable swapping (only using valid variables)
+    ast = variable_translocation(ast, _build_type_var(clean_var_list))
+
+    if incremental == "incremental":
+        ast = insert_push_and_pop(ast)
+    else:
+        ast.append("(check-sat)")
+
+    body_text = "\n".join(ast)
+
+    # ------------------------------------------------------------------
+    # 5. Emit Function Declarations (only if used in body)
+    # ------------------------------------------------------------------
+    func_decls: list = []
+    func_needed_sorts: set = set()
+
+    for f in potential_func_decls:
+        if f in seen_decl_strs:
+            continue
+        fname = _extract_func_name(f)
+        if fname in seen_names:
+            continue
+        
+        # Only emit if referenced
+        if fname not in body_text:
+            continue
+            
+        func_decls.append(f)
+        seen_names.add(fname)
+        seen_decl_strs.add(f)
+        func_needed_sorts.update(_extract_sorts_from_decl(f))
+
+    # ------------------------------------------------------------------
+    # 6. Emit Variable Declarations
+    # ------------------------------------------------------------------
+    var_decls: list = []
+    
+    # helper for variable types mapping
+    for v in clean_var_list:
+        name = v.split(", ")[0].strip()
+        typ = v.split(", ")[1].strip()
+        
+        decl = str(DeclareFun(name, '', typ))
+        if name not in seen_names:
+            var_decls.append(decl)
+            seen_names.add(name)
+            seen_decl_strs.add(decl)
+
+    # ------------------------------------------------------------------
+    # 7. Emit Sort Declarations (only needed ones)
+    # ------------------------------------------------------------------
+    sort_decls: list = []
+    var_needed_sorts: set = set()
+    for vd in var_decls:
+        var_needed_sorts.update(
+            s for s in _extract_sorts_from_decl(vd) if not _is_builtin_sort(s)
+        )
+
+    all_needed_sorts = func_needed_sorts | var_needed_sorts
+    for sname, sdecl in sort_decl_map.items():
+        if sname in all_needed_sorts and sname not in seen_names:
+            sort_decls.append(sdecl)
+            seen_names.add(sname)
+            seen_decl_strs.add(sdecl)
+
+    # ------------------------------------------------------------------
+    # 8. Assemble
+    # ------------------------------------------------------------------
+    formula = sort_decls + func_decls + var_decls + ast
+
+    # Filter out empty lines
+    formula = [line for line in formula if line.strip()]
+
+    s = "(set-logic ALL)\n"
+    for content in formula:
+        s = s + content + "\n"
+
+    # -- Debug --
+    if _debug_enabled():
+        depth = _smt_paren_depth(s)
+        if depth != 0:
+            _debug_log("construct_scripts: UNBALANCED output (depth=%d)", depth)
+        else:
+            _debug_log("construct_scripts: OK (%d sorts, %d funcs, %d vars)",
+                       len(sort_decls), len(func_decls), len(var_decls))
+
+    return s
+
 
 def insert_push_and_pop(ast_list):
-    """Wrap assertion strings in push/pop pairs for incremental mode."""
+    """Wrap assertion strings in push/pop pairs for incremental mode.
+
+    Ensures that pop counts never exceed the current stack depth and that
+    every push is matched by a pop by the end.
+    """
     ast_stack = 0
     new_ast = []
     left_count = len(ast_list)
@@ -1151,208 +1258,252 @@ def insert_push_and_pop(ast_list):
         new_ast.append("(pop " + str(ast_stack) + ")")
     return new_ast
 
-def construct_scripts(ast, var_list, sort, func, incremental, argument):
-    """Assemble the final SMT-LIB script from assertions, vars, sorts, funcs.
-    
-    Robust version: 
-    - Sanitizes identifiers to avoid keyword collisions.
-    - Filters assertions that use undeclared symbols.
-    - Checks for type validity in common string operations.
+
+def collect_sort(file):
+    sort_list = []
+    with open(file, "r", encoding="utf-8", errors="replace") as smt_file:
+        for line in smt_file:
+            if "declare-sort" in line or "define-sort" in line:
+                sort_list.append(line)
+    return sort_list
+
+
+def _validate_smt_formula(script: str) -> bool:
+    """Lightweight pre-export validation of an SMT-LIB formula.
+
+    Checks:
+    1. Parenthesis balance (respecting string literals).
+    2. Presence of ``(check-sat)`` (or ``(push`` for incremental).
+    3. No stray ``(! … :named …)`` annotations at the assertion level
+       (these often indicate an un-stripped corpus fragment).
+    4. Every ``(assert ...)`` is properly closed.
+
+    Returns *True* when the formula looks structurally valid, *False*
+    otherwise.  This is intentionally a *lightweight* check – it won't
+    catch all semantic problems, but it's fast enough to run on every
+    generated formula.
     """
-    token_map: Dict[str, str] = {} # old_name -> new_name (for sanitization)
-    
-    # helper to register a name and its sanitized version
-    def register_name(name):
-        sanitized = sanitize_identifier(name)
-        if sanitized != name:
-            token_map[name] = sanitized
-        return sanitized
+    # 1. Paren balance
+    if _smt_paren_depth(script) != 0:
+        _debug_log("_validate_smt_formula: FAIL – unbalanced parentheses")
+        return False
 
-    # ------------------------------------------------------------------
-    # 1. Collect Sorts
-    # ------------------------------------------------------------------
-    available_sorts: set = set()
-    sort_decls: List[str] = []
-    
-    if sort:
-        for s in sort:
-            s = s.replace("\n", "").strip()
-            if not s: continue
-            
-            # Extract name to sanitize
-            sname_m = re.search(r'\((?:declare-sort|define-sort)\s+([^\s)]+)', s)
-            if sname_m:
-                raw_name = sname_m.group(1)
-                safe_name = register_name(raw_name)
-                available_sorts.add(safe_name)
-                # Replace name in decl
-                s = s.replace(raw_name, safe_name)
-                sort_decls.append(s)
+    # 2. Must have check-sat or be incremental (push)
+    if "(check-sat)" not in script and "(push" not in script:
+        _debug_log("_validate_smt_formula: FAIL – no (check-sat) or (push")
+        return False
 
-    # ------------------------------------------------------------------
-    # 2. Collect Vars
-    # ------------------------------------------------------------------
-    clean_var_list = []
-    declared_vars = set()
-    if var_list:
-        for v in var_list:
-            if ", " not in v: continue
-            name = v.split(", ")[0].strip()
-            typ = v.split(", ")[1].strip()
-            if not name or not typ: continue
-            
-            # Sanitize type if it's a user sort
-            if typ in token_map:
-                typ = token_map[typ]
+    # 3. Check each line for common issues
+    for line in script.split("\n"):
+        stripped = line.strip()
+        # Bare :named at assertion level is suspicious
+        if stripped.startswith("(assert") and ":named" in stripped:
+            # Check if :named is directly inside assert (not inside a deeper subexpr)
+            # Quick heuristic: count parens before :named — if depth is 2 it's
+            # (assert (! expr :named …)) which is legal; depth 1 would be broken.
+            idx = stripped.find(":named")
+            prefix = stripped[:idx]
+            d = prefix.count("(") - prefix.count(")")
+            if d < 2:
+                _debug_log("_validate_smt_formula: FAIL – :named at wrong depth in: %.100s", stripped)
+                return False
 
-            # Check sort validity
-            var_sorts = _extract_sorts_from_decl(f"(declare-fun {name} () {typ})")
-            
-            is_valid_sort = True
-            for vs in var_sorts:
-                vs_safe = token_map.get(vs, vs)
-                if vs_safe not in available_sorts and not _is_builtin_sort(vs_safe):
-                    is_valid_sort = False
-                    break
-            
-            if is_valid_sort:
-                safe_name = register_name(name)
-                declared_vars.add(safe_name)
-                clean_var_list.append(f"{safe_name}, {typ}")
-    
-    # ------------------------------------------------------------------
-    # 3. Collect Funcs
-    # ------------------------------------------------------------------
-    potential_func_decls = []
-    declared_funcs = set()
-    
-    if func:
-        for f in func:
-            f_clean = f.replace(";", "").strip()
-            if not f_clean: continue
-            
-            fname = _extract_func_name(f_clean)
-            if not fname: continue
-            
-            # Sanitize signature types in the string
-            f_safe = f_clean
-            for old, new in token_map.items():
-                f_safe = f_safe.replace(old, new)
-            
-            required_sorts = _extract_sorts_from_decl(f_safe)
-            is_valid = True
-            for rs in required_sorts:
-                if rs not in available_sorts and not _is_builtin_sort(rs):
-                    is_valid = False
-                    break
-            
-            if is_valid:
-                safe_fname = register_name(fname)
-                if fname in token_map:
-                    # ensure decl uses safe name
-                    f_safe = f_safe.replace(fname, safe_fname)
-                
-                potential_func_decls.append(f_safe)
-                declared_funcs.add(safe_fname)
+    return True
 
-    # ------------------------------------------------------------------
-    # 4. Prepare Allowed Globals Whitelist
-    # ------------------------------------------------------------------
-    allowed_globals = set()
-    allowed_globals.update(_BUILTIN_SORTS)
-    allowed_globals.update(_SMT_KEYWORDS)
-    allowed_globals.update(available_sorts)
-    allowed_globals.update(declared_vars)
-    allowed_globals.update(declared_funcs)
-    
-    # ------------------------------------------------------------------
-    # 5. Process AST (Asserts)
-    # ------------------------------------------------------------------
-    clean_ast = []
-    
-    # Apply sanitization to AST first
-    sanitized_ast = []
-    for assertion in ast:
-        assertion = _strip_named_annotation(assertion)
-        # Apply strict token replacement
-        tokens = re.findall(r'[() \n\t]+|[^\s()]+', assertion)
-        new_tokens = []
-        for tok in tokens:
-            t = tok.strip()
-            if t in token_map:
-                new_tokens.append(tok.replace(t, token_map[t]))
-            else:
-                new_tokens.append(tok)
-        sanitized_ast.append("".join(new_tokens))
-    
-    # Filter ill-typed
-    sanitized_ast = filter_ill_typed_assertions(sanitized_ast, clean_var_list)
 
-    # Filter unknowns (Strict Whitelist)
-    for assertion in sanitized_ast:
-        # Strict checking
-        tokens = set(re.findall(r'[a-zA-Z0-9_.~!@$%^&*+=<>.?/-]+', assertion))
-        is_valid = True
-        
-        for tok in tokens:
-            if tok.isdigit() or (tok.startswith('"') and tok.endswith('"')):
-                continue
-            if tok.startswith("#x") or tok.startswith("#b"): # bitvectors
-                continue
-            if tok.startswith("|") and tok.endswith("|"): # quoted identifiers
-                 if tok not in allowed_globals:
-                     is_valid = False
-                     break
-                 continue
+def export_smt2(script, direct, index):
+    os.makedirs(direct, exist_ok=True)
+    file_path = os.path.join(direct, f"case{index}.smt2")
 
-            if tok not in allowed_globals:
-                is_valid = False
-                break
-        
-        if is_valid:
-            clean_ast.append(assertion)
-            
-    ast = clean_ast
-
-    # ------------------------------------------------------------------
-    # 6. Translocation & Assembly
-    # ------------------------------------------------------------------
-    ast = variable_translocation(ast, _build_type_var(clean_var_list))
-
-    if incremental == "incremental":
-        ast = insert_push_and_pop(ast)
-    else:
-        ast.append("(check-sat)")
-
-    # Build Final Strings
-    final_parts = []
-    final_parts.append("(set-logic ALL)")
-    final_parts.extend(sort_decls)
-    
-    # Funcs (only if used in body to keep it clean)
-    body_text = "\n".join(ast)
-    for f in potential_func_decls:
-        fname = _extract_func_name(f)
-        if fname and fname in body_text:
-             final_parts.append(f)
-    
-    # Vars
-    for v in clean_var_list:
-        name = v.split(", ")[0]
-        typ = v.split(", ")[1]
-        final_parts.append(f"(declare-fun {name} () {typ})")
-        
-    final_parts.extend(ast)
-    
-    formula_str = "\n".join(final_parts)
-    
+    # -- Debug: validate the formula before writing --------------------------
     if _debug_enabled():
-        depth = _smt_paren_depth(formula_str)
+        depth = _smt_paren_depth(script)
         if depth != 0:
-            _debug_log("construct_scripts: UNBALANCED output (depth=%d)", depth)
-        else:
-            _debug_log("construct_scripts: OK (len=%d)", len(formula_str))
+            _debug_log("export_smt2: UNBALANCED formula written to %s (depth=%d)",
+                       file_path, depth)
+        if "(check-sat)" not in script:
+            _debug_log("export_smt2: WARNING no (check-sat) in %s", file_path)
 
-    return formula_str
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.write(script)
+    return file_path
+
+# -----------------------------------------------------------------------------
+# Rewrite Fuzzing Logic
+# -----------------------------------------------------------------------------
+
+def process_rewrite_fuzz(args):
+    """
+    Worker function for rewrite-based fuzzing.
+    """
+    (seeds, solver, solver_bin, temp_dir, modulo, max_iter, core, bug_type, mimetic) = args
+    
+    @exit_after(300)
+    def fuzz_each_file(seed_file, solver, solver_bin, temp_dir, modulo=2, max_iter=10, core=0, bug_type="common"):
+        """
+        Fuzz a seed file.
+        """
+        script_dir = "{}/script/core{}/{}/".format(temp_dir, str(core), seed_file.split('/')[-1].replace('.smt2', ''))
+        os.makedirs(script_dir, exist_ok=True)
+        initial_seed_filename = seed_file.split("/")[-1]
+        
+        logic = None 
+        if logic is None:
+            logic = "(set-logic ALL)"
+        orig_file_path = seed_file
+
+        if mimetic >= 0:
+            original_smt2 = os.path.join(script_dir, "original.smt2")
+
+            if not os.path.exists(original_smt2):
+                shutil.copy(seed_file, original_smt2)
+            
+            for mimetic_iter in range(mimetic):
+                mutation_flag = mimetic_mutation(seed_file, original_smt2)
+                if not mutation_flag:
+                    seed_file = original_smt2
+                    orig_file_path = seed_file
+                else:
+                    pass
+
+        temp_output = script_dir + "/temp.txt"
+        orig_output, _, orig_time, command = run_solver(solver_bin, solver, seed_file, 10, "incremental", temp_output, temp_dir, "None", default=True)
+
+        if orig_output == "timeout":
+            pass
+        
+        new_script = []
+        
+        for iter in range(max_iter):
+            rewrite_type = "egg"
+            
+            max_retries = 10
+            retry_count = 0
+            mutated_formula = None
+            applied_rules = ""
+            
+            while retry_count < max_retries:
+                mutated_formula = None
+                if rewrite_type == "egg":
+                    TargetScript, TargetGlobal = parse_file(seed_file)
+                    if TargetScript is None:
+                        return
+                    current_ast = TargetScript.assert_cmd
+                    
+                    if hasattr(TargetScript, 'op_occs') and TargetScript.op_occs:
+                        num_replace = 3 if len(TargetScript.op_occs) > 3 else len(TargetScript.op_occs)
+                        replacee_terms = random.sample(TargetScript.op_occs, num_replace)
+                        replace_pairs = []
+                        attempts = 0
+                        max_attempts = len(TargetScript.op_occs) * 2
+
+                        while len(replace_pairs) < 3 and attempts < max_attempts:
+                            if not replacee_terms:
+                                break
+                            
+                            term = replacee_terms.pop(0)
+                            attempts += 1
+                            
+                            term_ir = convert_to_IR(term)
+                            term_str = str(term)
+                            
+                            transformed_irs = RewriteEGG(term_ir, ALL_RULES, [], 1)
+                            if transformed_irs is None or len(transformed_irs) == 0:
+                                continue
+                            
+                            transformed_ir = transformed_irs[0]
+                            new_term_str = convert_IR_to_str(transformed_ir)
+                            
+                            if new_term_str is None or new_term_str == term_str:
+                                continue
+                            
+                            if "None" in str(new_term_str) or new_term_str.strip() == "":
+                                continue
+                            
+                            replace_pairs.append((term_str, new_term_str))
+
+                        if replace_pairs:
+                            current_ast_str = "\\n".join([str(cmd) for cmd in current_ast])
+                            for old, new in replace_pairs:
+                                current_ast_str = current_ast_str.replace(old, new, 1)
+
+                            mutated_formula = "\\n".join(new_script) + "\\n" + current_ast_str + "\\n(check-sat)"
+
+                            if "None" in mutated_formula:
+                                retry_count += 1
+                                continue
+                            
+                        else:
+                            retry_count += 1
+                            continue
+                    else:
+                        break 
+                
+                if mutated_formula is None:
+                    retry_count += 1
+                    continue
+
+                mutant_path = script_dir + "/{}_mutant_{}.smt2".format(initial_seed_filename, str(iter))
+                with open(mutant_path, "w", encoding="utf-8") as f:
+                    f.write(mutated_formula)
+                
+                try:
+                    parse_cmd = [solver_bin, mutant_path, "--parse-only", "-q"] if "cvc5" in solver_bin else ["cvc5", mutant_path, "--parse-only"]
+                    
+                    try:
+                        process = subprocess.run(parse_cmd, capture_output=True, text=True, timeout=10)
+                        if "(error \"Parse Error:" in process.stderr or "(error \"Parse Error:" in process.stdout:
+                            retry_count += 1
+                            continue
+                        else:
+                            break
+                    except FileNotFoundError:
+                        break 
+                except Exception:
+                    break
+
+            if mutated_formula is None:
+                continue
+            
+            mutant_path = script_dir + "/{}_mutant_{}.smt2".format(initial_seed_filename, str(iter))
+
+            default = True if bug_type == "all" else False
+            
+            mutant_output, _, mutant_time, command = run_solver(solver_bin, solver, mutant_path, 10, "incremental", temp_output, temp_dir, "None", default=default, rules=applied_rules)
+            
+            if bug_type == "all":
+                pass 
+
+            if mutant_output not in [orig_output, "crash", "parseerror", "timeout", "error"]:
+                 if isinstance(orig_output, list) and isinstance(mutant_output, list):
+                     pass
+            
+            seed_file = mutant_path
+            orig_file_path = mutant_path
+
+    # Main loop for process_rewrite_fuzz
+    os.makedirs(temp_dir, exist_ok=True)
+    os.makedirs(f"{temp_dir}/script", exist_ok=True)
+    
+    script_core_dir = f"{temp_dir}/script/core{core}"
+    if os.path.exists(script_core_dir):
+        shutil.rmtree(script_core_dir)
+    os.makedirs(script_core_dir)
+    
+    try:
+        for seed in seeds:
+            try:
+                fuzz_each_file(seed, solver, solver_bin, temp_dir, modulo, max_iter, core, bug_type)
+            except AssertionError:
+                continue
+            except KeyboardInterrupt:
+                break
+            except Exception as e:
+                with open(f"{temp_dir}/exception_core_{core}.txt", "w", encoding="utf-8") as f:
+                    f.write(str(e))
+                    f.write(traceback.format_exc())
+                continue
+    except KeyboardInterrupt:
+        pass
 
 
