@@ -1084,7 +1084,34 @@ def _type_check_assertion(assertion: str, type_env: Dict[str, Any]) -> bool:
                  for st in sub_types:
                      if st == "Bool" or st == "String" or (isinstance(st, str) and "Array" in st): 
                          if st != "unknown": return False
-                 return "Num"
+                 return "Num" # Treats Int and Real as compatible for now
+
+            # 2.1 Array Operations (Strict)
+            if op == "store":
+                if len(sub_types) != 3: return False
+                # First arg must be Array
+                if sub_types[0] != "unknown" and "Array" not in str(sub_types[0]): return False
+                return sub_types[0] # Returns the Array type
+            
+            if op == "select":
+                if len(sub_types) != 2: return False
+                # First arg must be Array
+                if sub_types[0] != "unknown" and "Array" not in str(sub_types[0]): return False
+                return "unknown" 
+
+            # 2.2 BitVec Operations
+            if op.startswith("bv") or op in ["concat", "sign_extend", "zero_extend", "extract"]:
+                if sub_types:
+                    for st in sub_types:
+                        # Allow unknown, or explict BitVec type
+                        # Note: We rely on string representation of type containing "BitVec"
+                        if st != "unknown" and "BitVec" not in str(st): 
+                            return False
+                return "BitVec"
+
+            # 2.3 String Ops
+            if op.startswith("str."):
+                 return "String" if op not in ["str.len", "str.indexof", "str.to_int"] else "Int"
 
             # 3. Functions / Variables in Env
             if op in type_env:
@@ -1100,6 +1127,10 @@ def _type_check_assertion(assertion: str, type_env: Dict[str, Any]) -> bool:
                         if actual != "unknown" and actual != expected:
                             # Allow Int/Real interoperability for "Num"
                             if expected in ["Int", "Real", "Num"] and actual in ["Int", "Real", "Num"]: continue
+                            # Allow ambiguous Array/BitVec checking (if strings don't match exactly but share base)
+                            if "Array" in str(expected) and "Array" in str(actual): continue
+                            if "BitVec" in str(expected) and "BitVec" in str(actual): continue
+                            
                             return False
                     return info['ret']
                 elif info['type'] == 'var':
@@ -1186,10 +1217,19 @@ def construct_scripts(ast, var_list, sort, func, incremental, argument):
             
             # Check sorts
             try:
+                # Ensure sort is valid and available
                 var_sorts = _extract_sorts_from_decl(f"(declare-fun {name} () {typ})")
                 unresolved = [vs for vs in var_sorts
                               if vs not in available_sorts and not _is_builtin_sort(vs)]
                 
+                # Check for malformed sort strings by trying to parse a dummy decl
+                try:
+                    dummy_decl_str = f"(declare-fun {name} () {typ})"
+                    parsed_v, _ = parse_str(dummy_decl_str, silent=True)
+                    if not parsed_v or not parsed_v.commands: raise Exception("ParseFail")
+                except:
+                     unresolved.append("PARSE_FAIL")
+
                 if unresolved:
                     _debug_log("construct_scripts: DROPPING var %s (%s) – unresolved sorts: %s",
                                name, typ, unresolved)
@@ -1215,6 +1255,17 @@ def construct_scripts(ast, var_list, sort, func, incremental, argument):
             if _smt_paren_depth(f) != 0:
                  _debug_log("construct_scripts: DROPPING func due to unbalanced parens: %.50s...", f)
                  continue
+
+            # Strict syntax validation via Parser
+            try:
+                parsed_decl, _ = parse_str(f, silent=True)
+                if not parsed_decl or not parsed_decl.commands:
+                     raise Exception("Empty/Invalid parse")
+            except Exception:
+                _debug_log("construct_scripts: DROPPING malformed func declaration: %.50s...", f)
+                fname = _extract_func_name(f)
+                if fname: dropped_symbols.add(fname)
+                continue
 
             fname = _extract_func_name(f)
             if fname is None or fname in reserved_names:
