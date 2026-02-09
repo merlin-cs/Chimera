@@ -366,14 +366,13 @@ def export_basic_formula(formula_list, output):
             for e in expr:
                 if e.is_var:
                     f.write("; " + e.name + ", " + str(e.type) + "; ")
-            if len(formula[2]) > 0:
-                f.write("sort: ")
-                for sort in formula[2]:
-                    f.write(sort + "; ")
-            if len(funcs_to_write) > 0:
-                f.write("func: ")
-                for func in funcs_to_write:
-                    f.write(func + "; ")
+            # Only write sort/func if there are non-empty entries
+            clean_sorts = [s.strip() for s in formula[2] if s.strip()]
+            if clean_sorts:
+                f.write("sort: " + "; ".join(clean_sorts) + "; ")
+            clean_funcs = [fn.strip() for fn in funcs_to_write if fn.strip()]
+            if clean_funcs:
+                f.write("func: " + "; ".join(clean_funcs) + "; ")
 
 
 
@@ -525,8 +524,6 @@ class BuggySeed(object):
             file = f.readlines()
             typ = None
             formula = None
-            func_line = ""
-            sort_line = ""
             for line in file:
                 line = line.replace("\n", "")
                 if line == "":
@@ -539,6 +536,9 @@ class BuggySeed(object):
                 else:
                     if ";" in line:
                         content = line
+                        # Reset func/sort per formula line – avoid stale carry-over
+                        func_line = ""
+                        sort_line = ""
                         if "func: " in line:
                             content = line.split("func: ")[0]
                             func_line = line.split("func: ")[1]
@@ -550,17 +550,26 @@ class BuggySeed(object):
                         for index, c in enumerate(content_list):
                             if ";" in c:
                                 content_list[index] = c.replace(";", "")
-                        while "" in content_list:
-                            content_list.remove("")
+                        # Strip whitespace and remove empties
+                        content_list = [c.strip() for c in content_list if c.strip()]
+                        if not content_list:
+                            continue
                         formula.append(content_list[0])
                         formula_type[content_list[0]] = typ
                         formula_var[content_list[0]] = content_list[1:]
-                        formula_func[content_list[0]] = func_line.split("; ")
-                        formula_sort[content_list[0]] = sort_line.split("; ")
+                        # Filter empty entries from func/sort splits
+                        formula_func[content_list[0]] = [
+                            f.strip() for f in func_line.split("; ") if f.strip()
+                        ]
+                        formula_sort[content_list[0]] = [
+                            s.strip() for s in sort_line.split("; ") if s.strip()
+                        ]
                     else:
                         formula.append(line)
                         formula_type[line] = typ
                         formula_var[line] = []
+                        formula_func[line] = []
+                        formula_sort[line] = []
 
 
 def simplify(file1):

@@ -1,5 +1,6 @@
 import os
 import random
+import re
 import multiprocessing
 import traceback
 import time
@@ -7,6 +8,7 @@ import shutil
 import subprocess
 import sys
 import signal
+import logging
 from copy import deepcopy
 from typing import Optional, List, Any, Dict, Tuple, Union
 
@@ -27,6 +29,52 @@ from src.rewrite.mutate import Mutate, mimetic_mutation
 from src.utils.file_handlers import get_all_smt_files_recursively as recursively_get_files
 from src.rewrite.equality_saturation.helper import RewriteEGG, convert_to_IR, convert_IR_to_str, ALL_RULES
 from src.parsing.TimeoutDecorator import exit_after
+
+# ---------------------------------------------------------------------------
+# Debug infrastructure – activated by ``--debug`` on the Chimera CLI.
+# ---------------------------------------------------------------------------
+_FUZZER_DEBUG = False
+_fuzzer_logger = logging.getLogger("chimera.fuzzer")
+
+
+def enable_fuzzer_debug() -> None:
+    """Turn on verbose debug logging for the fuzzer module."""
+    global _FUZZER_DEBUG
+    _FUZZER_DEBUG = True
+    _fuzzer_logger.setLevel(logging.DEBUG)
+    if not _fuzzer_logger.handlers:
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter("%(asctime)s [DEBUG] %(message)s"))
+        _fuzzer_logger.addHandler(handler)
+
+
+def _debug_enabled() -> bool:
+    return _FUZZER_DEBUG
+
+
+def _debug_log(msg: str, *args) -> None:
+    if _FUZZER_DEBUG:
+        _fuzzer_logger.debug(msg, *args)
+
+
+def _smt_paren_depth(text: str) -> int:
+    """Return net parenthesis depth (positive = more opens than closes).
+
+    Respects SMT-LIB string literals (delimited by ``"``).
+    """
+    depth = 0
+    in_string = False
+    prev = ''
+    for ch in text:
+        if ch == '"' and prev != '\\':
+            in_string = not in_string
+        elif not in_string:
+            if ch == '(':
+                depth += 1
+            elif ch == ')':
+                depth -= 1
+        prev = ch
+    return depth
 
 def generator_wrapper(generator: str) -> Optional[Tuple[Any, Any]]:
     """
@@ -620,6 +668,9 @@ def process_history_fuzz(args):
     target_corpus_data = None
     fixed_theory = None
 
+    _debug_log("process_history_fuzz[core=%d]: %d available logics: %s",
+               core, len(available_logics), available_logics[:10])
+
     if user_logic and user_logic in available_logics:
         fixed_theory = user_logic
         compatible_logics = [l for l in available_logics if is_logic_compatible(l, user_logic)]
@@ -672,6 +723,12 @@ def process_history_fuzz(args):
                 
                 sorts = sort_list if sort_list is not None else []
                 funcs = func_list if func_list is not None else []
+                # Filter empty entries that may have slipped through
+                funcs = [f for f in funcs if f.strip()] if funcs else []
+                sorts = [s for s in sorts if s.strip()] if sorts else []
+
+                _debug_log("process_history_fuzz: constructing script with %d assertions, %d vars, %d sorts, %d funcs",
+                           len(new_ast), len(ast_var) if ast_var else 0, len(sorts), len(funcs))
 
                 new_formula = construct_scripts(new_ast, ast_var, sorts, funcs, incremental_mode, argument)
                 smt_file = export_smt2(new_formula, temp_core_dir, file_count)
@@ -727,12 +784,14 @@ def construct_formula(skeleton, seed_type_expr, seed_expr_type, seed_var, bug_ty
     if seed_var is None:
         seed_var = dict()
     if skeleton is not None:
-        for ske in skeleton:
+        for ske_idx, ske in enumerate(skeleton):
             local_var = list()
             blanks = obtain_hole(ske)
             local_domain = obtain_local_domain(ske)
             hole_replacer_dic = dict()
             assertion = str(ske)
+            _debug_log("construct_formula: skeleton[%d] has %d holes, initial: %.120s…",
+                       ske_idx, len(blanks), assertion)
             while len(blanks) > 0:
                 blank = random.choice(blanks)
                 replacer_type = random.choice(["seed", "seed", "seed", "buggy"])
@@ -745,8 +804,9 @@ def construct_formula(skeleton, seed_type_expr, seed_expr_type, seed_var, bug_ty
                     if len(list(bug_formula_var.keys())) > 0:
                         replacer = random.choice(list(bug_formula_var.keys()))
                         single_hole_var = bug_formula_var[replacer]
-                        sort_list += bug_formula_sort.get(replacer, [])
-                        func_list += bug_formula_func.get(replacer, [])
+                        # Filter empty sort/func entries from corpus
+                        sort_list += [s for s in bug_formula_sort.get(replacer, []) if s.strip()]
+                        func_list += [f for f in bug_formula_func.get(replacer, []) if f.strip()]
                         if bug_association and bug_formula_typ.get(replacer) and bug_formula_typ[replacer] in bug_association.rule_set:
                             abstract_set.add(bug_formula_typ[replacer])
                     else:
@@ -780,13 +840,30 @@ def construct_formula(skeleton, seed_type_expr, seed_expr_type, seed_var, bug_ty
                                 assertion = assertion.replace(replacee, var + " " + "Bool")
             var_lists += local_var
             var_lists = list(set(var_lists))
+            # Validate that the filled assertion is paren-balanced
+            depth = _smt_paren_depth(assertion)
+            if depth != 0:
+                _debug_log("construct_formula: UNBALANCED assertion after hole-fill (depth=%d): %.120s…",
+                           depth, assertion)
+                # Attempt to fix minor imbalances (missing closing parens)
+                if depth > 0:
+                    assertion = assertion + (")" * depth)
+                    _debug_log("construct_formula: auto-appended %d closing parens", depth)
             ast_lists.append(assertion)
-        return ast_lists, var_lists, list(set(sort_list)), list(set(func_list))
+        # Filter empty/whitespace entries from sort and func lists
+        clean_sorts = list({s.strip() for s in sort_list if s.strip()})
+        clean_funcs = list({f.strip() for f in func_list if f.strip()})
+        return ast_lists, var_lists, clean_sorts, clean_funcs
     else:
         return None, None, None, None
 
 
 def variable_translocation(ast, ast_var: dict):
+    """Randomly swap variables of the same type within assertion strings.
+
+    Uses word-boundary-aware replacement to avoid corrupting identifiers
+    that share a common prefix (e.g. ``var1`` vs ``var12``).
+    """
     if ast_var:
         replace_time = random.randint(1, 10)
         while replace_time > 0:
@@ -797,15 +874,18 @@ def variable_translocation(ast, ast_var: dict):
             replace_ast_index = random.randint(0, len(ast) - 1)
             if ast_var.get(replace_type):
                 for var in ast_var[replace_type]:
-                    if " " + var + " " in ast[replace_ast_index] or " " + var + ")" in ast[replace_ast_index]:
-                        if " " + var + " " in ast[replace_ast_index]:
-                            ast[replace_ast_index] = ast[replace_ast_index].replace(" " + var + " ", " " + random.choice(
-                                ast_var[replace_type]) + " ", 1)
-                            replace_time -= 1
-                        if " " + var + ")" in ast[replace_ast_index]:
-                            ast[replace_ast_index] = ast[replace_ast_index].replace(" " + var + ")", " " + random.choice(
-                                ast_var[replace_type]) + ")", 1)
-                            replace_time -= 1
+                    # Use regex for word-boundary-aware replacement to
+                    # prevent partial matches (e.g. var1 inside var12).
+                    pattern = re.compile(
+                        r'(?<=[\s(])' + re.escape(var) + r'(?=[\s)])'
+                    )
+                    match = pattern.search(ast[replace_ast_index])
+                    if match:
+                        replacement = random.choice(ast_var[replace_type])
+                        ast[replace_ast_index] = pattern.sub(
+                            replacement, ast[replace_ast_index], count=1
+                        )
+                        replace_time -= 1
                         break
     return ast
 
@@ -813,24 +893,38 @@ def variable_translocation(ast, ast_var: dict):
 def construct_scripts(ast, var_list, sort, func, incremental, argument):
     formula = list()
     type_var = {}
+    seen_decls = set()  # track emitted declarations to avoid duplicates
 
     if sort:
         for i, s in enumerate(sort):
-            sort[i] = s.replace("\n", "")
-        formula += list(set(sort))
+            sort[i] = s.replace("\n", "").strip()
+        # Filter empty / whitespace-only sort declarations
+        for s in set(sort):
+            if s and s not in seen_decls:
+                formula.append(s)
+                seen_decls.add(s)
     
     if func:
         for i, f in enumerate(func):
-            func[i] = f.replace(";", "")
-        formula += list(set(func))
+            func[i] = f.replace(";", "").strip()
+        # Filter empty / whitespace-only func declarations
+        for f in set(func):
+            if f and f not in seen_decls:
+                formula.append(f)
+                seen_decls.add(f)
 
     if var_list and len(var_list) > 0:
         for v in var_list:
             if ", " in v:
-                name = v.split(", ")[0]
-                typ = v.split(", ")[1]
+                name = v.split(", ")[0].strip()
+                typ = v.split(", ")[1].strip()
+                if not name or not typ:
+                    continue
                 type_var.setdefault(typ, []).append(name)
-                formula.append(str(DeclareFun(name, '', typ)))
+                decl = str(DeclareFun(name, '', typ))
+                if decl not in seen_decls:
+                    formula.append(decl)
+                    seen_decls.add(decl)
 
     ast = variable_translocation(ast, type_var)
 
@@ -841,14 +935,31 @@ def construct_scripts(ast, var_list, sort, func, incremental, argument):
 
     formula = formula + ast
 
+    # Filter out any remaining empty lines
+    formula = [line for line in formula if line.strip()]
+
     s = "(set-logic ALL)\n"
     for content in formula:
         s = s + content + "\n"
+
+    # -- Debug: validate parenthesis balance of the final formula ----------
+    if _debug_enabled():
+        depth = _smt_paren_depth(s)
+        if depth != 0:
+            _debug_log("construct_scripts: UNBALANCED output (depth=%d), first 200 chars: %.200s",
+                       depth, s)
+        else:
+            _debug_log("construct_scripts: OK (%d declarations, paren-balanced)", len(seen_decls))
 
     return s
 
 
 def insert_push_and_pop(ast_list):
+    """Wrap assertion strings in push/pop pairs for incremental mode.
+
+    Ensures that pop counts never exceed the current stack depth and that
+    every push is matched by a pop by the end.
+    """
     ast_stack = 0
     new_ast = []
     left_count = len(ast_list)
@@ -861,11 +972,18 @@ def insert_push_and_pop(ast_list):
         new_ast.append("(push " + str(push_count) + ")")
         ast_stack += push_count
         for i in range(push_count):
-            new_ast.append(ast_list.pop())
+            if ast_list:
+                new_ast.append(ast_list.pop())
+            else:
+                break
         new_ast.append("(check-sat)")
-        pop_count = random.randint(1, ast_stack)
-        ast_stack -= pop_count
-        new_ast.append("(pop " + str(pop_count) + ")")
+        if ast_stack > 0:
+            pop_count = random.randint(1, ast_stack)
+            ast_stack -= pop_count
+            new_ast.append("(pop " + str(pop_count) + ")")
+    # Ensure final stack is balanced
+    if ast_stack > 0:
+        new_ast.append("(pop " + str(ast_stack) + ")")
     return new_ast
 
 
@@ -880,6 +998,16 @@ def collect_sort(file):
 def export_smt2(script, direct, index):
     os.makedirs(direct, exist_ok=True)
     file_path = os.path.join(direct, f"case{index}.smt2")
+
+    # -- Debug: validate the formula before writing --------------------------
+    if _debug_enabled():
+        depth = _smt_paren_depth(script)
+        if depth != 0:
+            _debug_log("export_smt2: UNBALANCED formula written to %s (depth=%d)",
+                       file_path, depth)
+        if "(check-sat)" not in script:
+            _debug_log("export_smt2: WARNING no (check-sat) in %s", file_path)
+
     with open(file_path, "w", encoding="utf-8") as f:
         f.write(script)
     return file_path

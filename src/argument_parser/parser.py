@@ -33,6 +33,7 @@ class ChimeraArgs:
     bug_type: str = "common"
     mimetic: int = 0
     logic: Optional[str] = None
+    debug: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         """Return a plain dictionary (backward-compatible with legacy code)."""
@@ -77,6 +78,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--mimetic", type=int, default=0, help="mimetic mutation iterations")
     parser.add_argument("--logic", type=str, default=None, help="target SMT-LIB logic")
+    parser.add_argument("--debug", action="store_true", help="enable verbose debug logging for diagnostics")
     return parser
 
 
@@ -101,6 +103,7 @@ def parse_args(argv=None) -> ChimeraArgs:
         bug_type=ns.bug_type,
         mimetic=ns.mimetic,
         logic=ns.logic,
+        debug=ns.debug,
     )
 
 

@@ -25,7 +25,7 @@ from src.utils.file_handlers import get_all_smt_files_recursively, split_files
 from src.utils.timeout import register_timeout_handler
 from src.core.fuzzer import (
     process_target_file, process_standalone_generation, print_stats,
-    process_history_fuzz, process_rewrite_fuzz,
+    process_history_fuzz, process_rewrite_fuzz, enable_fuzzer_debug,
 )
 from src.constants import (
     TEMP_DIRECTORY, DEFAULT_INCREMENTAL, DEFAULT_THEORY, DEFAULT_STANDALONE_ITERATIONS,
@@ -68,6 +68,13 @@ def main() -> None:
     # Hot-reload generators if needed
     _configure_generators(parsed)
     print(f"Using {get_generator_version()} generators")
+
+    # Enable debug mode if requested
+    if parsed.get("debug", False):
+        import logging
+        logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [DEBUG] %(message)s")
+        enable_fuzzer_debug()
+        print("[DEBUG] Debug mode enabled – verbose logging active")
 
     # Unpack arguments
     solver1 = parsed["solver1"]

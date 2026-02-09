@@ -21,6 +21,9 @@ from typing import List, Optional, Set
 
 import z3  # noqa: F401 – used inside SMTLogicDetector (imported below)
 
+# Module-level debug flag – set via ``--debug`` on the CLI.
+DEBUG = False
+
 # ---------------------------------------------------------------------------
 # Project path setup
 # ---------------------------------------------------------------------------
@@ -142,7 +145,12 @@ def extract_formulas(content: str) -> List[str]:
 
 
 def _clean_smt2_payload(text: str) -> Optional[str]:
-    """Locate and return the SMT2 portion of *text*, or ``None``."""
+    """Locate and return the SMT2 portion of *text*, or ``None``.
+
+    Improvements:
+      - Strips trailing non-SMT content after the last balanced closing paren.
+      - Validates that the result has balanced parentheses.
+    """
     match = _SMT_START_RE.search(text)
     if not match:
         return None
@@ -155,9 +163,60 @@ def _clean_smt2_payload(text: str) -> Optional[str]:
         start = nl + 1
 
     candidate = text[start:]
-    if "(" in candidate and ")" in candidate:
-        return candidate
-    return None
+    if "(" not in candidate or ")" not in candidate:
+        return None
+
+    # Truncate after the last top-level balanced closing paren
+    candidate = _truncate_at_balanced_end(candidate)
+    if candidate is None:
+        return None
+
+    if DEBUG:
+        depth = _paren_depth(candidate)
+        logger.debug("Extracted SMT payload (%d chars, paren depth delta=%d)",
+                      len(candidate), depth)
+    return candidate
+
+
+def _paren_depth(text: str) -> int:
+    """Return net parenthesis depth (positive = more opens than closes)."""
+    depth = 0
+    in_string = False
+    prev = ''
+    for ch in text:
+        if ch == '"' and prev != '\\':
+            in_string = not in_string
+        elif not in_string:
+            if ch == '(':
+                depth += 1
+            elif ch == ')':
+                depth -= 1
+        prev = ch
+    return depth
+
+
+def _truncate_at_balanced_end(text: str) -> Optional[str]:
+    """Find the position after the last top-level balanced S-expression
+    and truncate trailing garbage. Returns ``None`` if no balanced
+    expression is found at all."""
+    depth = 0
+    last_balanced_end = -1
+    in_string = False
+    prev = ''
+    for i, ch in enumerate(text):
+        if ch == '"' and prev != '\\':
+            in_string = not in_string
+        elif not in_string:
+            if ch == '(':
+                depth += 1
+            elif ch == ')':
+                depth -= 1
+                if depth == 0:
+                    last_balanced_end = i + 1
+        prev = ch
+    if last_balanced_end <= 0:
+        return None
+    return text[:last_balanced_end]
 
 
 # ---------------------------------------------------------------------------
@@ -171,6 +230,8 @@ def standardize_single_instance(file: str) -> Optional[str]:
     """
     script, _var = process_seed(file)
     if script is None:
+        if DEBUG:
+            logger.debug("Failed to parse %s – removing", file)
         if os.path.exists(file):
             os.remove(file)
         return None
@@ -178,12 +239,28 @@ def standardize_single_instance(file: str) -> Optional[str]:
     new_lines: List[str] = []
     with open(file, "r", encoding="utf-8", errors="replace") as fh:
         for line in fh:
-            if "declare-sort" in line or "define-sort" in line:
-                new_lines.append(line.rstrip("\n"))
+            stripped = line.strip()
+            if "declare-sort" in stripped or "define-sort" in stripped:
+                new_lines.append(stripped)
 
     for cmd in script.commands:
         if type(cmd) in _VALID_AST_TYPES:
-            new_lines.append(str(cmd))
+            cmd_str = str(cmd).strip()
+            # Validate that each command is a well-formed S-expression
+            if cmd_str and _paren_depth(cmd_str) == 0:
+                new_lines.append(cmd_str)
+            elif DEBUG:
+                logger.debug("Dropping unbalanced command in %s: %.80s…", file, cmd_str)
+
+    # Remove empty/whitespace-only lines
+    new_lines = [ln for ln in new_lines if ln.strip()]
+
+    if not new_lines:
+        if DEBUG:
+            logger.debug("No valid commands after standardisation – removing %s", file)
+        if os.path.exists(file):
+            os.remove(file)
+        return None
 
     # Ensure (check-sat) terminator
     if len(new_lines) >= 2:
@@ -195,6 +272,9 @@ def standardize_single_instance(file: str) -> Optional[str]:
     with open(file, "w", encoding="utf-8") as fh:
         for line in new_lines:
             fh.write(line + "\n")
+
+    if DEBUG:
+        logger.debug("Standardised %s (%d commands)", file, len(new_lines))
     return file
 
 
@@ -370,6 +450,7 @@ def auto_collect_buggy_formulas(token: Optional[str], store_path: str) -> None:
 # ---------------------------------------------------------------------------
 
 def main() -> None:
+    global DEBUG
     parser = argparse.ArgumentParser(
         description="Collect bug-triggering SMT formulas from solver bug trackers",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -381,7 +462,14 @@ Examples:
     )
     parser.add_argument("--token", type=str, help="GitHub personal access token")
     parser.add_argument("--store", type=str, required=True, help="directory for collected formulas")
+    parser.add_argument("--debug", action="store_true", help="enable verbose debug logging")
     args = parser.parse_args()
+
+    if args.debug:
+        DEBUG = True
+        logging.getLogger().setLevel(logging.DEBUG)
+        logger.setLevel(logging.DEBUG)
+        logger.debug("Debug mode enabled for collect.py")
 
     if args.token:
         auto_collect_buggy_formulas(args.token, args.store)
