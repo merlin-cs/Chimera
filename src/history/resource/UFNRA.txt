@@ -3,16 +3,12 @@ var00; var00, Bool;
 % const_Bool
 true
 false
-% (= var_Real const_Real)
-(= (* var0 var0) 2.0); var0, Real; ; var0, Real; func: (declare-fun bug0_c (Real) Bool); 
 % (>= var_Int var_Int)
-(>= var1 (/ 7 var2)); var1, Int; ; var2, Int; func: (declare-fun bug2_a (Int Int) Bool); 
+(>= var0 (/ 7 var1)); var0, Int; ; var1, Int; func: (declare-fun bug0_a (Int Int) Bool); 
+(>= var2 (/ 7 var3)); var2, Int; ; var3, Int; func: (declare-fun bug1_a (Int Int) Bool); 
 % (a const_Int const_Int)
-(bug4_a 4 1)func: (declare-fun bug4_a (Int Int) Bool); 
-(bug5_a 4 1)func: (declare-fun bug5_a (Int Int) Bool); 
+(bug2_a 4 1)func: (declare-fun bug2_a (Int Int) Bool); 
+(bug3_a 4 1)func: (declare-fun bug3_a (Int Int) Bool); 
 % (a var_Int var_Int)
-(bug6_a var2 var1); var2, Int; ; var1, Int; func: (declare-fun bug6_a (Int Int) Bool); 
-(bug7_a var4 var3); var4, Int; ; var3, Int; func: (declare-fun bug7_a (Int Int) Bool); 
-% Null
-(= (bug8_c var0) (bug8_c 0.0)); var0, Real; func: (declare-fun bug8_c (Real) Bool); 
-(= (bug9_c var5) (bug9_c 0.0)); var5, Real; func: (declare-fun bug9_c (Real) Bool); 
+(bug4_a var1 var0); var1, Int; ; var0, Int; func: (declare-fun bug4_a (Int Int) Bool); 
+(bug5_a var3 var2); var3, Int; ; var2, Int; func: (declare-fun bug5_a (Int Int) Bool); 

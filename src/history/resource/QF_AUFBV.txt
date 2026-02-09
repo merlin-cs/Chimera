@@ -5,6 +5,7 @@ true
 false
 % (= select var_Array fp const_BitVec const_BitVec var_BitVec)) select var_Array fp const_BitVec const_BitVec const_BitVec)))
 (= (select var0 (fp (_ bv0 1) (_ bv0 11) var1)) (select var0 (fp (_ bv0 1) (_ bv0 11) (_ bv0 52)))); var0, (Array Float64 S); ; var1, (_ BitVec 52); ; var0, (Array Float64 S); sort: (declare-sort S 0); func: (declare-const bug0_c1 (Array Float64 S)); (declare-const bug0_c (_ BitVec 52)); 
+(= (select var14 (fp (_ bv0 1) (_ bv0 11) var15)) (select var14 (fp (_ bv0 1) (_ bv0 11) (_ bv0 52)))); var14, (Array Float64 S); ; var15, (_ BitVec 52); ; var14, (Array Float64 S); sort: (declare-sort S 0); func: (declare-const bug1_c1 (Array Float64 S)); (declare-const bug1_c (_ BitVec 52)); 
 % (= var_BitVec var_BitVec)
 (= var6 var7); var6, (_ BitVec 3); ; var7, (_ BitVec 3); func: (declare-fun bug2_f ((_ BitVec 3)) Int); 
 (= var17 var18); var17, (_ BitVec 3); ; var18, (_ BitVec 3); func: (declare-fun bug3_f ((_ BitVec 3)) Int); 

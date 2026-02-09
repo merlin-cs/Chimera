@@ -3,207 +3,191 @@ var00; var00, Bool;
 % const_Bool
 true
 false
+% (< const_Int var_Real const_Int)
+(< 0 (/ 2 var292) 0); var292, Real; 
 % (< const_Int var_Real)
-(< 0 var86); var86, Real; 
-(< 0 (/ 32 var186 (- var187 var188))); var186, Real; ; var187, Real; ; var188, Real; 
-(< 0 (- var186 var196)); var186, Real; ; var196, Real; 
-(< 0 (- var196)); var196, Real; 
-(< 0 (+ var248 var249)); var248, Real; ; var249, Real; 
-(< (- 1) var273); var273, Real; func: (declare-const bug6_x Real); 
-(< 0 (/ 41 var291 (- var292 var282))); var291, Real; ; var292, Real; ; var282, Real; 
-(< 0 (- var298 (- var299 var300))); var298, Real; ; var299, Real; ; var300, Real; 
-(< 0 var314); var314, Real; 
-(< 0 var297); var297, Real; 
-(< 0 (- var313 var304)); var313, Real; ; var304, Real; 
-(< 0 (- (/ var354))); var354, Real; func: (declare-const bug16_x Bool); 
+(< 0 var113); var113, Real; 
+(< 0 (+ var245 var246)); var245, Real; ; var246, Real; 
+(< (- 1) var272); var272, Real; func: (declare-const bug3_x Real); 
+(< 0 (* var280 var279)); var280, Real; ; var279, Real; 
+(< 0 var307); var307, Real; 
+(< 0 (- (/ var341))); var341, Real; func: (declare-const bug7_x Bool); 
 % (< const_Real var_Real)
-(< 0.0 var68); var68, Real; 
-(< 1.0 (to_real var371)); var371, Int; func: (declare-const bug19_x Bool); 
+(< 0.0 var70); var70, Real; 
+(< 1.0 (to_real var353)); var353, Int; func: (declare-const bug9_x Bool); 
+% (< var_Int const_Int)
+(< var269 0); var269, Int; 
+% (< var_Int var_Real)
+(< var33 var34); var33, Int; ; var34, Real; 
 % (< var_Real const_Int const_Int var_Real)
-(< var69 0 (/ 0 0) var69); var69, Real; ; var69, Real; 
+(< var71 0 (/ 0 0) var71); var71, Real; ; var71, Real; 
 % (< var_Real const_Int)
 (< (- (/ var14)) 0); var14, Real; 
-(< (- var52 (* var50 var50)) 0); var52, Real; ; var50, Real; ; var50, Real; 
-(< var82 1); var82, Real; 
-(< var93 0); var93, Real; 
-(< var107 0); var107, Real; 
-(< (+ var180 (/ (* (- var181 var182) (- var181 var182)) (* var183 var180))) 0); var180, Real; ; var181, Real; ; var182, Real; ; var181, Real; ; var182, Real; ; var183, Real; ; var180, Real; 
-(< var279 0); var279, Real; 
-(< (* (/ 0 (+ (* (* 3 var311) (* (/ 99 var301 var310) (/ 101 var301 var310))) (/ (* 2 (- var301 var310)) var314) (* 2 var318))) (/ (* (+ (* var311 (- var310 var301)) var314) (+ (* (/ (- 1) var311) (- var301 var310)) var314)) (* 2 var311))) 0); var311, Real; ; var301, Real; ; var310, Real; ; var301, Real; ; var310, Real; ; var301, Real; ; var310, Real; ; var314, Real; ; var318, Real; ; var311, Real; ; var310, Real; ; var301, Real; ; var314, Real; ; var311, Real; ; var301, Real; ; var310, Real; ; var314, Real; ; var311, Real; 
-(< (- var342 (* var340 var340)) 0); var342, Real; ; var340, Real; ; var340, Real; 
-(< var361 10); var361, Real; 
-(< (* 32 var360 var361) 12); var360, Real; ; var361, Real; 
+(< (- var59 (* var57 var57)) 0); var59, Real; ; var57, Real; ; var57, Real; 
+(< var93 1); var93, Real; 
+(< var122 0); var122, Real; 
+(< (- (/ var240)) 0); var240, Real; 
+(< var329 4); var329, Real; 
+(< (+ (* (- 80) var330) (* (- 6) var329)) 5); var330, Real; ; var329, Real; 
+(< (* (- 3) var330) 1); var330, Real; 
 % (< var_Real const_Real var_Real)
-(< (- var213 var214) 0.0 var215); var213, Real; ; var214, Real; ; var215, Real; 
-(< (- var259 var260) 0.0 var261); var259, Real; ; var260, Real; ; var261, Real; 
+(< (- var210 var211) 0.0 var212); var210, Real; ; var211, Real; ; var212, Real; 
+(< (- var256 var257) 0.0 var258); var256, Real; ; var257, Real; ; var258, Real; 
 % (< var_Real const_Real)
-(< (/ (- var347 var348) (- (* (/ 6 var349 (- var350 var351)) (+ 9 var349 (- var350 var351))) (+ 2.0 var352))) 0.0); var347, Real; ; var348, Real; ; var349, Real; ; var350, Real; ; var351, Real; ; var349, Real; ; var350, Real; ; var351, Real; ; var352, Real; func: (declare-const bug39_x Bool); 
-(< (+ (+ (+ 0 (* 68.0 var374)) 0) (* 33.0 var375)) 0.0); var374, Real; ; var375, Real; 
+(< (/ (- var334 var335) (- (* (/ 6 var336 (- var337 var338)) (+ 9 var336 (- var337 var338))) (+ 2.0 var339))) 0.0); var334, Real; ; var335, Real; ; var336, Real; ; var337, Real; ; var338, Real; ; var336, Real; ; var337, Real; ; var338, Real; ; var339, Real; func: (declare-const bug32_x Bool); 
+(< var347 1.0); var347, Real; 
+(< (+ (+ (+ 0 (* 68.0 var356)) 0) (* 33.0 var357)) 0.0); var356, Real; ; var357, Real; 
 % (< var_Real var_Real const_Int)
-(< var114 var115 0); var114, Real; ; var115, Real; 
+(< var141 var142 0); var141, Real; ; var142, Real; 
 % (< var_Real var_Real)
 (< (/ var23 var24) var30); var23, Real; ; var24, Real; ; var30, Real; 
-(< var32 var18); var32, Real; ; var18, Real; 
-(< var37 var35); var37, Real; ; var35, Real; 
-(< (+ var70 (/ 0 (* 2.0 var72))) var69); var70, Real; ; var72, Real; ; var69, Real; 
-(< var94 var90); var94, Real; ; var90, Real; 
-(< (+ (+ var144 (/ (* var137 (- var141 var137)) 0)) (* (+ (/ var140 var145) 1) (* (* var140 (/ 1 2)) (/ 0 var142)))) var143); var144, Real; ; var137, Real; ; var141, Real; ; var137, Real; ; var140, Real; ; var145, Real; ; var140, Real; ; var142, Real; ; var143, Real; 
-(< var143 (* (/ 1 2) (+ (* var140 (* var139 var139)) (* (* 2 var139) (+ var141 var137))))); var143, Real; ; var140, Real; ; var139, Real; ; var139, Real; ; var139, Real; ; var141, Real; ; var137, Real; 
-(< (+ var144 (/ (- var141 var137) (* 2 (- var145)))) var143); var144, Real; ; var141, Real; ; var137, Real; ; var145, Real; ; var143, Real; 
-(< (+ var197 (/ (* (- var184 var195) (- var184 var195)) (* 2 var198))) var199); var197, Real; ; var184, Real; ; var195, Real; ; var184, Real; ; var195, Real; ; var198, Real; ; var199, Real; 
-(< (+ var287 (/ (* (- var288 (- var289 var290)) (/ 9 var288 (- var289 var290))) (* 2 (- var291 (- var292 var282))))) var293); var287, Real; ; var288, Real; ; var289, Real; ; var290, Real; ; var288, Real; ; var289, Real; ; var290, Real; ; var291, Real; ; var292, Real; ; var282, Real; ; var293, Real; 
-(< var287 (- var313)); var287, Real; ; var313, Real; 
-(< (+ (- var308) (/ (* var315 var315) (* 2 var311))) var316); var308, Real; ; var315, Real; ; var315, Real; ; var311, Real; ; var316, Real; 
+(< (+ var72 (/ 0 (* 2.0 var74))) var71); var72, Real; ; var74, Real; ; var71, Real; 
+(< (/ var102 var103) var109); var102, Real; ; var103, Real; ; var109, Real; 
+(< var111 var97); var111, Real; ; var97, Real; 
+(< var121 var117); var121, Real; ; var117, Real; 
+(< (+ (+ var170 (/ (* var163 (- var167 var163)) 0)) (* (+ (/ var166 var171) 1) (* (* var166 (/ 1 2)) (/ 0 var168)))) var169); var170, Real; ; var163, Real; ; var167, Real; ; var163, Real; ; var166, Real; ; var171, Real; ; var166, Real; ; var168, Real; ; var169, Real; 
+(< var169 (* (/ 1 2) (+ (* var166 (* var165 var165)) (* (* 2 var165) (+ var167 var163))))); var169, Real; ; var166, Real; ; var165, Real; ; var165, Real; ; var165, Real; ; var167, Real; ; var163, Real; 
+(< (+ var170 (/ (- var167 var163) (* 2 (- var171)))) var169); var170, Real; ; var167, Real; ; var163, Real; ; var171, Real; ; var169, Real; 
+(< (/ (* (/ 1 9) (* var288 var293)) (/ (* (+ (* var286 var294) var288) (/ 7 (* var286 (/ var295 var294)) var288)) 0)) var296); var288, Real; ; var293, Real; ; var286, Real; ; var294, Real; ; var288, Real; ; var286, Real; ; var295, Real; ; var294, Real; ; var288, Real; ; var296, Real; 
 % (<= const_Int const_Real)
 (<= 0 2.0)
 % (<= const_Int var_Int)
-(<= (- 0 (- 1)) (ite (exists ((a Real)) (= var133 0)) 0 1)); var133, Real; 
-(<= 0 (mod (+ 1 (mod 2 (to_int var249))) (to_int var250))); var249, Real; ; var250, Real; 
-(<= 1 (ite (exists ((a Real)) var346) 0 1)); var346, Bool; func: (declare-const bug65_x Bool); 
+(<= 0 (mod (+ 1 (mod 2 (to_int var246))) (to_int var247))); var246, Real; ; var247, Real; 
+(<= 1 (ite (exists ((a Real)) var333) 0 1)); var333, Bool; func: (declare-const bug55_x Bool); 
 % (<= const_Int var_Real var_Real var_Real)
 (<= 0 var7 var8 var9); var7, Real; ; var8, Real; ; var9, Real; 
 % (<= const_Int var_Real var_Real)
 (<= 0 var17 var18); var17, Real; ; var18, Real; 
-(<= 0 var305 var304); var305, Real; ; var304, Real; 
-(<= 0 (- var306 var287) (- var301 var310)); var306, Real; ; var287, Real; ; var301, Real; ; var310, Real; 
-(<= 0 (+ (* (* 91 var311) var287) (* var311 var306)) var312); var311, Real; ; var287, Real; ; var311, Real; ; var306, Real; ; var312, Real; 
+(<= 0 var96 var97); var96, Real; ; var97, Real; 
 % (<= const_Int var_Real)
 (<= 0 (- var6 var1)); var6, Real; ; var1, Real; 
 (<= 0 var2); var2, Real; 
 (<= 0 (+ (* var2 (* var6 var1)) var7)); var2, Real; ; var6, Real; ; var1, Real; ; var7, Real; 
-(<= 0 var79); var79, Real; 
-(<= 0 var118); var118, Real; 
-(<= 0 (+ (* var140 var138) (- var141 var137))); var140, Real; ; var138, Real; ; var141, Real; ; var137, Real; 
-(<= 0 var166); var166, Real; 
-(<= 0 (+ var181 var182)); var181, Real; ; var182, Real; 
-(<= 0 var188); var188, Real; 
-(<= 0 var190); var190, Real; 
-(<= 0 (- var184 var195)); var184, Real; ; var195, Real; 
-(<= 0 (+ (* (- var193 var194) (- var178 var192)) (- var184 var195))); var193, Real; ; var194, Real; ; var178, Real; ; var192, Real; ; var184, Real; ; var195, Real; 
-(<= 1 var227); var227, Real; 
-(<= 0 (- var301 (/ 66 var302 var286))); var301, Real; ; var302, Real; ; var286, Real; 
-(<= 0 (* 3 (- var306 var287))); var306, Real; ; var287, Real; 
-(<= 0 (+ (* (+ (* 55.0 var376) 0) (* 49.0 var377)) 0)); var376, Real; ; var377, Real; 
-(<= 0 (+ (* (+ (* 55.0 var383) 0) (* 49.0 var384)) 0)); var383, Real; ; var384, Real; 
+(<= 0 var81); var81, Real; 
+(<= 0 var145); var145, Real; 
+(<= 0 (+ (* var166 var164) (- var167 var163))); var166, Real; ; var164, Real; ; var167, Real; ; var163, Real; 
+(<= 0 var192); var192, Real; 
+(<= 1 var224); var224, Real; 
+(<= 0 (+ (* (+ (* 55.0 var358) 0) (* 49.0 var359)) 0)); var358, Real; ; var359, Real; 
+(<= 0 (+ (* (+ (* 55.0 var368) 0) (* 49.0 var369)) 0)); var368, Real; ; var369, Real; 
 % (<= const_Real const_Int)
 (<= 0.0 0)
 % (<= const_Real const_Real)
 (<= 0.0 (* 1.0 (^ 0 1.0)))
 % (<= const_Real var_Real)
-(<= 0.0 var71); var71, Real; 
+(<= 0.0 var73); var73, Real; 
 % (<= var_Int var_Real)
-(<= (mod var113 152) var111); var113, Real; ; var111, Real; 
+(<= var33 (* 236 var34 (- 114))); var33, Int; ; var34, Real; 
+(<= (mod var140 152) var138); var140, Real; ; var138, Real; 
 % (<= var_Real const_Int)
 (<= var25 (/ 0 0)); var25, Real; 
-(<= (- (div var47 var47)) 0); var47, Real; ; var47, Real; 
-(<= var66 0); var66, Real; 
-(<= var78 (/ 6 5)); var78, Real; 
-(<= (+ var75 var78) (/ 16 5)); var75, Real; ; var78, Real; 
-(<= var97 0); var97, Real; 
-(<= (+ (* var176 var177)) 0); var176, Real; ; var177, Real; 
-(<= (+ (+ (* var221) var222)) (- 9)); var221, Real; ; var222, Real; 
-(<= (+ (+ (* 17) (mod (- 19) var223))) 3); var223, Real; 
-(<= (+ (+ var221)) 0); var221, Real; 
-(<= (- (+ (* var224))) 8); var224, Real; 
-(<= (+ (+ (mod (- 1) var222) 5)) 3); var222, Real; 
-(<= var231 0); var231, Real; 
-(<= (+ (+ (* 17) (mod (- 19) var253))) 3); var253, Real; 
-(<= (- (+ (* var254))) 8); var254, Real; 
-(<= var258 0); var258, Real; 
-(<= (+ (* var301 var305) (- var307 (- var306 var287))) 0); var301, Real; ; var305, Real; ; var307, Real; ; var306, Real; ; var287, Real; 
+(<= (- (div var54 var54)) 0); var54, Real; ; var54, Real; 
+(<= var68 0); var68, Real; 
+(<= var80 (/ 6 5)); var80, Real; 
+(<= (+ var77 var80) (/ 16 5)); var77, Real; ; var80, Real; 
+(<= (+ var89 (* 17 var90) (* 2 var91) (* (- 1) var92)) 1); var89, Real; ; var90, Real; ; var91, Real; ; var92, Real; 
+(<= var124 0); var124, Real; 
+(<= (+ (+ (* var218) var219)) (- 9)); var218, Real; ; var219, Real; 
+(<= (+ (+ (* 17) (mod (- 19) var220))) 3); var220, Real; 
+(<= (+ (+ var218)) 0); var218, Real; 
+(<= (- (+ (* var221))) 8); var221, Real; 
+(<= (+ (+ (mod (- 1) var219) 5)) 3); var219, Real; 
+(<= var228 0); var228, Real; 
+(<= (+ (+ (* var248) var249)) (- 9)); var248, Real; ; var249, Real; 
+(<= (+ (+ var248)) 0); var248, Real; 
+(<= (+ (+ (mod (- 1) var249) 5)) 3); var249, Real; 
+(<= var271 0); var271, Real; 
 % (<= var_Real const_Real)
-(<= (- var257 var258) 0.0); var257, Real; ; var258, Real; 
+(<= (- var254 var255) 0.0); var254, Real; ; var255, Real; 
 % (<= var_Real var_Real)
 (<= var10 var8); var10, Real; ; var8, Real; 
-(<= var48 var49); var48, Real; ; var49, Real; 
-(<= (/ 0 var46) var47); var46, Real; ; var47, Real; 
-(<= (/ 0 var56) var57); var56, Real; ; var57, Real; 
-(<= (* var60 var66) (- var67)); var60, Real; ; var66, Real; ; var67, Real; 
-(<= var66 var68); var66, Real; ; var68, Real; 
-(<= var74 var75); var74, Real; ; var75, Real; 
-(<= var113 var112); var113, Real; ; var112, Real; 
-(<= var138 (- var142)); var138, Real; ; var142, Real; 
-(<= var178 var179); var178, Real; ; var179, Real; 
-(<= var190 var189); var190, Real; ; var189, Real; 
-(<= (/ (- 1) var267 var268 var266) var271); var267, Real; ; var268, Real; ; var266, Real; ; var271, Real; 
-(<= (- var296 var297) (- var298 (- var299 var300))); var296, Real; ; var297, Real; ; var298, Real; ; var299, Real; ; var300, Real; 
-(<= var285 (* var298 (/ 40 var299 var300))); var285, Real; ; var298, Real; ; var299, Real; ; var300, Real; 
-(<= var359 var360); var359, Real; ; var360, Real; 
+(<= var17 var19); var17, Real; ; var19, Real; 
+(<= (/ 0 var53) var54); var53, Real; ; var54, Real; 
+(<= (* var62 var68) (- var69)); var62, Real; ; var68, Real; ; var69, Real; 
+(<= var75 var69); var75, Real; ; var69, Real; 
+(<= var96 var98); var96, Real; ; var98, Real; 
+(<= var140 var139); var140, Real; ; var139, Real; 
+(<= var164 (- var168)); var164, Real; ; var168, Real; 
+(<= (/ (- 1) var264 var265 var263) var268); var264, Real; ; var265, Real; ; var263, Real; ; var268, Real; 
+(<= var321 var322); var321, Real; ; var322, Real; 
 % (= const_Int ^ const_Int const_Int))
 (= 0 (^ 0 0))
 % (= const_Int const_Int)
 (= 2 8)
 (= 0 0)
 % (= const_Int sin const_Real))
-(= 0 (sin 1.0))func: (declare-const bug157_x Int); 
+(= 0 (sin 1.0))func: (declare-const bug126_x Int); 
 % (= const_Int var_Int)
-(= 0 (str.to_int var233)); var233, String; 
-(= 0 (* var371 var372)); var371, Int; ; var372, Int; func: (declare-const bug159_x Bool); 
+(= 0 (str.to_int var230)); var230, String; 
+(= 0 (* var353 var354)); var353, Int; ; var354, Int; func: (declare-const bug128_x Bool); 
+(= 0 (* var363 var364)); var363, Int; ; var364, Int; func: (declare-const bug129_x Bool); 
 % (= const_Int var_Real)
-(= 1 (+ 1.0 var83)); var83, Real; 
-(= 0 var101); var101, Real; 
-(= 0 (- var296 var297)); var296, Real; ; var297, Real; 
+(= 1 (+ 1.0 var94)); var94, Real; 
+(= 0 var128); var128, Real; 
+(= 0 (+ (/ var286 var287) var288)); var286, Real; ; var287, Real; ; var288, Real; 
 % (= const_Real ite exists (d Real)) const_Bool) const_Real const_Int))
 (= 0.0 (ite (exists ((d Real)) false) 0.0 0))
 % (= exists (c Int)) <= var_Real var_Int + var_Real const_Int))) var_Bool)
-(= (exists ((c Int)) (<= var364 var365 (+ var364 1))) (and (>= var366 (/ var364 (+ var364 1))) (< 1 (+ var364 1)))); var364, Real; ; var365, Int; ; var364, Real; ; var366, Int; ; var364, Real; ; var364, Real; ; var364, Real; 
+(= (exists ((c Int)) (<= var342 var343 (+ var342 1))) (and (>= var344 (/ var342 (+ var342 1))) (< 1 (+ var342 1)))); var342, Real; ; var343, Int; ; var342, Real; ; var344, Int; ; var342, Real; ; var342, Real; ; var342, Real; 
+(= (exists ((c Int)) (<= var360 var361 (+ var360 1))) (and (>= var362 (/ var360 (+ var360 1))) (< 1 (+ var360 1)))); var360, Real; ; var361, Int; ; var360, Real; ; var362, Int; ; var360, Real; ; var360, Real; ; var360, Real; 
 % (= var_Bool var_Bool)
 (= (or (< var0 var1) (< 0 (- var2))) (or (= (= 0 var3) (and (<= var4 var3) (< 0 var5))))); var0, Real; ; var1, Real; ; var2, Real; ; var3, Real; ; var4, Real; ; var3, Real; ; var5, Real; 
 (= (= var15 0) (= var16 0)); var15, Real; ; var16, Real; 
-(= (<= var44 var44 var45) (>= var46 0)); var44, Real; ; var44, Real; ; var45, Real; ; var46, Real; 
-(= (= 0.0 var62) (= (= (<= var63 var62) (<= 0 var64)) (= var65 2.0))); var62, Real; ; var63, Real; ; var62, Real; ; var64, Real; ; var65, Real; 
-(= (< 0 var87) (not (= (< var88 var87) (< var89 var90)))); var87, Real; ; var88, Real; ; var87, Real; ; var89, Real; ; var90, Real; 
-(= (< var91 0) (and (> (+ (* (- 1 var92) var91) var93) (- var94)) (< var91 var90))); var91, Real; ; var92, Real; ; var91, Real; ; var93, Real; ; var94, Real; ; var91, Real; ; var90, Real; 
-(= (and (or (and (= (+ var120 var118) (+ var125 var126)) (<= var126 var120)) (<= 0 var127)) (= (- var124 var123) 2) (< (+ var128 (/ 0 (/ 2 var129))) 0 var129 var118 var125)) (or (< (/ 1 var117) (* 2 (/ (- 1) var129))) (< (/ (* (+ (* var129 (- var126 var120)) var127) (+ (* (/ (- 1) var129) (- var120 var126)) var127)) (* 2 var129)) 0))); var120, Real; ; var118, Real; ; var125, Real; ; var126, Real; ; var126, Real; ; var120, Real; ; var127, Real; ; var124, Real; ; var123, Real; ; var128, Real; ; var129, Real; ; var129, Real; ; var118, Real; ; var125, Real; ; var117, Real; ; var129, Real; ; var129, Real; ; var126, Real; ; var120, Real; ; var127, Real; ; var129, Real; ; var120, Real; ; var126, Real; ; var127, Real; ; var129, Real; 
-(= (< 0 var134) (or (= (= 0 var135) (= (<= 0 var136) (= var137 2))))); var134, Real; ; var135, Real; ; var136, Real; ; var137, Real; 
-(= (<= 0 var150) (not (=> (<= 0 var151 var150) (and (= (+ (* var152 var151) var153) var154) (= var151 (- var148 var149)))))); var150, Real; ; var151, Real; ; var150, Real; ; var152, Real; ; var151, Real; ; var153, Real; ; var154, Real; ; var151, Real; ; var148, Real; ; var149, Real; 
-(= (or (< (* var155 var149 var149) 0 var156) (< (+ var157 var158) 0)) (or (< 0 var159) (>= (+ (* 6 var160) (/ var149 (* 2 var155))) var161))); var155, Real; ; var149, Real; ; var149, Real; ; var156, Real; ; var157, Real; ; var158, Real; ; var159, Real; ; var160, Real; ; var149, Real; ; var155, Real; ; var161, Real; 
-(= (or (<= 0 var191) (<= var191 (* var178 var192))) (<= 0 (+ (* var193 var194 var184) var184))); var191, Real; ; var191, Real; ; var178, Real; ; var192, Real; ; var193, Real; ; var194, Real; ; var184, Real; ; var184, Real; 
-(= (and (= var205 0) (= 0.0 var206)) (= (= var207 0.0) (or (= var208 1.0) (and (not (= 0.0 var209)) (not (= var210 1.0)))))); var205, Real; ; var206, Real; ; var207, Real; ; var208, Real; ; var209, Real; ; var210, Real; 
-(= (= var211 var212) (= var212 0)); var211, Real; ; var212, Real; ; var212, Real; 
-(= (and (xor (= var244 (+ (mod var245 0))) true)) (< var246 var247)); var244, Real; ; var245, Real; ; var246, Real; ; var247, Real; 
-(= (= var255 var256) (= var255 0)); var255, Real; ; var256, Real; ; var255, Real; 
+(= (= var38 0) (= (> 0 (- (/ 6 var39))) (= (and (< var40 var38) (< (/ var41 0) 0)) (= var42 2)))); var38, Real; ; var39, Real; ; var40, Real; ; var38, Real; ; var41, Real; ; var42, Real; 
+(= (> (/ 1 var43 var44) 0 var45) (= (/ 5 var46) (/ 0 (- 9 (* (* (- 5 var47) (- 8 (* var48 var40) (+ 1 var40))) (- (+ 2 (/ 1 var48) var43))))) (* 35 (* (+ (* var47 var48) var43) var43)) var46)); var43, Real; ; var44, Real; ; var45, Real; ; var46, Real; ; var47, Real; ; var48, Real; ; var40, Real; ; var40, Real; ; var48, Real; ; var43, Real; ; var47, Real; ; var48, Real; ; var43, Real; ; var43, Real; ; var46, Real; 
+(= (<= var51 var51 var52) (>= var53 0)); var51, Real; ; var51, Real; ; var52, Real; ; var53, Real; 
+(= (= 0.0 var64) (= (= (<= var65 var64) (<= 0 var66)) (= var67 2.0))); var64, Real; ; var65, Real; ; var64, Real; ; var66, Real; ; var67, Real; 
+(= (< 0 var114) (not (= (< var115 var114) (< var116 var117)))); var114, Real; ; var115, Real; ; var114, Real; ; var116, Real; ; var117, Real; 
+(= (< var118 0) (and (> (+ (* (- 1 var119) var118) var120) (- var121)) (< var118 var117))); var118, Real; ; var119, Real; ; var118, Real; ; var120, Real; ; var121, Real; ; var118, Real; ; var117, Real; 
+(= (and (or (and (= (+ var147 var145) (+ var152 var153)) (<= var153 var147)) (<= 0 var154)) (= (- var151 var150) 2) (< (+ var155 (/ 0 (/ 2 var156))) 0 var156 var145 var152)) (or (< (/ 1 var144) (* 2 (/ (- 1) var156))) (< (/ (* (+ (* var156 (- var153 var147)) var154) (+ (* (/ (- 1) var156) (- var147 var153)) var154)) (* 2 var156)) 0))); var147, Real; ; var145, Real; ; var152, Real; ; var153, Real; ; var153, Real; ; var147, Real; ; var154, Real; ; var151, Real; ; var150, Real; ; var155, Real; ; var156, Real; ; var156, Real; ; var145, Real; ; var152, Real; ; var144, Real; ; var156, Real; ; var156, Real; ; var153, Real; ; var147, Real; ; var154, Real; ; var156, Real; ; var147, Real; ; var153, Real; ; var154, Real; ; var156, Real; 
+(= (< 0 var160) (or (= (= 0 var161) (= (<= 0 var162) (= var163 2))))); var160, Real; ; var161, Real; ; var162, Real; ; var163, Real; 
+(= (<= 0 var176) (not (=> (<= 0 var177 var176) (and (= (+ (* var178 var177) var179) var180) (= var177 (- var174 var175)))))); var176, Real; ; var177, Real; ; var176, Real; ; var178, Real; ; var177, Real; ; var179, Real; ; var180, Real; ; var177, Real; ; var174, Real; ; var175, Real; 
+(= (or (< (* var181 var175 var175) 0 var182) (< (+ var183 var184) 0)) (or (< 0 var185) (>= (+ (* 6 var186) (/ var175 (* 2 var181))) var187))); var181, Real; ; var175, Real; ; var175, Real; ; var182, Real; ; var183, Real; ; var184, Real; ; var185, Real; ; var186, Real; ; var175, Real; ; var181, Real; ; var187, Real; 
+(= (and (= var202 0) (= 0.0 var203)) (= (= var204 0.0) (or (= var205 1.0) (and (not (= 0.0 var206)) (not (= var207 1.0)))))); var202, Real; ; var203, Real; ; var204, Real; ; var205, Real; ; var206, Real; ; var207, Real; 
+(= (and (xor (= var241 (+ (mod var242 0))) true)) (< var243 var244)); var241, Real; ; var242, Real; ; var243, Real; ; var244, Real; 
+(= (= var252 var253) (= var252 0)); var252, Real; ; var253, Real; ; var252, Real; 
+(= (<= 0 var308) (not (= (<= 0 var308) (< (* var309 var310 var308) var311 var310 var307)))); var308, Real; ; var308, Real; ; var309, Real; ; var310, Real; ; var308, Real; ; var311, Real; ; var310, Real; ; var307, Real; 
+(= (< (/ (* (- var312 var313) (- var312 var313)) (* 2 var314)) 0) (< 0 (* var315 var316))); var312, Real; ; var313, Real; ; var312, Real; ; var313, Real; ; var314, Real; ; var315, Real; ; var316, Real; 
 % (= var_Int const_Int)
-(= (mod (to_int var355) (to_int var357)) 1); var355, Real; ; var357, Real; 
-(= var372 1); var372, Int; func: (declare-const bug184_x Bool); 
+(= var354 1); var354, Int; func: (declare-const bug154_x Bool); 
 % (= var_Int var_Int)
-(= var234 (mod (- var235) 33)); var234, Int; ; var235, Int; func: (declare-const bug186_x Int); 
+(= var231 (mod (- var232) 33)); var231, Int; ; var232, Int; func: (declare-const bug156_x Int); 
 % (= var_Int var_Real)
-(= (mod (to_int var280) 2) var281); var280, Real; ; var281, Real; 
+(= var269 var270); var269, Int; ; var270, Real; 
+(= (mod (to_int var297) 2) var298); var297, Real; ; var298, Real; 
+(= var299 var300); var299, Int; ; var300, Real; 
 % (= var_Real const_Int)
 (= var31 7); var31, Real; 
-(= var41 0); var41, Real; 
-(= var51 0); var51, Real; 
-(= var51 0); var51, Real; 
-(= var90 0); var90, Real; 
-(= var219 0); var219, Real; func: (declare-const bug199_x Int); 
-(= var226 1); var226, Real; 
-(= var229 0); var229, Real; 
-(= var265 0); var265, Real; 
-(= var265 0); var265, Real; 
-(= (/ 6 var284 var285) 0); var284, Real; ; var285, Real; 
-(= var286 2); var286, Real; 
-(= (- var308 var309) 2); var308, Real; ; var309, Real; 
-(= var299 2); var299, Real; 
-(= var341 0); var341, Real; 
-(= var341 0); var341, Real; 
-(= var362 0); var362, Real; 
-(= var388 0); var388, Real; 
+(= var36 0); var36, Real; 
+(= var58 0); var58, Real; 
+(= var58 0); var58, Real; 
+(= var84 2); var84, Real; 
+(= var110 7); var110, Real; 
+(= var123 0); var123, Real; 
+(= (/ 1 var208) 0); var208, Real; 
+(= var222 0); var222, Real; 
+(= var223 0); var223, Real; 
+(= var227 0); var227, Real; 
+(= var279 0); var279, Real; 
+(= var285 2); var285, Real; 
+(= var326 0); var326, Real; 
+(= var326 0); var326, Real; 
+(= var329 (- 2)); var329, Real; 
+(= (+ (* 8 var330) (* 5 var329)) 8); var330, Real; ; var329, Real; 
+(= var378 0); var378, Real; 
 % (= var_Real const_Real)
-(= var232 1.0); var232, Real; 
+(= var229 1.0); var229, Real; 
 % (= var_Real var_Int var_Real)
-(= var173 (mod (to_int var174) (to_int var175)) (/ var174 var173)); var173, Real; ; var174, Real; ; var175, Real; ; var174, Real; ; var173, Real; 
-% (= var_Real var_Int)
-(= var357 (div 1 (to_int var358))); var357, Real; ; var358, Real; 
+(= var199 (mod (to_int var200) (to_int var201)) (/ var200 var199)); var199, Real; ; var200, Real; ; var201, Real; ; var200, Real; ; var199, Real; 
 % (= var_Real var_Real const_Int)
-(= var172 (/ var171 var165) 0); var172, Real; ; var171, Real; ; var165, Real; 
+(= var198 (/ var197 var191) 0); var198, Real; ; var197, Real; ; var191, Real; 
 % (= var_Real var_Real var_Real var_Real)
 (= var5 (+ var12 var2) var8 (+ var9 var13)); var5, Real; ; var12, Real; ; var2, Real; ; var8, Real; ; var9, Real; ; var13, Real; 
-(= var168 (* var167 var164) var169 (- var163 var168)); var168, Real; ; var167, Real; ; var164, Real; ; var169, Real; ; var163, Real; ; var168, Real; 
+(= var194 (* var193 var190) var195 (- var189 var194)); var194, Real; ; var193, Real; ; var190, Real; ; var195, Real; ; var189, Real; ; var194, Real; 
 % (= var_Real var_Real var_Real)
-(= var117 (+ var131 var132) (+ var121 var130)); var117, Real; ; var131, Real; ; var132, Real; ; var121, Real; ; var130, Real; 
-(= var168 (/ var169 var163) (/ var168 var170)); var168, Real; ; var169, Real; ; var163, Real; ; var168, Real; ; var170, Real; 
-(= var187 (+ var188 var203) (+ var190 var191 var189 var202)); var187, Real; ; var188, Real; ; var203, Real; ; var190, Real; ; var191, Real; ; var189, Real; ; var202, Real; 
+(= var48 (- var40 var49) var43); var48, Real; ; var40, Real; ; var49, Real; ; var43, Real; 
+(= var144 (+ var158 var159) (+ var148 var157)); var144, Real; ; var158, Real; ; var159, Real; ; var148, Real; ; var157, Real; 
+(= var194 (/ var195 var189) (/ var194 var196)); var194, Real; ; var195, Real; ; var189, Real; ; var194, Real; ; var196, Real; 
 % (= var_Real var_Real)
 (= var6 (+ var1 var11)); var6, Real; ; var1, Real; ; var11, Real; 
 (= (/ var20 var21) var22); var20, Real; ; var21, Real; ; var22, Real; 
@@ -211,107 +195,102 @@ false
 (= var32 (/ var23 var24)); var32, Real; ; var23, Real; ; var24, Real; 
 (= var26 (+ var29 var27 (- 680.2932226634903))); var26, Real; ; var29, Real; ; var27, Real; 
 (= var21 (/ var20 var32)); var21, Real; ; var20, Real; ; var32, Real; 
-(= var60 var61); var60, Real; ; var61, Real; 
-(= var69 var70); var69, Real; ; var70, Real; 
-(= var76 (+ (* 5 (* var78 var78)) (* var77 var78))); var76, Real; ; var78, Real; ; var78, Real; ; var77, Real; ; var78, Real; 
-(= var80 (/ var80 var81)); var80, Real; ; var80, Real; ; var81, Real; 
-(= var120 (+ var126 var130)); var120, Real; ; var126, Real; ; var130, Real; 
-(= var143 var144); var143, Real; ; var144, Real; 
-(= var146 (+ var147 var138)); var146, Real; ; var147, Real; ; var138, Real; 
-(= var164 (/ var167 var168)); var164, Real; ; var167, Real; ; var168, Real; 
-(= var163 (/ var169 var168)); var163, Real; ; var169, Real; ; var168, Real; 
-(= var184 (/ var195 var202)); var184, Real; ; var195, Real; ; var202, Real; 
-(= var183 (+ var199 var197)); var183, Real; ; var199, Real; ; var197, Real; 
-(= var178 (+ var192 var204 var203)); var178, Real; ; var192, Real; ; var204, Real; ; var203, Real; 
-(= (* var273 var273 (+ (* var274 var275) var273)) (+ var276 (* var277 var277 (- 1)))); var273, Real; ; var273, Real; ; var274, Real; ; var275, Real; ; var273, Real; ; var276, Real; ; var277, Real; ; var277, Real; func: (declare-const bug254_x Real); 
-(= var294 var295); var294, Real; ; var295, Real; 
-(= var288 (+ var319 var285)); var288, Real; ; var319, Real; ; var285, Real; 
-(= var313 (+ var304 var320)); var313, Real; ; var304, Real; ; var320, Real; 
-(= var301 (* var310 var322)); var301, Real; ; var310, Real; ; var322, Real; 
-(= var296 (/ var323 var297)); var296, Real; ; var323, Real; ; var297, Real; 
-(= var307 (+ var324 var325)); var307, Real; ; var324, Real; ; var325, Real; 
-(= var326 (+ var305 var322)); var326, Real; ; var305, Real; ; var322, Real; 
-(= var327 (+ var294 var322)); var327, Real; ; var294, Real; ; var322, Real; 
-(= var295 (* var329 var312)); var295, Real; ; var329, Real; ; var312, Real; 
-(= var284 (+ var317 var285 var293 var320)); var284, Real; ; var317, Real; ; var285, Real; ; var293, Real; ; var320, Real; 
-(= var298 (+ var331 var332)); var298, Real; ; var331, Real; ; var332, Real; 
-(= var299 (+ var300 var332)); var299, Real; ; var300, Real; ; var332, Real; 
-(= var338 var339); var338, Real; ; var339, Real; 
+(= var32 (/ var20 var21)); var32, Real; ; var20, Real; ; var21, Real; 
+(= var71 var72); var71, Real; ; var72, Real; 
+(= var78 (+ (* 5 (* var80 var80)) (* var79 var80))); var78, Real; ; var80, Real; ; var80, Real; ; var79, Real; ; var80, Real; 
+(= var82 (/ var82 var83)); var82, Real; ; var82, Real; ; var83, Real; 
+(= (/ var99 var100) var101); var99, Real; ; var100, Real; ; var101, Real; 
+(= var111 (/ var102 var103)); var111, Real; ; var102, Real; ; var103, Real; 
+(= var105 (+ var108 var106 (- 680.2932226634903))); var105, Real; ; var108, Real; ; var106, Real; 
+(= var111 (/ var99 var100)); var111, Real; ; var99, Real; ; var100, Real; 
+(= var147 (+ var153 var157)); var147, Real; ; var153, Real; ; var157, Real; 
+(= var172 (+ var173 var164)); var172, Real; ; var173, Real; ; var164, Real; 
+(= var193 (* var190 var194)); var193, Real; ; var190, Real; ; var194, Real; 
+(= var189 (/ var195 var194)); var189, Real; ; var195, Real; ; var194, Real; 
+(= (* var272 var272 (+ (* var273 var274) var272)) (+ var275 (* var276 var276 (- 1)))); var272, Real; ; var272, Real; ; var273, Real; ; var274, Real; ; var272, Real; ; var275, Real; ; var276, Real; ; var276, Real; func: (declare-const bug231_x Real); 
+(= var301 (+ (* var301 var301) 1.0)); var301, Real; ; var301, Real; ; var301, Real; 
+(= var312 (/ var313 var317)); var312, Real; ; var313, Real; ; var317, Real; 
+(= var323 var324); var323, Real; ; var324, Real; 
 % (> const_Int var_Real)
-(> 0 var119); var119, Real; 
-(> 0 (+ (* (+ var120 var121) var119) var122)); var120, Real; ; var121, Real; ; var119, Real; ; var122, Real; 
-(> 0 var142); var142, Real; 
-(> 0 var385); var385, Real; 
+(> 0 var146); var146, Real; 
+(> 0 (+ (* (+ var147 var148) var146) var149)); var147, Real; ; var148, Real; ; var146, Real; ; var149, Real; 
+(> 0 var168); var168, Real; 
+(> 1 (+ (* var372 var373 (+ var374 (/ 0 0))) (ite (< 0 (+ 2 var374)) 0.0 (+ var374 1.0)))); var372, Int; ; var373, Int; ; var374, Real; ; var374, Real; ; var374, Real; 
+% (> var_Int var_Real)
+(> var345 var346); var345, Int; ; var346, Real; 
 % (> var_Real const_Int)
 (> (- (- var26 (- 680.2932226634903)) var27) 0); var26, Real; ; var27, Real; 
-(> var108 1); var108, Real; 
-(> var110 0); var110, Real; 
-(> var111 114); var111, Real; 
-(> var114 0); var114, Real; 
-(> (+ var116 var114) 0); var116, Real; ; var114, Real; 
-(> var239 9); var239, Real; 
-(> var344 0); var344, Real; func: (declare-const bug295_x Bool); 
-(> var345 0); var345, Real; func: (declare-const bug296_x Bool); 
-(> var361 12); var361, Real; 
+(> (/ 0 var61) 0); var61, Real; 
+(> (- (- var105 (- 680.2932226634903)) var106) 0); var105, Real; ; var106, Real; 
+(> var135 1); var135, Real; 
+(> var137 0); var137, Real; 
+(> var138 114); var138, Real; 
+(> var141 0); var141, Real; 
+(> (+ var143 var141) 0); var143, Real; ; var141, Real; 
+(> var233 0); var233, Real; 
+(> var236 9); var236, Real; 
+(> (/ var289 (/ (+ (* var286 var286) (* (- var290 var281) (+ 126 var290)) (* var288 (- (+ (/ 2 var289) var281) var288))) (* (* var286 (- 173 var290 var281)) (+ (* var289 (* 8 var290 var281)) (* 2 var288))))) 0); var289, Real; ; var286, Real; ; var286, Real; ; var290, Real; ; var281, Real; ; var290, Real; ; var288, Real; ; var289, Real; ; var281, Real; ; var288, Real; ; var286, Real; ; var290, Real; ; var281, Real; ; var289, Real; ; var290, Real; ; var281, Real; ; var288, Real; 
+(> var302 0); var302, Real; 
+(> var305 8); var305, Real; 
+(> var332 0); var332, Real; func: (declare-const bug267_x Bool); 
 % (> var_Real const_Real)
-(> var278 0.0); var278, Real; 
-(> var385 0.0); var385, Real; 
+(> var277 0.0); var277, Real; 
+(> var375 0.0); var375, Real; 
+% (> var_Real var_Real const_Int var_Real)
+(> var283 var284 0 (* (/ 9 var279) var283)); var283, Real; ; var284, Real; ; var279, Real; ; var283, Real; 
 % (> var_Real var_Real)
 (> (/ var23 var24) (+ var22 (/ (* var25 var25) (* 2 (- (- var26 (- 680.2932226634903)) var27))) (* (+ (/ var28 var29) 1) (+ (* (/ var28 2) var19 var19) (* var19 var25))))); var23, Real; ; var24, Real; ; var22, Real; ; var25, Real; ; var25, Real; ; var26, Real; ; var27, Real; ; var28, Real; ; var29, Real; ; var28, Real; ; var19, Real; ; var19, Real; ; var19, Real; ; var25, Real; 
 (> (/ var23 var24) (+ (* var18 var25) (/ (* var25 var25) (* 2 (- (- var26 (- 680.2932226634903)) var27))))); var23, Real; ; var24, Real; ; var18, Real; ; var25, Real; ; var25, Real; ; var25, Real; ; var26, Real; ; var27, Real; 
-(> var50 var51); var50, Real; ; var51, Real; 
-(> var83 var84); var83, Real; ; var84, Real; 
-(> (+ var119 var122) (- var123 var124)); var119, Real; ; var122, Real; ; var123, Real; ; var124, Real; 
-(> var148 var149); var148, Real; ; var149, Real; 
-(> var367 var368); var367, Real; ; var368, Real; 
+(> var57 var58); var57, Real; ; var58, Real; 
+(> (* var88 var87) var87); var88, Real; ; var87, Real; ; var87, Real; 
+(> (/ var102 var103) (+ var101 (/ (* var104 var104) (* 2 (- (- var105 (- 680.2932226634903)) var106))) (* (+ (/ var107 var108) 1) (+ (* (/ var107 2) var98 var98) (* var98 var104))))); var102, Real; ; var103, Real; ; var101, Real; ; var104, Real; ; var104, Real; ; var105, Real; ; var106, Real; ; var107, Real; ; var108, Real; ; var107, Real; ; var98, Real; ; var98, Real; ; var98, Real; ; var104, Real; 
+(> (/ var102 var103) (+ (* var97 var104) (/ (* var104 var104) (* 2 (- (- var105 (- 680.2932226634903)) var106))))); var102, Real; ; var103, Real; ; var97, Real; ; var104, Real; ; var104, Real; ; var104, Real; ; var105, Real; ; var106, Real; 
+(> (+ var146 var149) (- var150 var151)); var146, Real; ; var149, Real; ; var150, Real; ; var151, Real; 
+(> var349 var350); var349, Real; ; var350, Real; 
+(> var376 var377); var376, Real; ; var377, Real; 
 % (>= const_Int const_Int)
 (>= 0 (mod 0 0))
 (>= 535 509)
 % (>= const_Int var_Real)
-(>= 0 var117); var117, Real; 
-(>= 0 (- var288 (- var289 var290))); var288, Real; ; var289, Real; ; var290, Real; 
+(>= 0 var144); var144, Real; 
+(>= 0 var286); var286, Real; 
 % (>= var_Int const_Int)
-(>= var335 629); var335, Int; 
+(>= var320 629); var320, Int; 
 % (>= var_Int var_Real)
-(>= (div (to_int var266) (to_int var266)) (- var267)); var266, Real; ; var266, Real; ; var267, Real; 
+(>= (div (to_int var263) (to_int var263)) (- var264)); var263, Real; ; var263, Real; ; var264, Real; 
+(>= var269 var270); var269, Int; ; var270, Real; 
+(>= var345 (* 2 var346)); var345, Int; ; var346, Real; 
 % (>= var_Real const_Int)
 (>= var18 0); var18, Real; 
 (>= var28 0); var28, Real; 
-(>= var40 0); var40, Real; 
-(>= var45 172); var45, Real; 
-(>= (+ var76 (* (- 5) (* var74 var74)) (* var74 var77)) 0); var76, Real; ; var74, Real; ; var74, Real; ; var74, Real; ; var77, Real; 
-(>= var109 36); var109, Real; 
-(>= (+ var176 var177) (- 10 0)); var176, Real; ; var177, Real; 
-(>= (+ (mod 0 var177)) 3); var177, Real; 
-(>= (+ (* 0.5 (+ (* 2.0 (- var216 var217) var218) (- var213 var214))) (/ (* (+ (* var215 (- var217 var216)) (- var218)) (+ (* var215 (- var217 var216)) (- var218))) (* 2.0 (- var215)))) 0); var216, Real; ; var217, Real; ; var218, Real; ; var213, Real; ; var214, Real; ; var215, Real; ; var217, Real; ; var216, Real; ; var218, Real; ; var215, Real; ; var217, Real; ; var216, Real; ; var218, Real; ; var215, Real; 
-(>= var237 7); var237, Real; 
-(>= var241 3); var241, Real; 
-(>= (+ (* 0.5 (+ (* 2.0 (- var262 var263) var264) (- var259 var260))) (/ (* (+ (* var261 (- var263 var262)) (- var264)) (+ (* var261 (- var263 var262)) (- var264))) (* 2.0 (- var261)))) 0); var262, Real; ; var263, Real; ; var264, Real; ; var259, Real; ; var260, Real; ; var261, Real; ; var263, Real; ; var262, Real; ; var264, Real; ; var261, Real; ; var263, Real; ; var262, Real; ; var264, Real; ; var261, Real; 
-(>= (/ 149 var359 var361) 10); var359, Real; ; var361, Real; 
-(>= var361 1); var361, Real; 
-% (>= var_Real var_Real var_Real)
-(>= var33 var34 var35); var33, Real; ; var34, Real; ; var35, Real; 
+(>= var52 172); var52, Real; 
+(>= (+ var78 (* (- 5) (* var76 var76)) (* var76 var79)) 0); var78, Real; ; var76, Real; ; var76, Real; ; var76, Real; ; var79, Real; 
+(>= var97 0); var97, Real; 
+(>= var107 0); var107, Real; 
+(>= var136 36); var136, Real; 
+(>= (+ (* 0.5 (+ (* 2.0 (- var213 var214) var215) (- var210 var211))) (/ (* (+ (* var212 (- var214 var213)) (- var215)) (+ (* var212 (- var214 var213)) (- var215))) (* 2.0 (- var212)))) 0); var213, Real; ; var214, Real; ; var215, Real; ; var210, Real; ; var211, Real; ; var212, Real; ; var214, Real; ; var213, Real; ; var215, Real; ; var212, Real; ; var214, Real; ; var213, Real; ; var215, Real; ; var212, Real; 
+(>= var234 7); var234, Real; 
+(>= var238 3); var238, Real; 
+(>= (+ (* 0.5 (+ (* 2.0 (- var259 var260) var261) (- var256 var257))) (/ (* (+ (* var258 (- var260 var259)) (- var261)) (+ (* var258 (- var260 var259)) (- var261))) (* 2.0 (- var258)))) 0); var259, Real; ; var260, Real; ; var261, Real; ; var256, Real; ; var257, Real; ; var258, Real; ; var260, Real; ; var259, Real; ; var261, Real; ; var258, Real; ; var260, Real; ; var259, Real; ; var261, Real; ; var258, Real; 
+(>= var330 8); var330, Real; 
 % (>= var_Real var_Real)
-(>= (+ (* (/ 0 (mod 0 var34))) (mod (/ 0 (+ (/ 0 var38) var36)) (/ 1 var39))) var35); var34, Real; ; var38, Real; ; var36, Real; ; var39, Real; ; var35, Real; 
-(>= (+ (* (/ (- 1) var267) var268 var268) var269) var270); var267, Real; ; var268, Real; ; var268, Real; ; var269, Real; ; var270, Real; 
-(>= var305 var303); var305, Real; ; var303, Real; 
-(>= var361 (- 157 10 var363)); var361, Real; ; var363, Real; 
+(>= (+ (* (/ (- 1) var264) var265 var265) var266) var267); var264, Real; ; var265, Real; ; var265, Real; ; var266, Real; ; var267, Real; 
 % (distinct const_Int var_Int)
-(distinct 1 (mod (to_int var106) 3)); var106, Real; 
-(distinct 1 (mod var220 3)); var220, Int; func: (declare-const bug350_x Int); 
-(distinct 0 (/ 7 (to_real var371))); var371, Int; func: (declare-const bug351_x Bool); 
+(distinct 1 (mod (to_int var133) 3)); var133, Real; 
+(distinct 1 (mod var217 3)); var217, Int; func: (declare-const bug323_x Int); 
+(distinct 0 (/ 7 (to_real var353))); var353, Int; func: (declare-const bug324_x Bool); 
 % (distinct const_Int var_Real const_Int)
-(distinct 0 var43 1); var43, Real; 
+(distinct 0 var50 1); var50, Real; 
 % (distinct const_Int var_Real)
-(distinct 0 (+ var85 0)); var85, Real; 
+(distinct 0 (+ var112 0)); var112, Real; 
 % (distinct var_Bool var_Bool)
-(distinct (not (exists ((h Real)) (=> (= var98 0) (= (= (= var102 0) (= 0 var98)) (= var103 0))))) (= 0 var104 var105)); var98, Real; ; var102, Real; ; var98, Real; ; var103, Real; ; var104, Real; ; var105, Real; 
+(distinct (not (exists ((h Real)) (=> (= var125 0) (= (= (= var129 0) (= 0 var125)) (= var130 0))))) (= 0 var131 var132)); var125, Real; ; var129, Real; ; var125, Real; ; var130, Real; ; var131, Real; ; var132, Real; 
 % (distinct var_Bool)
-(distinct (= var98 0 0 var99 0 var100 var101)); var98, Real; ; var99, Real; ; var100, Real; ; var101, Real; 
+(distinct (= var125 0 0 var126 0 var127 var128)); var125, Real; ; var126, Real; ; var127, Real; ; var128, Real; 
 % (distinct var_Real const_Int)
-(distinct (+ var368 var369) 0); var368, Real; ; var369, Real; 
-(distinct (+ var387 var388) 0); var387, Real; ; var388, Real; 
-% (distinct var_Real const_Real)
-(distinct var362 3.0); var362, Real; 
+(distinct (+ var350 var351) 0); var350, Real; ; var351, Real; 
+(distinct (+ var377 var378) 0); var377, Real; ; var378, Real; 
 % (distinct var_Real var_Real)
-(distinct var171 var172); var171, Real; ; var172, Real; 
+(distinct var197 var198); var197, Real; ; var198, Real; 
+% (is_int var_Real)
+(is_int var61); var61, Real; 

@@ -4,112 +4,127 @@ var00; var00, Bool;
 true
 false
 % (< var_Real var_Real)
-(< (to_real var24) var23); var24, Int; ; var23, Real; func: (declare-fun bug0_round2 (Real) Int); 
+(< (to_real var26) var25); var26, Int; ; var25, Real; func: (declare-fun bug0_round2 (Real) Int); 
+(< (to_real var85) var84); var85, Int; ; var84, Real; func: (declare-fun bug1_round2 (Real) Int); 
 % (<= ite exists (q118 Int) q119 Int) q120 S0) q121 S0) q122 Real)) xor = const_Int var_Int) >= const_Real to_real var_Int)) const_Bool)) var_Int const_Int) var_Int)
-(<= (ite (exists ((q118 Int) (q119 Int) (q120 S0) (q121 S0) (q122 Real)) (xor (= 0 var29) (>= 0.0 (to_real var30)) true)) (to_int var31) 0) (to_int var31)); var29, Int; ; var30, Int; ; var31, Real; ; var31, Real; sort: (declare-sort S0 0); 
+(<= (ite (exists ((q118 Int) (q119 Int) (q120 S0) (q121 S0) (q122 Real)) (xor (= 0 var31) (>= 0.0 (to_real var32)) true)) (to_int var33) 0) (to_int var33)); var31, Int; ; var32, Int; ; var33, Real; ; var33, Real; sort: (declare-sort S0 0); 
 % (= const_Bool const_Bool const_Bool)
 (= true (= (bug4_$$utr (bug4_$$rtu 12)) 12) (= (bug4_$$utr (bug4_$$rtu (- 41 152))) (- 41 152)))sort: (declare-sort $$unsorted 0); func: (declare-fun bug4_$$rtu (Real) $$unsorted); (declare-fun bug4_$$utr ($$unsorted) Real); (declare-fun bug4_p ($$unsorted) Bool); 
 (= true (= (bug5_$$utr (bug5_$$rtu 12)) 12) (= (bug5_$$utr (bug5_$$rtu (- 41 152))) (- 41 152)))sort: (declare-sort $$unsorted 0); func: (declare-fun bug5_$$rtu (Real) $$unsorted); (declare-fun bug5_$$utr ($$unsorted) Real); (declare-fun bug5_p ($$unsorted) Bool); 
 % (= const_Int var_Real)
-(= 0 (/ (bug6_d var36 var33))); var36, a; ; var33, Real; sort: (declare-sort a); (declare-sort b); (declare-sort c); func: (declare-fun bug6_d (a Real) Real); (declare-fun bug6_f (b c) Real); 
-(= 0 (/ (bug7_d var86 var83))); var86, a; ; var83, Real; sort: (declare-sort a); (declare-sort b); (declare-sort c); func: (declare-fun bug7_d (a Real) Real); (declare-fun bug7_f (b c) Real); 
+(= 0 (/ (bug6_d var38 var35))); var38, a; ; var35, Real; sort: (declare-sort a); (declare-sort b); (declare-sort c); func: (declare-fun bug6_d (a Real) Real); (declare-fun bug6_f (b c) Real); 
+(= 0 (/ (bug7_d var94 var91))); var94, a; ; var91, Real; sort: (declare-sort a); (declare-sort b); (declare-sort c); func: (declare-fun bug7_d (a Real) Real); (declare-fun bug7_f (b c) Real); 
+% (= const_Real sin var_Real))
+(= 0.0 (sin var10)); var10, Real; func: (declare-fun bug8_b (Int Int) Int); 
+% (= const_Real var_Real)
+(= 1.0 (* var11 var11)); var11, Real; ; var11, Real; func: (declare-fun bug10_b (Int Int) Int); 
 % (= var_Bool const_Bool)
-(= var43 (xor (bug8_b 0 0))); var43, Bool; func: (declare-const bug8_x Bool); (declare-fun bug8_b (Int Int) Bool); 
-(= var60 (xor (bug9_b 0 0))); var60, Bool; func: (declare-const bug9_x Bool); (declare-fun bug9_b (Int Int) Bool); 
+(= var48 (xor (bug12_b 0 0))); var48, Bool; func: (declare-const bug12_x Bool); (declare-fun bug12_b (Int Int) Bool); 
+(= var65 (xor (bug13_b 0 0))); var65, Bool; func: (declare-const bug13_x Bool); (declare-fun bug13_b (Int Int) Bool); 
 % (= var_Bool var_Bool)
-(= (> var11 (to_real var12)) (= 0 (bug10_r var11))); var11, Real; ; var12, Int; ; var11, Real; func: (declare-fun bug10_r (Real) Int); 
-(= var43 (= var44 0.0)); var43, Bool; ; var44, Int; func: (declare-const bug11_x Bool); (declare-fun bug11_b (Int Int) Bool); 
-(= (> var56 (to_real var57)) (= 0 (bug12_r var56))); var56, Real; ; var57, Int; ; var56, Real; func: (declare-fun bug12_r (Real) Int); 
-(= var60 (= var61 0.0)); var60, Bool; ; var61, Int; func: (declare-const bug13_x Bool); (declare-fun bug13_b (Int Int) Bool); 
-(= (> var98 (to_real var99)) (= 0 (bug14_r var98))); var98, Real; ; var99, Int; ; var98, Real; func: (declare-fun bug14_r (Real) Int); 
-(= (> var114 (to_real var115)) (= 0 (bug15_r var114))); var114, Real; ; var115, Int; ; var114, Real; func: (declare-fun bug15_r (Real) Int); 
+(= (> var13 (to_real var14)) (= 0 (bug14_r var13))); var13, Real; ; var14, Int; ; var13, Real; func: (declare-fun bug14_r (Real) Int); 
+(= var48 (= var49 0.0)); var48, Bool; ; var49, Int; func: (declare-const bug15_x Bool); (declare-fun bug15_b (Int Int) Bool); 
+(= (> var61 (to_real var62)) (= 0 (bug16_r var61))); var61, Real; ; var62, Int; ; var61, Real; func: (declare-fun bug16_r (Real) Int); 
+(= (> var108 (to_real var109)) (= 0 (bug18_r var108))); var108, Real; ; var109, Int; ; var108, Real; func: (declare-fun bug18_r (Real) Int); 
+(= (> var124 (to_real var125)) (= 0 (bug19_r var124))); var124, Real; ; var125, Int; ; var124, Real; func: (declare-fun bug19_r (Real) Int); 
 % (= var_Int const_Int)
-(= var5 0); var5, Int; sort: (declare-sort S2 0); (declare-sort S3 0); (declare-sort S5 0); (declare-sort S10 0); (declare-sort S11 0); func: (declare-fun bug16_f3 (S3 S2) Real); (declare-fun bug16_f7 (S5 Int) S2); (declare-fun bug16_f18 (S10 Real) Real); (declare-fun bug16_f19 (S11 Real) S10); 
-(= var15 1); var15, Int; func: (declare-fun bug17_source (Int Real) Bool); 
-(= var15 2); var15, Int; func: (declare-fun bug18_source (Int Real) Bool); 
-(= var16 2); var16, Int; func: (declare-fun bug20_source (Int Real) Bool); 
-(= var58 1); var58, Int; func: (declare-fun bug22_source (Int Real) Bool); 
-(= var81 1); var81, Int; func: (declare-fun bug24_source (Int Real) Bool); 
-(= var95 0); var95, Int; sort: (declare-sort S2 0); (declare-sort S3 0); (declare-sort S5 0); (declare-sort S10 0); (declare-sort S11 0); func: (declare-fun bug26_f3 (S3 S2) Real); (declare-fun bug26_f7 (S5 Int) S2); (declare-fun bug26_f18 (S10 Real) Real); (declare-fun bug26_f19 (S11 Real) S10); 
+(= var5 0); var5, Int; sort: (declare-sort S2 0); (declare-sort S3 0); (declare-sort S5 0); (declare-sort S10 0); (declare-sort S11 0); func: (declare-fun bug20_f3 (S3 S2) Real); (declare-fun bug20_f7 (S5 Int) S2); (declare-fun bug20_f18 (S10 Real) Real); (declare-fun bug20_f19 (S11 Real) S10); 
+(= var17 1); var17, Int; func: (declare-fun bug21_source (Int Real) Bool); 
+(= var17 2); var17, Int; func: (declare-fun bug22_source (Int Real) Bool); 
+(= var18 2); var18, Int; func: (declare-fun bug24_source (Int Real) Bool); 
+(= var63 1); var63, Int; func: (declare-fun bug26_source (Int Real) Bool); 
+(= var86 1); var86, Int; func: (declare-fun bug28_source (Int Real) Bool); 
+(= var105 0); var105, Int; sort: (declare-sort S2 0); (declare-sort S3 0); (declare-sort S5 0); (declare-sort S10 0); (declare-sort S11 0); func: (declare-fun bug30_f3 (S3 S2) Real); (declare-fun bug30_f7 (S5 Int) S2); (declare-fun bug30_f18 (S10 Real) Real); (declare-fun bug30_f19 (S11 Real) S10); 
 % (= var_Int var_Int)
-(= var6 var7); var6, Int; ; var7, Int; sort: (declare-sort S2 0); (declare-sort S3 0); (declare-sort S5 0); (declare-sort S10 0); (declare-sort S11 0); func: (declare-fun bug28_f3 (S3 S2) Real); (declare-fun bug28_f7 (S5 Int) S2); (declare-fun bug28_f18 (S10 Real) Real); (declare-fun bug28_f19 (S11 Real) S10); 
-(= (+ 0 (* var5 var6)) (+ 0 (* var5 var7))); var5, Int; ; var6, Int; ; var5, Int; ; var7, Int; sort: (declare-sort S2 0); (declare-sort S3 0); (declare-sort S5 0); (declare-sort S10 0); (declare-sort S11 0); func: (declare-fun bug29_f3 (S3 S2) Real); (declare-fun bug29_f7 (S5 Int) S2); (declare-fun bug29_f18 (S10 Real) Real); (declare-fun bug29_f19 (S11 Real) S10); 
-(= (+ 0 (* var50 var51)) (+ 0 (* var50 var52))); var50, Int; ; var51, Int; ; var50, Int; ; var52, Int; sort: (declare-sort S2 0); (declare-sort S3 0); (declare-sort S5 0); (declare-sort S10 0); (declare-sort S11 0); func: (declare-fun bug31_f3 (S3 S2) Real); (declare-fun bug31_f7 (S5 Int) S2); (declare-fun bug31_f18 (S10 Real) Real); (declare-fun bug31_f19 (S11 Real) S10); 
-(= var96 var97); var96, Int; ; var97, Int; sort: (declare-sort S2 0); (declare-sort S3 0); (declare-sort S5 0); (declare-sort S10 0); (declare-sort S11 0); func: (declare-fun bug32_f3 (S3 S2) Real); (declare-fun bug32_f7 (S5 Int) S2); (declare-fun bug32_f18 (S10 Real) Real); (declare-fun bug32_f19 (S11 Real) S10); 
-(= (+ 0 (* var95 var96)) (+ 0 (* var95 var97))); var95, Int; ; var96, Int; ; var95, Int; ; var97, Int; sort: (declare-sort S2 0); (declare-sort S3 0); (declare-sort S5 0); (declare-sort S10 0); (declare-sort S11 0); func: (declare-fun bug33_f3 (S3 S2) Real); (declare-fun bug33_f7 (S5 Int) S2); (declare-fun bug33_f18 (S10 Real) Real); (declare-fun bug33_f19 (S11 Real) S10); 
-(= (+ 0 (* var111 var112)) (+ 0 (* var111 var113))); var111, Int; ; var112, Int; ; var111, Int; ; var113, Int; sort: (declare-sort S2 0); (declare-sort S3 0); (declare-sort S5 0); (declare-sort S10 0); (declare-sort S11 0); func: (declare-fun bug35_f3 (S3 S2) Real); (declare-fun bug35_f7 (S5 Int) S2); (declare-fun bug35_f18 (S10 Real) Real); (declare-fun bug35_f19 (S11 Real) S10); 
+(= var6 var7); var6, Int; ; var7, Int; sort: (declare-sort S2 0); (declare-sort S3 0); (declare-sort S5 0); (declare-sort S10 0); (declare-sort S11 0); func: (declare-fun bug32_f3 (S3 S2) Real); (declare-fun bug32_f7 (S5 Int) S2); (declare-fun bug32_f18 (S10 Real) Real); (declare-fun bug32_f19 (S11 Real) S10); 
+(= (+ 0 (* var5 var6)) (+ 0 (* var5 var7))); var5, Int; ; var6, Int; ; var5, Int; ; var7, Int; sort: (declare-sort S2 0); (declare-sort S3 0); (declare-sort S5 0); (declare-sort S10 0); (declare-sort S11 0); func: (declare-fun bug33_f3 (S3 S2) Real); (declare-fun bug33_f7 (S5 Int) S2); (declare-fun bug33_f18 (S10 Real) Real); (declare-fun bug33_f19 (S11 Real) S10); 
+(= (+ 0 (* var55 var56)) (+ 0 (* var55 var57))); var55, Int; ; var56, Int; ; var55, Int; ; var57, Int; sort: (declare-sort S2 0); (declare-sort S3 0); (declare-sort S5 0); (declare-sort S10 0); (declare-sort S11 0); func: (declare-fun bug35_f3 (S3 S2) Real); (declare-fun bug35_f7 (S5 Int) S2); (declare-fun bug35_f18 (S10 Real) Real); (declare-fun bug35_f19 (S11 Real) S10); 
+(= (+ 0 (* var105 var106)) (+ 0 (* var105 var107))); var105, Int; ; var106, Int; ; var105, Int; ; var107, Int; sort: (declare-sort S2 0); (declare-sort S3 0); (declare-sort S5 0); (declare-sort S10 0); (declare-sort S11 0); func: (declare-fun bug37_f3 (S3 S2) Real); (declare-fun bug37_f7 (S5 Int) S2); (declare-fun bug37_f18 (S10 Real) Real); (declare-fun bug37_f19 (S11 Real) S10); 
+(= (+ 0 (* var121 var122)) (+ 0 (* var121 var123))); var121, Int; ; var122, Int; ; var121, Int; ; var123, Int; sort: (declare-sort S2 0); (declare-sort S3 0); (declare-sort S5 0); (declare-sort S10 0); (declare-sort S11 0); func: (declare-fun bug39_f3 (S3 S2) Real); (declare-fun bug39_f7 (S5 Int) S2); (declare-fun bug39_f18 (S10 Real) Real); (declare-fun bug39_f19 (S11 Real) S10); 
 % (> const_Real const_Real const_Real const_Real)
-(> 3.0 (- 11340.0 0.0) (- 6564860656.0) 11340.0)func: (declare-fun bug36_inv-real1 (Real Real) Bool); (declare-fun bug36_inv-real2 (Real Real Real) Bool); (declare-fun bug36_inv-real3 (Real Real Real Real) Bool); 
-(> 3.0 (- 11340.0 0.0) (- 6564860656.0) 11340.0)func: (declare-fun bug37_inv-real1 (Real Real) Bool); (declare-fun bug37_inv-real2 (Real Real Real) Bool); (declare-fun bug37_inv-real3 (Real Real Real Real) Bool); 
+(> 3.0 (- 11340.0 0.0) (- 6564860656.0) 11340.0)func: (declare-fun bug40_inv-real1 (Real Real) Bool); (declare-fun bug40_inv-real2 (Real Real Real) Bool); (declare-fun bug40_inv-real3 (Real Real Real Real) Bool); 
+(> 3.0 (- 11340.0 0.0) (- 6564860656.0) 11340.0)func: (declare-fun bug41_inv-real1 (Real Real) Bool); (declare-fun bug41_inv-real2 (Real Real Real) Bool); (declare-fun bug41_inv-real3 (Real Real Real Real) Bool); 
 % (> const_Real const_Real var_Real)
-(> 0.0 6210.0 (/ (+ (- var27 0.0 0.490939 0.6846990415) 98.0) 67242460.0)); var27, Real; func: (declare-fun bug38_inv-real1 (Real Real) Bool); (declare-fun bug38_inv-real2 (Real Real Real) Bool); (declare-fun bug38_inv-real3 (Real Real Real Real) Bool); 
+(> 0.0 6210.0 (/ (+ (- var29 0.0 0.490939 0.6846990415) 98.0) 67242460.0)); var29, Real; func: (declare-fun bug42_inv-real1 (Real Real) Bool); (declare-fun bug42_inv-real2 (Real Real Real) Bool); (declare-fun bug42_inv-real3 (Real Real Real Real) Bool); 
 % (> var_Real const_Int)
-(> var17 0); var17, Real; func: (declare-fun bug40_a (Real Real Real) Bool); 
+(> var19 0); var19, Real; func: (declare-fun bug44_a (Real Real Real) Bool); 
 % (> var_Real var_Real)
-(> var23 (to_real var24)); var23, Real; ; var24, Int; func: (declare-fun bug42_round2 (Real) Int); 
+(> var25 (to_real var26)); var25, Real; ; var26, Int; func: (declare-fun bug46_round2 (Real) Int); 
+(> var84 (to_real var85)); var84, Real; ; var85, Int; func: (declare-fun bug47_round2 (Real) Int); 
 % (a var_Real var_Real const_Int)
-(bug44_a var20 var21 0); var20, Real; ; var21, Real; func: (declare-fun bug44_a (Real Real Real) Bool); 
-(bug45_a var68 var69 0); var68, Real; ; var69, Real; func: (declare-fun bug45_a (Real Real Real) Bool); 
+(bug48_a var22 var23 0); var22, Real; ; var23, Real; func: (declare-fun bug48_a (Real Real Real) Bool); 
+(bug49_a var73 var74 0); var73, Real; ; var74, Real; func: (declare-fun bug49_a (Real Real Real) Bool); 
 % (a var_Real var_Real var_Real)
-(bug46_a var18 var19 var17); var18, Real; ; var19, Real; ; var17, Real; func: (declare-fun bug46_a (Real Real Real) Bool); 
-(bug47_a var20 var21 var22); var20, Real; ; var21, Real; ; var22, Real; func: (declare-fun bug47_a (Real Real Real) Bool); 
-(bug48_a var18 var19 var17); var18, Real; ; var19, Real; ; var17, Real; func: (declare-fun bug48_a (Real Real Real) Bool); 
-(bug49_a var66 var67 var65); var66, Real; ; var67, Real; ; var65, Real; func: (declare-fun bug49_a (Real Real Real) Bool); 
-(bug50_a var68 var69 var70); var68, Real; ; var69, Real; ; var70, Real; func: (declare-fun bug50_a (Real Real Real) Bool); 
-(bug51_a var66 var67 var65); var66, Real; ; var67, Real; ; var65, Real; func: (declare-fun bug51_a (Real Real Real) Bool); 
+(bug50_a var20 var21 var19); var20, Real; ; var21, Real; ; var19, Real; func: (declare-fun bug50_a (Real Real Real) Bool); 
+(bug51_a var22 var23 var24); var22, Real; ; var23, Real; ; var24, Real; func: (declare-fun bug51_a (Real Real Real) Bool); 
+(bug52_a var20 var21 var19); var20, Real; ; var21, Real; ; var19, Real; func: (declare-fun bug52_a (Real Real Real) Bool); 
+(bug53_a var71 var72 var70); var71, Real; ; var72, Real; ; var70, Real; func: (declare-fun bug53_a (Real Real Real) Bool); 
+(bug54_a var73 var74 var75); var73, Real; ; var74, Real; ; var75, Real; func: (declare-fun bug54_a (Real Real Real) Bool); 
+(bug55_a var71 var72 var70); var71, Real; ; var72, Real; ; var70, Real; func: (declare-fun bug55_a (Real Real Real) Bool); 
 % (implies var_Bool var_Bool)
-(implies (= (* var14 var14) 0.0) (= var14 0.0)); var14, Real; ; var14, Real; ; var14, Real; func: (declare-fun bug52_F (Real) Int); 
+(implies (= (* var16 var16) 0.0) (= var16 0.0)); var16, Real; ; var16, Real; ; var16, Real; func: (declare-fun bug56_F (Real) Int); 
 % (p var_$$unsorted)
-(bug54_p var25); var25, $$unsorted; sort: (declare-sort $$unsorted 0); func: (declare-fun bug54_$$rtu (Real) $$unsorted); (declare-fun bug54_$$utr ($$unsorted) Real); (declare-fun bug54_p ($$unsorted) Bool); 
-(bug55_p var59); var59, $$unsorted; sort: (declare-sort $$unsorted 0); func: (declare-fun bug55_$$rtu (Real) $$unsorted); (declare-fun bug55_$$utr ($$unsorted) Real); (declare-fun bug55_p ($$unsorted) Bool); 
+(bug58_p var27); var27, $$unsorted; sort: (declare-sort $$unsorted 0); func: (declare-fun bug58_$$rtu (Real) $$unsorted); (declare-fun bug58_$$utr ($$unsorted) Real); (declare-fun bug58_p ($$unsorted) Bool); 
+(bug59_p var64); var64, $$unsorted; sort: (declare-sort $$unsorted 0); func: (declare-fun bug59_$$rtu (Real) $$unsorted); (declare-fun bug59_$$utr ($$unsorted) Real); (declare-fun bug59_p ($$unsorted) Bool); 
+% (q1 var_Int var_Real)
+(bug60_q1 var41 var39); var41, Int; ; var39, Real; func: (declare-fun bug60_q1 (Int Real) Bool); (declare-fun bug60_q2 (Real Real) Bool); 
+(bug61_q1 var89 var87); var89, Int; ; var87, Real; func: (declare-fun bug61_q1 (Int Real) Bool); (declare-fun bug61_q2 (Real Real) Bool); 
+% (q1 var_Real var_Real)
+(bug62_q1 var40 var39); var40, Real; ; var39, Real; func: (declare-fun bug62_q1 (Int Real) Bool); (declare-fun bug62_q2 (Real Real) Bool); 
+(bug63_q1 var88 var87); var88, Real; ; var87, Real; func: (declare-fun bug63_q1 (Int Real) Bool); (declare-fun bug63_q2 (Real Real) Bool); 
 % (q2 var_Real ite < var_Real const_Real) var_Real const_Real))
-(bug56_q2 var10 (ite (< var10 1.0) var10 1.0)); var10, Real; ; var10, Real; ; var10, Real; func: (declare-fun bug56_q2 (Real Real) Bool); 
-(bug57_q2 var55 (ite (< var55 1.0) var55 1.0)); var55, Real; ; var55, Real; ; var55, Real; func: (declare-fun bug57_q2 (Real Real) Bool); 
-(bug58_q2 var102 (ite (< var102 1.0) var102 1.0)); var102, Real; ; var102, Real; ; var102, Real; func: (declare-fun bug58_q2 (Real Real) Bool); 
-(bug59_q2 var103 (ite (< var103 1.0) var103 1.0)); var103, Real; ; var103, Real; ; var103, Real; func: (declare-fun bug59_q2 (Real Real) Bool); 
+(bug64_q2 var12 (ite (< var12 1.0) var12 1.0)); var12, Real; ; var12, Real; ; var12, Real; func: (declare-fun bug64_q2 (Real Real) Bool); 
+(bug65_q2 var60 (ite (< var60 1.0) var60 1.0)); var60, Real; ; var60, Real; ; var60, Real; func: (declare-fun bug65_q2 (Real Real) Bool); 
+(bug66_q2 var112 (ite (< var112 1.0) var112 1.0)); var112, Real; ; var112, Real; ; var112, Real; func: (declare-fun bug66_q2 (Real Real) Bool); 
+(bug67_q2 var113 (ite (< var113 1.0) var113 1.0)); var113, Real; ; var113, Real; ; var113, Real; func: (declare-fun bug67_q2 (Real Real) Bool); 
+% (q2 var_Real var_Real)
+(bug68_q2 var39 var39); var39, Real; ; var39, Real; func: (declare-fun bug68_q1 (Int Real) Bool); (declare-fun bug68_q2 (Real Real) Bool); 
+(bug69_q2 var87 var87); var87, Real; ; var87, Real; func: (declare-fun bug69_q1 (Int Real) Bool); (declare-fun bug69_q2 (Real Real) Bool); 
 % (source var_Int const_Real)
-(bug60_source var15 20.0); var15, Int; func: (declare-fun bug60_source (Int Real) Bool); 
-(bug61_source var15 0.0); var15, Int; func: (declare-fun bug61_source (Int Real) Bool); 
-(bug62_source var16 20.0); var16, Int; func: (declare-fun bug62_source (Int Real) Bool); 
-(bug63_source var16 0.0); var16, Int; func: (declare-fun bug63_source (Int Real) Bool); 
-(bug64_source var58 20.0); var58, Int; func: (declare-fun bug64_source (Int Real) Bool); 
-(bug65_source var58 0.0); var58, Int; func: (declare-fun bug65_source (Int Real) Bool); 
-(bug66_source var81 20.0); var81, Int; func: (declare-fun bug66_source (Int Real) Bool); 
-(bug67_source var81 0.0); var81, Int; func: (declare-fun bug67_source (Int Real) Bool); 
+(bug70_source var17 20.0); var17, Int; func: (declare-fun bug70_source (Int Real) Bool); 
+(bug71_source var17 0.0); var17, Int; func: (declare-fun bug71_source (Int Real) Bool); 
+(bug72_source var18 20.0); var18, Int; func: (declare-fun bug72_source (Int Real) Bool); 
+(bug73_source var18 0.0); var18, Int; func: (declare-fun bug73_source (Int Real) Bool); 
+(bug74_source var63 20.0); var63, Int; func: (declare-fun bug74_source (Int Real) Bool); 
+(bug75_source var63 0.0); var63, Int; func: (declare-fun bug75_source (Int Real) Bool); 
+(bug76_source var86 20.0); var86, Int; func: (declare-fun bug76_source (Int Real) Bool); 
+(bug77_source var86 0.0); var86, Int; func: (declare-fun bug77_source (Int Real) Bool); 
 % Null
-(= (+ (bug68_f18 (bug68_f19 var0 0.0) var1) var2) (bug68_f18 (bug68_f19 var0 0.0) 0.0)); var0, S11; ; var1, Real; ; var2, Real; ; var0, S11; sort: (declare-sort S2 0); (declare-sort S3 0); (declare-sort S5 0); (declare-sort S10 0); (declare-sort S11 0); func: (declare-fun bug68_f3 (S3 S2) Real); (declare-fun bug68_f7 (S5 Int) S2); (declare-fun bug68_f18 (S10 Real) Real); (declare-fun bug68_f19 (S11 Real) S10); 
-(= (bug69_f3 var3 (bug69_f7 var4 0)) 0.0); var3, S3; ; var4, S5; sort: (declare-sort S2 0); (declare-sort S3 0); (declare-sort S5 0); (declare-sort S10 0); (declare-sort S11 0); func: (declare-fun bug69_f3 (S3 S2) Real); (declare-fun bug69_f7 (S5 Int) S2); (declare-fun bug69_f18 (S10 Real) Real); (declare-fun bug69_f19 (S11 Real) S10); 
-(> 0 (bug70_b var8)); var8, Real; func: (declare-fun bug70_b (Real) Int); 
-(<= var8 var9 (bug71_b var8)); var8, Real; ; var9, Int; ; var8, Real; func: (declare-fun bug71_b (Real) Int); 
-(= 10 (bug72_F var13)); var13, Real; func: (declare-fun bug72_F (Real) Int); 
-(<= (bug73_round2 var23) var24); var23, Real; ; var24, Int; func: (declare-fun bug73_round2 (Real) Int); 
-(>= var24 (bug74_round2 var23)); var24, Int; ; var23, Real; func: (declare-fun bug74_round2 (Real) Int); 
-(= 0 (bug75_d var32 (+ var33 (/ (* (bug75_f var34 var35)) 1.0)))); var32, a; ; var33, Real; ; var34, b; ; var35, c; sort: (declare-sort a); (declare-sort b); (declare-sort c); func: (declare-fun bug75_d (a Real) Real); (declare-fun bug75_f (b c) Real); 
-(< (bug76_d var32 0) 1.0); var32, a; sort: (declare-sort a); (declare-sort b); (declare-sort c); func: (declare-fun bug76_d (a Real) Real); (declare-fun bug76_f (b c) Real); 
-(= (bug77_d var36 (* 2.0 var33)) (* var33)); var36, a; ; var33, Real; ; var33, Real; sort: (declare-sort a); (declare-sort b); (declare-sort c); func: (declare-fun bug77_d (a Real) Real); (declare-fun bug77_f (b c) Real); 
-(= (bug78_a var37 0) (bug78_f (bug78_a var38 (bug78_a var37 (bug78_a var37 var39))) (bug78_a 0 0))); var37, Real; ; var38, Real; ; var37, Real; ; var37, Real; ; var39, Int; func: (declare-fun bug78_a (Real Real) Real); (declare-fun bug78_f (Real Int) Int); 
-(< 0 (bug79_a 0 var37)); var37, Real; func: (declare-fun bug79_a (Real Real) Real); (declare-fun bug79_f (Real Int) Int); 
-(= (bug80_a var40 0) (bug80_f (bug80_a var41 (bug80_a var40 (bug80_a var40 var42))) (bug80_a 0 0))); var40, Real; ; var41, Real; ; var40, Real; ; var40, Real; ; var42, Int; func: (declare-fun bug80_a (Real Real) Real); (declare-fun bug80_f (Real Int) Int); 
-(< 0 (bug81_a 0 var40)); var40, Real; func: (declare-fun bug81_a (Real Real) Real); (declare-fun bug81_f (Real Int) Int); 
-(= (+ (bug82_f18 (bug82_f19 var45 0.0) var46) var47) (bug82_f18 (bug82_f19 var45 0.0) 0.0)); var45, S11; ; var46, Real; ; var47, Real; ; var45, S11; sort: (declare-sort S2 0); (declare-sort S3 0); (declare-sort S5 0); (declare-sort S10 0); (declare-sort S11 0); func: (declare-fun bug82_f3 (S3 S2) Real); (declare-fun bug82_f7 (S5 Int) S2); (declare-fun bug82_f18 (S10 Real) Real); (declare-fun bug82_f19 (S11 Real) S10); 
-(= (bug83_f3 var48 (bug83_f7 var49 0)) 0.0); var48, S3; ; var49, S5; sort: (declare-sort S2 0); (declare-sort S3 0); (declare-sort S5 0); (declare-sort S10 0); (declare-sort S11 0); func: (declare-fun bug83_f3 (S3 S2) Real); (declare-fun bug83_f7 (S5 Int) S2); (declare-fun bug83_f18 (S10 Real) Real); (declare-fun bug83_f19 (S11 Real) S10); 
-(> 0 (bug84_b var53)); var53, Real; func: (declare-fun bug84_b (Real) Int); 
-(<= var53 var54 (bug85_b var53)); var53, Real; ; var54, Int; ; var53, Real; func: (declare-fun bug85_b (Real) Int); 
-(= (bug86_a var62 0) (bug86_f (bug86_a var63 (bug86_a var62 (bug86_a var62 var64))) (bug86_a 0 0))); var62, Real; ; var63, Real; ; var62, Real; ; var62, Real; ; var64, Int; func: (declare-fun bug86_a (Real Real) Real); (declare-fun bug86_f (Real Int) Int); 
-(< 0 (bug87_a 0 var62)); var62, Real; func: (declare-fun bug87_a (Real Real) Real); (declare-fun bug87_f (Real Int) Int); 
-(= (bug88_a var71 0) (bug88_f (bug88_a var72 (bug88_a var71 (bug88_a var71 var73))) (bug88_a 0 0))); var71, Real; ; var72, Real; ; var71, Real; ; var71, Real; ; var73, Int; func: (declare-fun bug88_a (Real Real) Real); (declare-fun bug88_f (Real Int) Int); 
-(< 0 (bug89_a 0 var71)); var71, Real; func: (declare-fun bug89_a (Real Real) Real); (declare-fun bug89_f (Real Int) Int); 
-(= 10 (bug90_F var74)); var74, Real; func: (declare-fun bug90_F (Real) Int); 
-(<= (bug91_round2 var79) var80); var79, Real; ; var80, Int; func: (declare-fun bug91_round2 (Real) Int); 
-(>= var80 (bug92_round2 var79)); var80, Int; ; var79, Real; func: (declare-fun bug92_round2 (Real) Int); 
-(= 0 (bug93_d var82 (+ var83 (/ (* (bug93_f var84 var85)) 1.0)))); var82, a; ; var83, Real; ; var84, b; ; var85, c; sort: (declare-sort a); (declare-sort b); (declare-sort c); func: (declare-fun bug93_d (a Real) Real); (declare-fun bug93_f (b c) Real); 
-(< (bug94_d var82 0) 1.0); var82, a; sort: (declare-sort a); (declare-sort b); (declare-sort c); func: (declare-fun bug94_d (a Real) Real); (declare-fun bug94_f (b c) Real); 
-(= (bug95_d var86 (* 2.0 var83)) (* var83)); var86, a; ; var83, Real; ; var83, Real; sort: (declare-sort a); (declare-sort b); (declare-sort c); func: (declare-fun bug95_d (a Real) Real); (declare-fun bug95_f (b c) Real); 
-(= (+ (bug96_f18 (bug96_f19 var90 0.0) var91) var92) (bug96_f18 (bug96_f19 var90 0.0) 0.0)); var90, S11; ; var91, Real; ; var92, Real; ; var90, S11; sort: (declare-sort S2 0); (declare-sort S3 0); (declare-sort S5 0); (declare-sort S10 0); (declare-sort S11 0); func: (declare-fun bug96_f3 (S3 S2) Real); (declare-fun bug96_f7 (S5 Int) S2); (declare-fun bug96_f18 (S10 Real) Real); (declare-fun bug96_f19 (S11 Real) S10); 
-(= (bug97_f3 var93 (bug97_f7 var94 0)) 0.0); var93, S3; ; var94, S5; sort: (declare-sort S2 0); (declare-sort S3 0); (declare-sort S5 0); (declare-sort S10 0); (declare-sort S11 0); func: (declare-fun bug97_f3 (S3 S2) Real); (declare-fun bug97_f7 (S5 Int) S2); (declare-fun bug97_f18 (S10 Real) Real); (declare-fun bug97_f19 (S11 Real) S10); 
-(> 0 (bug98_b var100)); var100, Real; func: (declare-fun bug98_b (Real) Int); 
-(<= var100 var101 (bug99_b var100)); var100, Real; ; var101, Int; ; var100, Real; func: (declare-fun bug99_b (Real) Int); 
-(> 0 (bug100_b var104)); var104, Real; func: (declare-fun bug100_b (Real) Int); 
-(<= var104 var105 (bug101_b var104)); var104, Real; ; var105, Int; ; var104, Real; func: (declare-fun bug101_b (Real) Int); 
-(= (+ (bug102_f18 (bug102_f19 var106 0.0) var107) var108) (bug102_f18 (bug102_f19 var106 0.0) 0.0)); var106, S11; ; var107, Real; ; var108, Real; ; var106, S11; sort: (declare-sort S2 0); (declare-sort S3 0); (declare-sort S5 0); (declare-sort S10 0); (declare-sort S11 0); func: (declare-fun bug102_f3 (S3 S2) Real); (declare-fun bug102_f7 (S5 Int) S2); (declare-fun bug102_f18 (S10 Real) Real); (declare-fun bug102_f19 (S11 Real) S10); 
-(= (bug103_f3 var109 (bug103_f7 var110 0)) 0.0); var109, S3; ; var110, S5; sort: (declare-sort S2 0); (declare-sort S3 0); (declare-sort S5 0); (declare-sort S10 0); (declare-sort S11 0); func: (declare-fun bug103_f3 (S3 S2) Real); (declare-fun bug103_f7 (S5 Int) S2); (declare-fun bug103_f18 (S10 Real) Real); (declare-fun bug103_f19 (S11 Real) S10); 
+(= (+ (bug78_f18 (bug78_f19 var0 0.0) var1) var2) (bug78_f18 (bug78_f19 var0 0.0) 0.0)); var0, S11; ; var1, Real; ; var2, Real; ; var0, S11; sort: (declare-sort S2 0); (declare-sort S3 0); (declare-sort S5 0); (declare-sort S10 0); (declare-sort S11 0); func: (declare-fun bug78_f3 (S3 S2) Real); (declare-fun bug78_f7 (S5 Int) S2); (declare-fun bug78_f18 (S10 Real) Real); (declare-fun bug78_f19 (S11 Real) S10); 
+(= (bug79_f3 var3 (bug79_f7 var4 0)) 0.0); var3, S3; ; var4, S5; sort: (declare-sort S2 0); (declare-sort S3 0); (declare-sort S5 0); (declare-sort S10 0); (declare-sort S11 0); func: (declare-fun bug79_f3 (S3 S2) Real); (declare-fun bug79_f7 (S5 Int) S2); (declare-fun bug79_f18 (S10 Real) Real); (declare-fun bug79_f19 (S11 Real) S10); 
+(> 0 (bug80_b var8)); var8, Real; func: (declare-fun bug80_b (Real) Int); 
+(<= var8 var9 (bug81_b var8)); var8, Real; ; var9, Int; ; var8, Real; func: (declare-fun bug81_b (Real) Int); 
+(= 0 (bug82_b 0 0))func: (declare-fun bug82_b (Int Int) Int); 
+(= 10 (bug83_F var15)); var15, Real; func: (declare-fun bug83_F (Real) Int); 
+(<= (bug84_round2 var25) var26); var25, Real; ; var26, Int; func: (declare-fun bug84_round2 (Real) Int); 
+(>= var26 (bug85_round2 var25)); var26, Int; ; var25, Real; func: (declare-fun bug85_round2 (Real) Int); 
+(= 0 (bug86_d var34 (+ var35 (/ (* (bug86_f var36 var37)) 1.0)))); var34, a; ; var35, Real; ; var36, b; ; var37, c; sort: (declare-sort a); (declare-sort b); (declare-sort c); func: (declare-fun bug86_d (a Real) Real); (declare-fun bug86_f (b c) Real); 
+(< (bug87_d var34 0) 1.0); var34, a; sort: (declare-sort a); (declare-sort b); (declare-sort c); func: (declare-fun bug87_d (a Real) Real); (declare-fun bug87_f (b c) Real); 
+(= (bug88_d var38 (* 2.0 var35)) (* var35)); var38, a; ; var35, Real; ; var35, Real; sort: (declare-sort a); (declare-sort b); (declare-sort c); func: (declare-fun bug88_d (a Real) Real); (declare-fun bug88_f (b c) Real); 
+(= (bug89_a var42 0) (bug89_f (bug89_a var43 (bug89_a var42 (bug89_a var42 var44))) (bug89_a 0 0))); var42, Real; ; var43, Real; ; var42, Real; ; var42, Real; ; var44, Int; func: (declare-fun bug89_a (Real Real) Real); (declare-fun bug89_f (Real Int) Int); 
+(< 0 (bug90_a 0 var42)); var42, Real; func: (declare-fun bug90_a (Real Real) Real); (declare-fun bug90_f (Real Int) Int); 
+(= (bug91_a var45 0) (bug91_f (bug91_a var46 (bug91_a var45 (bug91_a var45 var47))) (bug91_a 0 0))); var45, Real; ; var46, Real; ; var45, Real; ; var45, Real; ; var47, Int; func: (declare-fun bug91_a (Real Real) Real); (declare-fun bug91_f (Real Int) Int); 
+(< 0 (bug92_a 0 var45)); var45, Real; func: (declare-fun bug92_a (Real Real) Real); (declare-fun bug92_f (Real Int) Int); 
+(= (+ (bug93_f18 (bug93_f19 var50 0.0) var51) var52) (bug93_f18 (bug93_f19 var50 0.0) 0.0)); var50, S11; ; var51, Real; ; var52, Real; ; var50, S11; sort: (declare-sort S2 0); (declare-sort S3 0); (declare-sort S5 0); (declare-sort S10 0); (declare-sort S11 0); func: (declare-fun bug93_f3 (S3 S2) Real); (declare-fun bug93_f7 (S5 Int) S2); (declare-fun bug93_f18 (S10 Real) Real); (declare-fun bug93_f19 (S11 Real) S10); 
+(= (bug94_f3 var53 (bug94_f7 var54 0)) 0.0); var53, S3; ; var54, S5; sort: (declare-sort S2 0); (declare-sort S3 0); (declare-sort S5 0); (declare-sort S10 0); (declare-sort S11 0); func: (declare-fun bug94_f3 (S3 S2) Real); (declare-fun bug94_f7 (S5 Int) S2); (declare-fun bug94_f18 (S10 Real) Real); (declare-fun bug94_f19 (S11 Real) S10); 
+(> 0 (bug95_b var58)); var58, Real; func: (declare-fun bug95_b (Real) Int); 
+(<= var58 var59 (bug96_b var58)); var58, Real; ; var59, Int; ; var58, Real; func: (declare-fun bug96_b (Real) Int); 
+(= (bug97_a var67 0) (bug97_f (bug97_a var68 (bug97_a var67 (bug97_a var67 var69))) (bug97_a 0 0))); var67, Real; ; var68, Real; ; var67, Real; ; var67, Real; ; var69, Int; func: (declare-fun bug97_a (Real Real) Real); (declare-fun bug97_f (Real Int) Int); 
+(< 0 (bug98_a 0 var67)); var67, Real; func: (declare-fun bug98_a (Real Real) Real); (declare-fun bug98_f (Real Int) Int); 
+(= (bug99_a var76 0) (bug99_f (bug99_a var77 (bug99_a var76 (bug99_a var76 var78))) (bug99_a 0 0))); var76, Real; ; var77, Real; ; var76, Real; ; var76, Real; ; var78, Int; func: (declare-fun bug99_a (Real Real) Real); (declare-fun bug99_f (Real Int) Int); 
+(< 0 (bug100_a 0 var76)); var76, Real; func: (declare-fun bug100_a (Real Real) Real); (declare-fun bug100_f (Real Int) Int); 
+(= 10 (bug101_F var79)); var79, Real; func: (declare-fun bug101_F (Real) Int); 
+(<= (bug102_round2 var84) var85); var84, Real; ; var85, Int; func: (declare-fun bug102_round2 (Real) Int); 
+(>= var85 (bug103_round2 var84)); var85, Int; ; var84, Real; func: (declare-fun bug103_round2 (Real) Int); 
+(= 0 (bug104_d var90 (+ var91 (/ (* (bug104_f var92 var93)) 1.0)))); var90, a; ; var91, Real; ; var92, b; ; var93, c; sort: (declare-sort a); (declare-sort b); (declare-sort c); func: (declare-fun bug104_d (a Real) Real); (declare-fun bug104_f (b c) Real); 
+(< (bug105_d var90 0) 1.0); var90, a; sort: (declare-sort a); (declare-sort b); (declare-sort c); func: (declare-fun bug105_d (a Real) Real); (declare-fun bug105_f (b c) Real); 
+(= (bug106_d var94 (* 2.0 var91)) (* var91)); var94, a; ; var91, Real; ; var91, Real; sort: (declare-sort a); (declare-sort b); (declare-sort c); func: (declare-fun bug106_d (a Real) Real); (declare-fun bug106_f (b c) Real); 
+(= 0 (bug107_b 0 0))func: (declare-fun bug107_b (Int Int) Int); 
+(= (+ (bug108_f18 (bug108_f19 var100 0.0) var101) var102) (bug108_f18 (bug108_f19 var100 0.0) 0.0)); var100, S11; ; var101, Real; ; var102, Real; ; var100, S11; sort: (declare-sort S2 0); (declare-sort S3 0); (declare-sort S5 0); (declare-sort S10 0); (declare-sort S11 0); func: (declare-fun bug108_f3 (S3 S2) Real); (declare-fun bug108_f7 (S5 Int) S2); (declare-fun bug108_f18 (S10 Real) Real); (declare-fun bug108_f19 (S11 Real) S10); 
+(= (bug109_f3 var103 (bug109_f7 var104 0)) 0.0); var103, S3; ; var104, S5; sort: (declare-sort S2 0); (declare-sort S3 0); (declare-sort S5 0); (declare-sort S10 0); (declare-sort S11 0); func: (declare-fun bug109_f3 (S3 S2) Real); (declare-fun bug109_f7 (S5 Int) S2); (declare-fun bug109_f18 (S10 Real) Real); (declare-fun bug109_f19 (S11 Real) S10); 
+(> 0 (bug110_b var110)); var110, Real; func: (declare-fun bug110_b (Real) Int); 
+(<= var110 var111 (bug111_b var110)); var110, Real; ; var111, Int; ; var110, Real; func: (declare-fun bug111_b (Real) Int); 
+(> 0 (bug112_b var114)); var114, Real; func: (declare-fun bug112_b (Real) Int); 
+(<= var114 var115 (bug113_b var114)); var114, Real; ; var115, Int; ; var114, Real; func: (declare-fun bug113_b (Real) Int); 
+(= (+ (bug114_f18 (bug114_f19 var116 0.0) var117) var118) (bug114_f18 (bug114_f19 var116 0.0) 0.0)); var116, S11; ; var117, Real; ; var118, Real; ; var116, S11; sort: (declare-sort S2 0); (declare-sort S3 0); (declare-sort S5 0); (declare-sort S10 0); (declare-sort S11 0); func: (declare-fun bug114_f3 (S3 S2) Real); (declare-fun bug114_f7 (S5 Int) S2); (declare-fun bug114_f18 (S10 Real) Real); (declare-fun bug114_f19 (S11 Real) S10); 
+(= (bug115_f3 var119 (bug115_f7 var120 0)) 0.0); var119, S3; ; var120, S5; sort: (declare-sort S2 0); (declare-sort S3 0); (declare-sort S5 0); (declare-sort S10 0); (declare-sort S11 0); func: (declare-fun bug115_f3 (S3 S2) Real); (declare-fun bug115_f7 (S5 Int) S2); (declare-fun bug115_f18 (S10 Real) Real); (declare-fun bug115_f19 (S11 Real) S10); 
