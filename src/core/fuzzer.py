@@ -1035,6 +1035,90 @@ def _build_type_var(var_list) -> Dict[str, list]:
                     type_var.setdefault(typ, []).append(name)
     return type_var
 
+def _type_check_assertion(assertion: str, type_env: Dict[str, Any]) -> bool:
+    """
+    Validates assertion structure and types against the environment.
+    Returns False if a definite type mismatch or arity error is found.
+    """
+    try:
+        # Wrap in assert to parse as command
+        if not assertion.startswith("("): return True
+        # Ensure it is a command
+        to_parse = assertion if assertion.startswith("(") else f"(assert {assertion})"
+        if not to_parse.startswith("(assert"): to_parse = f"(assert {assertion})"
+        
+        script, _ = parse_str(to_parse, silent=True)
+        if not script or not script.assert_cmd:
+            return True 
+        term = script.assert_cmd[0].term
+        
+        def check(t):
+            # t is Term object
+            op = t.op
+            
+            # Handle Let-expressions (skip validation for now to avoid scope complexity)
+            if op == "let": return "unknown"
+            # Handle Quantifiers (skip)
+            if t.quantifier: return "Bool"
+
+            # Check Subterms first
+            sub_types = []
+            if t.subterms:
+                for sub in t.subterms:
+                    st = check(sub)
+                    if st is False: return False # Propagate error
+                    sub_types.append(st)
+
+            # 1. Operators
+            if op in ["and", "or", "xor", "=>", "not", "distinct", "ite", "="]:
+                 if op == "not" and len(sub_types) != 1: return False
+                 if op == "ite" and len(sub_types) != 3: return False
+                 if op in ["and", "or", "xor", "=>", "not"]:
+                     for st in sub_types:
+                         if st != "Bool" and st != "unknown": return False
+                     return "Bool"
+                 return "Bool" # = and distinct return Bool
+
+            # 2. Arithmetic (Strict)
+            if op in ["+", "-", "*", "/", "div", "mod"]:
+                 for st in sub_types:
+                     if st == "Bool" or st == "String" or (isinstance(st, str) and "Array" in st): 
+                         if st != "unknown": return False
+                 return "Num"
+
+            # 3. Functions / Variables in Env
+            if op in type_env:
+                info = type_env[op]
+                if info['type'] == 'func':
+                    # Check Arity
+                    expected_args = info.get('args', [])
+                    if len(sub_types) != len(expected_args):
+                        return False # Arity mismatch
+                    
+                    # Check Types
+                    for i, (actual, expected) in enumerate(zip(sub_types, expected_args)):
+                        if actual != "unknown" and actual != expected:
+                            # Allow Int/Real interoperability for "Num"
+                            if expected in ["Int", "Real", "Num"] and actual in ["Int", "Real", "Num"]: continue
+                            return False
+                    return info['ret']
+                elif info['type'] == 'var':
+                    if sub_types: return False # Variable cannot have args
+                    return info['ret']
+
+            # 4. Literals
+            if op == "true" or op == "false": return "Bool"
+            if op.isdigit() or (op.startswith("-") and op[1:].isdigit()): return "Int"
+            if item_start := op[0] if op else "":
+                if item_start == '"': return "String"
+                if item_start == "#": return "BitVec"
+            
+            return "unknown"
+
+        res = check(term)
+        return res is not False
+    except Exception:
+        return True # Fail open on parser errors
 
 def construct_scripts(ast, var_list, sort, func, incremental, argument):
     """Assemble the final SMT-LIB script from assertions, vars, sorts, funcs.
@@ -1170,6 +1254,42 @@ def construct_scripts(ast, var_list, sort, func, incremental, argument):
     # ------------------------------------------------------------------
     # 4. Prepare AST: Strip :named, Filter dropped symbols, Translocate
     # ------------------------------------------------------------------
+    
+    # --- Build Type Environment for Validation ---
+    type_env = {}
+    
+    # 1. Variables
+    for v in clean_var_list:
+        parts = v.split(", ")
+        if len(parts) >= 2:
+            type_env[parts[0].strip()] = {'type': 'var', 'ret': parts[1].strip()}
+
+    # 2. Functions (Parse declarations to get signatures)
+    for f in potential_func_decls:
+        try:
+            # Use parse_str to reliably extract signature from (declare-fun ...) or (define-fun ...)
+            script_obj, _ = parse_str(f, silent=True)
+            if script_obj and script_obj.commands:
+                cmd = script_obj.commands[0]
+                # Handle declare-fun
+                if hasattr(cmd, 'symbol') and hasattr(cmd, 'arg_sorts') and hasattr(cmd, 'sort'):
+                    type_env[cmd.symbol] = {
+                        'type': 'func', 
+                        'args': [s.__str__() for s in cmd.arg_sorts], 
+                        'ret': cmd.sort.__str__()
+                    }
+                # Handle define-fun
+                elif hasattr(cmd, 'symbol') and hasattr(cmd, 'sorted_vars') and hasattr(cmd, 'sort'):
+                    # sorted_vars is list of (name, sort) tuples/objects
+                    args = [v[1].__str__() for v in cmd.sorted_vars]
+                    type_env[cmd.symbol] = {
+                        'type': 'func', 
+                        'args': args, 
+                        'ret': cmd.sort.__str__()
+                    }
+        except Exception:
+            pass
+
     ast = [_strip_named_annotation(a) for a in ast]
 
     # Build known lookup for undeclared variable detection (Heuristic)
@@ -1250,6 +1370,11 @@ def construct_scripts(ast, var_list, sort, func, incremental, argument):
             
             if undeclared_suspects:
                  _debug_log("construct_scripts: REMOVING assertion with undeclared symbol(s): %s", undeclared_suspects)
+                 continue
+
+            # Check 3: Check Type/Arity consistency
+            if not _type_check_assertion(assertion, type_env):
+                 _debug_log("construct_scripts: REMOVING assertion due to TYPE/ARITY Mismatch: %.50s...", assertion)
                  continue
 
             clean_ast.append(assertion)
