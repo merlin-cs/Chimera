@@ -1048,8 +1048,11 @@ def _type_check_assertion(assertion: str, type_env: Dict[str, Any]) -> bool:
         if not to_parse.startswith("(assert"): to_parse = f"(assert {assertion})"
         
         script, _ = parse_str(to_parse, silent=True)
+        # Fail closed: if we can't parse it, we can't trust it.
+        # This catch-all prevents malformed strings from reaching the solver.
         if not script or not script.assert_cmd:
-            return True 
+            return False
+            
         term = script.assert_cmd[0].term
         
         def check(t):
@@ -1149,7 +1152,7 @@ def _type_check_assertion(assertion: str, type_env: Dict[str, Any]) -> bool:
         res = check(term)
         return res is not False
     except Exception:
-        return True # Fail open on parser errors
+        return False # Fail closed on any exception
 
 def construct_scripts(ast, var_list, sort, func, incremental, argument):
     """Assemble the final SMT-LIB script from assertions, vars, sorts, funcs.
