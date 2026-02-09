@@ -1126,6 +1126,12 @@ def construct_scripts(ast, var_list, sort, func, incremental, argument):
             f = f.replace(";", "").strip()
             if not f: 
                 continue
+            
+            # Syntax validation: Check paren balance to match "invalid function declaration, ')' expected"
+            if _smt_paren_depth(f) != 0:
+                 _debug_log("construct_scripts: DROPPING func due to unbalanced parens: %.50s...", f)
+                 continue
+
             fname = _extract_func_name(f)
             if fname is None or fname in reserved_names:
                 if fname: dropped_symbols.add(fname)
@@ -1173,13 +1179,34 @@ def construct_scripts(ast, var_list, sort, func, incremental, argument):
     for f in potential_func_decls:
         fn = _extract_func_name(f)
         if fn: known_funcs.add(fn)
-        
-    # Relaxed check: Symbols that look like generated vars (s\d+, Z_\d+, etc) must be known.
-    # We avoid strict checking on short names (x, y) to respect bound variables.
-    suspicious_pattern = re.compile(r'^(s\d+|Z_\d+|assertion_\w+|[A-Z]_\d+)$')
 
-    # Filter assertions that use dropped symbols OR undeclared global-like symbols
-    if dropped_symbols or True: # Force check for implicit missing vars
+    # Expanded list of SMT-LIB built-ins and commonly used Z3 extensions 
+    # to avoid flagging them as undeclared.
+    built_in_symbols = {
+        "true", "false", "Bool", "Int", "Real", "String", "Array", "BitVec",
+        "=", "distinct", "ite", "not", "and", "or", "xor", "=>", 
+        "+", "-", "*", "/", "div", "mod", "rem", ">", "<", ">=", "<=", "abs",
+        "to_real", "to_int", "is_int",
+        # String
+        "str.++", "str.len", "str.at", "str.substr", "str.prefixof", "str.suffixof", 
+        "str.contains", "str.indexof", "str.replace", "str.to_int", "int.to_str",
+        "str.in_re", "str.to_re",
+        # BV
+        "bvnot", "bvand", "bvor", "bvxor", "bvnand", "bvnor", "bvxnor", 
+        "bvcomp", "bvneg", "bvadd", "bvsub", "bvmul", "bvudiv", "bvsrem", 
+        "bvurem", "bvsmod", "bvshl", "bvlshr", "bvashr", "concat", "extract", 
+        "rotate_left", "rotate_right", "repeat", "sign_extend", "zero_extend",
+        # FP
+        "fp.abs", "fp.neg", "fp.add", "fp.sub", "fp.mul", "fp.div", "fp.fma", 
+        "fp.sqrt", "fp.rem", "fp.roundToIntegral", "fp.min", "fp.max", "fp.leq", 
+        "fp.lt", "fp.geq", "fp.gt", "fp.eq", "fp.isNormal", "fp.isSubnormal", 
+        "fp.isZero", "fp.isInfinite", "fp.isNaN", "fp.isNegative", "fp.isPositive",
+        # Array
+        "select", "store", "const", "map", "default"
+    }
+
+    # Filter assertions that use dropped symbols OR undeclared symbols
+    if dropped_symbols or True:
         clean_ast = []
         for assertion in ast:
             # Simple tokenization: match SMT symbols
@@ -1191,16 +1218,38 @@ def construct_scripts(ast, var_list, sort, func, incremental, argument):
                 _debug_log("construct_scripts: REMOVING assertion using dropped symbol(s): %s", inter)
                 continue
 
-            # Check 2: Undeclared probable globals (symbols that look global but aren't declared)
+            # Check 2: Strictly checks for undeclared symbols
             undeclared_suspects = []
+            
+            # Helper to check if token is a standard SMT string or bitvec literal
+            def is_literal(tok):
+                if not tok: return False
+                # String literals (tokenization might have split quotes, but simple tokens shouldn't have quotes inside)
+                if tok.startswith('"') and tok.endswith('"'): return True
+                # Numbers
+                if tok.isdigit(): return True
+                if tok.startswith("-") and tok[1:].isdigit(): return True
+                if "." in tok and tok.replace(".", "", 1).isdigit(): return True
+                if tok.startswith("-") and "." in tok and tok[1:].replace(".", "", 1).isdigit(): return True
+                # Hex/Binary
+                if tok.startswith("#x") or tok.startswith("#b"): return True
+                return False
+
             for t in tokens:
-                if suspicious_pattern.match(t):
-                    # If it looks like a generated global, it MUST be declared or reserved
-                    if t not in known_vars and t not in known_funcs and t not in reserved_names and t not in available_sorts:
+                # 1. Skip keywords/built-ins/numbers/string-literals-parts
+                if t in built_in_symbols or t in reserved_names or t in available_sorts:
+                    continue
+                # 2. Skip detected literals
+                if is_literal(t):
+                    continue
+                
+                # 3. Check if declared
+                if t not in known_vars and t not in known_funcs:
+                    if t.lower() not in built_in_symbols: 
                          undeclared_suspects.append(t)
             
             if undeclared_suspects:
-                 _debug_log("construct_scripts: REMOVING assertion with undeclared globals: %s", undeclared_suspects)
+                 _debug_log("construct_scripts: REMOVING assertion with undeclared symbol(s): %s", undeclared_suspects)
                  continue
 
             clean_ast.append(assertion)
