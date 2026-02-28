@@ -49,7 +49,7 @@ from typing import (
 # ---------------------------------------------------------------------------
 # SMT-LIB sort / type re-exports (unchanged from the original)
 # ---------------------------------------------------------------------------
-from src.parsing.Types import (
+from chimera.core.types import (
     BOOLEAN_TYPE,
     REAL_TYPE,
     INTEGER_TYPE,

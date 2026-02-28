@@ -32,14 +32,14 @@ from antlr4.FileStream import FileStream
 from antlr4.InputStream import InputStream
 
 # ANTLR artefacts (generated)
-from src.parsing.SMTLIBv2Lexer import SMTLIBv2Lexer
-from src.parsing.SMTLIBv2Parser import SMTLIBv2Parser
+from chimera.parsing.SMTLIBv2Lexer import SMTLIBv2Lexer
+from chimera.parsing.SMTLIBv2Parser import SMTLIBv2Parser
 
 # Original visitor that builds the AST
-from src.parsing.AstVisitor import AstVisitor as _AntlrAstVisitor
+from chimera.parsing.AstVisitor import AstVisitor as _AntlrAstVisitor
 
 # Timeout decorator
-from src.parsing.TimeoutDecorator import exit_after
+from chimera.core.timeout import exit_after
 
 # Our refactored AST (the new modules re-export the same classes the visitor
 # constructs — they are source-compatible with the originals).

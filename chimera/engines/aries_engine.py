@@ -338,7 +338,7 @@ class EqualitySaturationRewriter:
     def _import_default_rules() -> list:
         """Try to import ``ALL_RULES`` from the existing helper module."""
         try:
-            from src.rewrite.equality_saturation.helper import ALL_RULES
+            from chimera.engines.egraph.rewriter import ALL_RULES
             return ALL_RULES
         except ImportError:
             logger.warning("Could not import ALL_RULES — equality saturation disabled")
@@ -354,7 +354,7 @@ class EqualitySaturationRewriter:
             return None
 
         try:
-            from src.rewrite.equality_saturation.helper import (
+            from chimera.engines.egraph.rewriter import (
                 convert_to_IR,
                 convert_IR_to_str,
                 RewriteEGG,
@@ -432,17 +432,8 @@ class EqualitySaturationRewriter:
     def _resolve_symbolic_terms(expr_str: str, globs: dict) -> str:
         """Replace ``any_int`` / ``any_bool`` placeholders with concrete values."""
         if "any_int" in expr_str:
-            # Try to use a generator; fall back to a literal
-            try:
-                from src.config.generator_loader import GENERATORS
-                gen = GENERATORS.get("int")
-                if callable(gen):
-                    decls, body = gen()
-                    expr_str = expr_str.replace("any_int", body, 1)
-                else:
-                    expr_str = expr_str.replace("any_int", str(random.randint(0, 100)))
-            except Exception:
-                expr_str = expr_str.replace("any_int", str(random.randint(0, 100)))
+            # Fall back to a literal
+            expr_str = expr_str.replace("any_int", str(random.randint(0, 100)))
 
         if "any_bool" in expr_str:
             expr_str = expr_str.replace("any_bool", random.choice(["true", "false"]))
