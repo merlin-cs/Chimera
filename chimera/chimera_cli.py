@@ -215,13 +215,14 @@ def main(argv: Optional[List[str]] = None) -> int:
     )
 
     strategy = _build_strategy(args)
-    max_iters = args.iterations if args.iterations > 0 else None
+    # --iterations 0 or unspecified = unlimited campaign (run until interrupted)
+    max_iters = args.iterations if args.iterations is not None and args.iterations > 0 else None
 
     try:
         stats = strategy.run_campaign(max_iterations=max_iters)
     except KeyboardInterrupt:
         logger.info("Campaign interrupted by user")
-        stats = strategy._stats  # grab partial stats
+        stats = strategy.stats  # grab partial stats
 
     print("\n" + stats.summary())
     return 0

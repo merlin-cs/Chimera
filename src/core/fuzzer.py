@@ -1,3 +1,38 @@
+"""
+Legacy fuzzer module - DEPRECATED.
+
+.. deprecated::
+    This module is deprecated. Use the engine classes in ``chimera.engines`` instead.
+
+    Migration guide::
+
+        # Old (deprecated):
+        from src.core.fuzzer import process_target_file, process_history_fuzz
+
+        # New (recommended):
+        from chimera.engines.histfuzz_engine import HistFuzzStrategy
+        from chimera.engines.once4all_engine import Once4AllStrategy
+        from chimera.engines.aries_engine import AriesStrategy
+
+        # The new engines use:
+        # - chimera.core.solver_manager for safe subprocess handling
+        # - chimera.core.differential_oracle for bug detection
+        # - chimera.core.formula_builder for formula construction
+        # - chimera.core.logic_analyzer for logic compatibility
+
+This module is maintained only for backward compatibility and will be removed
+in a future version.
+"""
+
+import warnings
+
+# Emit deprecation warning when this module is imported
+warnings.warn(
+    "src.core.fuzzer is deprecated. Use chimera.engines instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
 import os
 import random
 import re
@@ -31,14 +66,21 @@ from src.rewrite.equality_saturation.helper import RewriteEGG, convert_to_IR, co
 from src.parsing.TimeoutDecorator import exit_after
 
 # ---------------------------------------------------------------------------
-# Debug infrastructure – activated by ``--debug`` on the Chimera CLI.
+# Debug infrastructure – use logging configuration instead.
 # ---------------------------------------------------------------------------
 _FUZZER_DEBUG = False
 _fuzzer_logger = logging.getLogger("chimera.fuzzer")
 
 
 def enable_fuzzer_debug() -> None:
-    """Turn on verbose debug logging for the fuzzer module."""
+    """Turn on verbose debug logging for the fuzzer module.
+
+    .. deprecated::
+        Use Python's logging module directly instead:
+
+        import logging
+        logging.getLogger('chimera.fuzzer').setLevel(logging.DEBUG)
+    """
     global _FUZZER_DEBUG
     _FUZZER_DEBUG = True
     _fuzzer_logger.setLevel(logging.DEBUG)

@@ -1,3 +1,30 @@
+"""
+Legacy formula utilities - DEPRECATED.
+
+.. deprecated::
+    This module is deprecated. Use the utilities in ``chimera.core`` instead.
+
+    Migration guide::
+
+        # Old (deprecated):
+        from src.formula_utils import get_subterms, get_basic_subterms, get_all_basic_subformula
+
+        # New (recommended):
+        from chimera.core.smt_ast import collect_all_basic_subformulas, collect_basic_subterms
+        from chimera.core.formula_builder import smt_paren_depth, validate_smt_formula
+
+This module is maintained only for backward compatibility.
+"""
+
+import warnings
+
+# Emit deprecation warning when this module is imported
+warnings.warn(
+    "src.formula_utils is deprecated. Use chimera.core.smt_ast instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
 import sys
 
 sys.path.append("..")

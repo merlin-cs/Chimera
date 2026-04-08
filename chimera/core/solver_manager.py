@@ -96,6 +96,7 @@ class SolverResult:
 
 _ERROR_PATTERNS: Final[list[tuple[str, SolverOutcome]]] = [
     ("Segmentation fault", SolverOutcome.SEGFAULT),
+    ("segmentation fault", SolverOutcome.SEGFAULT),
     ("SIGSEGV", SolverOutcome.SEGFAULT),
     ("NullPointerException", SolverOutcome.CRASH),
     ("ASSERTION VIOLATION", SolverOutcome.ASSERT_VIOLATION),
@@ -106,7 +107,6 @@ _ERROR_PATTERNS: Final[list[tuple[str, SolverOutcome]]] = [
     ("Parse Error", SolverOutcome.PARSE_ERROR),
     ("unsupported reserved word", SolverOutcome.PARSE_ERROR),
     ("option parsing", SolverOutcome.ERROR),
-    ("error", SolverOutcome.ERROR),
 ]
 
 
@@ -164,7 +164,7 @@ class SolverConfig:
 def default_z3_args(
     *,
     timeout_ms: int = 10_000,
-    incremental: bool = True,
+    incremental: bool = False,
     check_models: bool = True,
 ) -> List[str]:
     """Return standard Z3 CLI arguments."""
@@ -180,7 +180,7 @@ def default_z3_args(
 def default_cvc5_args(
     *,
     timeout_ms: int = 10_000,
-    incremental: bool = True,
+    incremental: bool = False,
     check_models: bool = True,
 ) -> List[str]:
     """Return standard cvc5 CLI arguments."""

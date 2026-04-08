@@ -207,11 +207,12 @@ def save_bug(
     base.mkdir(parents=True, exist_ok=True)
 
     # Find the next available index
-    existing = sorted(
-        (int(p.name) for p in base.iterdir() if p.is_dir() and p.name.isdigit()),
-        default=-1,
-    )
-    idx = (existing[-1] if existing else -1) + 1 if existing else 0
+    existing_dirs = [int(p.name) for p in base.iterdir() if p.is_dir() and p.name.isdigit()]
+    if existing_dirs:
+        existing = sorted(existing_dirs)
+        idx = existing[-1] + 1
+    else:
+        idx = 0
     bug_dir = base / str(idx)
     bug_dir.mkdir(parents=True, exist_ok=True)
 

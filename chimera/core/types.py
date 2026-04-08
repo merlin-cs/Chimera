@@ -21,7 +21,12 @@
 # SOFTWARE.
 
 
-BOOLEAN_TYPE = "Bool"
+from __future__ import annotations
+
+from typing import Union
+
+
+BOOLEAN_TYPE: str = "Bool"
 REAL_TYPE = "Real"
 INTEGER_TYPE = "Int"
 ROUNDINGMODE_TYPE = "RoundingMode"
@@ -40,59 +45,82 @@ TYPES = [
 ]
 
 
-def sort2type(sort):
+def sort2type(sort: str) -> Union[str, "BITVECTOR_TYPE", "FP_TYPE"]:
+    """Convert a sort string to its corresponding type representation."""
     if "FloatingPoint" in sort:
-        eb = int(sort.split(" ")[2])
-        sb = int(sort.split(" ")[3][:-1])
+        parts = sort.split(" ")
+        eb = int(parts[2])
+        sb = int(parts[3][:-1])
         return FP_TYPE(eb, sb)
 
     if "BitVec" in sort:
-        bitwith = int(sort.split(" ")[2][:-1])
-        return BITVECTOR_TYPE(bitwith)
+        parts = sort.split(" ")
+        bitwidth = int(parts[2][:-1])
+        return BITVECTOR_TYPE(bitwidth)
     return sort
 
 
 class ARRAY_TYPE:
-    def __init__(self, index_type, payload_type):
+    """SMT-LIB array type representation."""
+
+    index_type: Union[str, "BITVECTOR_TYPE", "FP_TYPE"]
+    payload_type: Union[str, "BITVECTOR_TYPE", "FP_TYPE"]
+
+    def __init__(
+        self,
+        index_type: Union[str, "BITVECTOR_TYPE", "FP_TYPE"],
+        payload_type: Union[str, "BITVECTOR_TYPE", "FP_TYPE"],
+    ) -> None:
         self.index_type = index_type
         self.payload_type = payload_type
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if isinstance(other, self.__class__):
             return (
                 self.index_type == other.index_type
                 and self.payload_type == other.payload_type
             )
+        return False
 
 
 class BITVECTOR_TYPE:
-    def __init__(self, bitwidth):
+    """SMT-LIB bitvector type representation."""
+
+    bitwidth: int
+
+    def __init__(self, bitwidth: int) -> None:
         self.bitwidth = bitwidth
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if isinstance(other, self.__class__):
             return self.bitwidth == other.bitwidth
-
         if isinstance(other, str):
             return self.__str__() == other
+        return False
 
-    def __str__(self):
+    def __str__(self) -> str:
         #  (_ BitVec bitwidth)
         return "(_ BitVec " + str(self.bitwidth) + ")"
 
 
 class FP_TYPE:
-    def __init__(self, eb, sb):
+    """SMT-LIB floating-point type representation."""
+
+    eb: int
+    sb: int
+
+    def __init__(self, eb: int, sb: int) -> None:
         self.eb = eb
         self.sb = sb
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if isinstance(other, self.__class__):
             return self.eb == other.eb and self.sb == other.sb
         if isinstance(other, str):
             return self.__str__() == other
+        return False
 
-    def __str__(self):
+    def __str__(self) -> str:
         # (_ FloatingPoint eb sb)
         return "(_ FloatingPoint " + str(self.eb) + " " + str(self.sb) + ")"
 

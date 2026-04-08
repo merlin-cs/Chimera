@@ -180,20 +180,22 @@ class FuzzingStrategy(ABC):
 
     # -- continuous campaign -------------------------------------------------
 
-    def run_campaign(self, max_iterations: int = 10_000) -> FuzzStats:
+    def run_campaign(self, max_iterations: Optional[int] = None) -> FuzzStats:
         """Run the fuzzing loop for up to *max_iterations*.
 
+        If *max_iterations* is ``None``, runs indefinitely until interrupted.
         Returns the final ``FuzzStats``.
         """
         logger.info(
-            "Starting %s campaign (max_iters=%d, solvers=%s vs %s)",
+            "Starting %s campaign (max_iters=%s, solvers=%s vs %s)",
             self.name,
-            max_iterations,
+            "unlimited" if max_iterations is None else max_iterations,
             self.solver1.name,
             self.solver2.name,
         )
 
-        for i in range(max_iterations):
+        i = 0
+        while max_iterations is None or i < max_iterations:
             try:
                 self.run_iteration(i)
             except KeyboardInterrupt:
@@ -204,6 +206,7 @@ class FuzzingStrategy(ABC):
 
             if i > 0 and i % 100 == 0:
                 logger.info(self.stats.summary())
+            i += 1
 
         logger.info("Campaign finished. %s", self.stats.summary())
         return self.stats

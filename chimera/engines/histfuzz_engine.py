@@ -113,13 +113,16 @@ class BuildingBlockPool:
     def sample(self, sort_hint: Optional[str] = None) -> Optional[Term]:
         """Return a random building block, optionally matching *sort_hint*.
 
-        Falls back to any block if no match is found for the given sort.
+        Returns ``None`` when no block matches the given sort (no fallback).
         """
-        candidates = self._pool.get(sort_hint or "", []) if sort_hint else []
-        if not candidates:
+        if sort_hint:
+            candidates = self._pool.get(sort_hint, [])
+            if not candidates:
+                return None
+        else:
             candidates = self._all
-        if not candidates:
-            return None
+            if not candidates:
+                return None
         term, _vars = random.choice(candidates)
         return term.clone()
 
@@ -236,10 +239,11 @@ def fill_holes(
     collector.visit(filled)
 
     for hole in collector.holes:
-        replacement = pool.sample(sort_hint="Bool")  # default sort
+        sort_hint = str(hole.type) if hole.type else None
+        replacement = pool.sample(sort_hint=sort_hint)
         if replacement is None:
-            # If pool is empty, leave the hole as-is (will likely fail
-            # parsing but is safe).
+            # If no matching block found, leave the hole as-is
+            # (will likely fail parsing but is safe).
             continue
         hole._initialize(
             name=copy.deepcopy(replacement.name),

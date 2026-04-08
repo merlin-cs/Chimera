@@ -20,6 +20,37 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+"""
+Legacy AST module - DEPRECATED.
+
+.. deprecated::
+    This module is deprecated. Use the canonical AST classes from
+    ``chimera.core.smt_ast`` instead:
+
+        from chimera.core.smt_ast import (
+            Term, Var, Const, Expr, Script, Assert, DeclareConst, ...
+        )
+        from chimera.core.smt_parser import parse_file, parse_string
+
+    The new module provides:
+    - Cleaner API with proper type hints
+    - Visitor and transformer pattern support
+    - Better documentation and testing
+    - Compatibility with the existing ANTLR parser
+
+This module is maintained only for backward compatibility and will be removed
+in a future version.
+"""
+
+import warnings
+
+# Emit deprecation warning when this module is imported
+warnings.warn(
+    "src.parsing.Ast is deprecated. Use chimera.core.smt_ast instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
 import copy
 import random
 

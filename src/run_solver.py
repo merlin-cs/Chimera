@@ -20,7 +20,34 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+.. deprecated::
+    This module is deprecated. Use ``chimera.core.solver_manager`` instead.
+
+    The new module provides:
+    - Better process management with proper cleanup
+    - Structured ``SolverResult`` dataclass instead of tuples
+    - Cleaner error handling without global state
+    - Type hints throughout
+
+    Migration guide::
+
+        # Old (deprecated):
+        from src.run_solver import solver_runner, run_solver, record_bug
+
+        # New (recommended):
+        from chimera.core.solver_manager import SolverConfig, run_solver, SolverOutcome
+        from chimera.core.differential_oracle import save_bug, BugReport, BugKind
 """
+
+import warnings
+
+# Emit deprecation warning when this module is imported
+warnings.warn(
+    "src.run_solver is deprecated. Use chimera.core.solver_manager instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 
 import subprocess

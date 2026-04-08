@@ -180,12 +180,13 @@ def _load_generator_function(
         if spec is None or spec.loader is None:
             return None
         module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)  # type: ignore[union-attr]
+        spec.loader.exec_module(module)
 
         for func_name in _candidate_function_names(module_base):
             fn = getattr(module, func_name, None)
             if callable(fn):
-                return fn  # type: ignore[return-value]
+                # Type: we know fn is Callable[[], tuple[str, str]] from generator contract
+                return fn  # type: ignore[no-any-return]
 
         logger.debug("No suitable entry-point in %s", path)
         return None

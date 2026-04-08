@@ -183,7 +183,10 @@ class MimeticMutator:
             for i, sub2 in enumerate(t2.subterms):
                 sub1 = t1.subterms[i]
                 if isinstance(sub2, Term) and sub2.op is not None:
-                    if not self._compare_terms(sub1, sub2, globs):
+                    if isinstance(sub1, Term):
+                        if not self._compare_terms(sub1, sub2, globs):
+                            return False
+                    else:
                         return False
                 else:
                     if isinstance(sub1, str) and not isinstance(sub2, str):
@@ -196,8 +199,10 @@ class MimeticMutator:
         # t2 has no op — it is a leaf
         if t1.op is not None:
             # Could still match if the return type equals t2.type
-            return_type = self._op_return_type(t1.op)
-            return return_type == t2.type if return_type else False
+            if isinstance(t1.op, str):
+                return_type = self._op_return_type(t1.op)
+                return return_type == t2.type if return_type else False
+            return False
         return t1.type == t2.type
 
     def _op_return_type(self, op: str) -> Optional[str]:
@@ -207,7 +212,9 @@ class MimeticMutator:
         rt = info.get("return_type")
         if isinstance(rt, list):
             return None  # ambiguous
-        return rt
+        if isinstance(rt, str):
+            return rt
+        return None
 
     def mutate(
         self,
@@ -271,20 +278,23 @@ class MimeticMutator:
         existing_vars = {v.name: v for v in (script.free_var_occs if hasattr(script, "free_var_occs") else []) if isinstance(v, Term)}
 
         for nv in new_free_vars:
-            if nv.name in existing_vars and existing_vars[nv.name].type == nv.type:
-                new_term.substitute(nv, existing_vars[nv.name])
-            else:
+            if nv.name and nv.name in existing_vars:
+                existing_var = existing_vars[nv.name]
+                if isinstance(existing_var, Term) and existing_var.type == nv.type and nv.type:
+                    new_term.substitute(nv, existing_var)
+            elif nv.name and nv.type:
                 fresh = Term()
-                fresh._initialize(name=_random_var_name(), type=nv.type, is_var=True)
+                fresh_name = _random_var_name()
+                fresh._initialize(name=fresh_name, type=nv.type, is_var=True)
                 new_term.substitute(nv, fresh)
-                script.commands.insert(0, DeclareFun(fresh.name, "", fresh.type))
-                globs[fresh.name] = fresh.type
+                script.commands.insert(0, DeclareFun(fresh_name, "", nv.type))
+                globs[fresh_name] = nv.type
 
-        # Substitute in assert commands
+        # Substitute in assert commands (respect max_subs)
         n = random.randint(1, max_subs)
         for cmd in script.commands:
             if isinstance(cmd, Assert) and isinstance(cmd.term, Term):
-                cmd.term.substitute_specific_num(term, new_term, n)
+                cmd.term.substitute_n(term, new_term, n)
 
         return True
 

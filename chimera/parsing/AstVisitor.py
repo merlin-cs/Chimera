@@ -20,8 +20,23 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+"""
+ANTLR visitor that builds the Chimera AST.
+
+This module bridges the ANTLR-generated parser to the canonical AST classes
+defined in ``chimera.core.smt_ast``. The AST classes (Term, Var, Const, Expr,
+etc.) are re-exported from that module for backward compatibility.
+
+.. deprecated::
+    Direct imports from this module are deprecated. Use the canonical AST
+    classes from ``chimera.core.smt_ast`` and the parser facade from
+    ``chimera.core.smt_parser`` instead.
+"""
+
 from chimera.parsing.SMTLIBv2Parser import SMTLIBv2Parser
 from chimera.parsing.SMTLIBv2Visitor import SMTLIBv2Visitor
+
+# Import canonical AST classes from the refactored module
 from chimera.core.smt_ast import (
     Var,
     Const,
@@ -52,6 +67,8 @@ from chimera.core.smt_ast import (
     FunDecl,
     SMTLIBCommand,
 )
+
+# Import type constants from the canonical types module
 from chimera.core.types import (
     BITVECTOR_TYPE,
     INTEGER_TYPE,

@@ -309,8 +309,8 @@ class Term:
         result: List[Term] = []
         if self.subterms:
             for sub in self.subterms:
-                result.append(sub)
                 if isinstance(sub, Term):
+                    result.append(sub)
                     result.extend(sub.get_all_subterms())
         return result
 
@@ -428,7 +428,7 @@ class Term:
             body = self._subterms_str()
             return f"({self.quantifier} ({bindings}) {body})"
 
-        if self.var_binders:
+        if self.var_binders and self.let_terms:
             lets = "".join(
                 f"({v} {self.let_terms[i]})"
                 for i, v in enumerate(self.var_binders)
@@ -962,7 +962,7 @@ class Script:
         if isinstance(term, str) or term.is_const:
             return
         if term.is_var and term.type:
-            if term in self.free_var_occs:
+            if term in self.free_var_occs and term.name is not None:
                 term.name = prefix + term.name
             return
         if term.var_binders and term.let_terms:
@@ -1011,7 +1011,7 @@ class Script:
 
     def merge_asserts(self) -> None:
         """Conjoin all ``Assert`` terms into a single ``(and …)`` assertion."""
-        terms: List[Term] = []
+        terms: List[Union[Term, str]] = []
         for cmd in self.commands:
             if isinstance(cmd, Assert):
                 terms.append(cmd.term)
@@ -1259,7 +1259,7 @@ class SkeletonExtractor(AstTransformer):
         """Recurse into connectives; replace everything else with a HOLE."""
         if isinstance(term.op, str) and term.op in self._connectives:
             return self._transform_children(term)
-        return self._make_hole()
+        return self._make_hole(term)
 
     def transform_quantifier(self, term: Term) -> Term:
         new = self._transform_children(term)
@@ -1272,13 +1272,16 @@ class SkeletonExtractor(AstTransformer):
         return new
 
     def transform_variable(self, term: Term) -> Term:
-        return self._make_hole()
+        return self._make_hole(term)
 
     def transform_constant(self, term: Term) -> Term:
-        return self._make_hole()
+        return self._make_hole(term)
 
-    def _make_hole(self) -> Term:
+    def _make_hole(self, original_term: Optional[Term] = None) -> Term:
+        """Create a HOLE, preserving the original term's type if available."""
         h = Hole(self._hole_counter)
+        if original_term is not None and original_term.type is not None:
+            h.type = original_term.type
         self._hole_counter += 1
         return h
 

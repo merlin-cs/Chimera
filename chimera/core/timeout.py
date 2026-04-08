@@ -18,29 +18,39 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-
-from __future__ import print_function
+from __future__ import annotations
 
 import threading
+from typing import Any, Callable, TypeVar
 
-try:
-    import thread
-except ImportError:
-    import _thread as thread
+_F = TypeVar("_F", bound=Callable[..., Any])
 
-
-def cdquit(fn_name):
-    thread.interrupt_main()  # raises KeyboardInterrupt
+# Use _thread module (Python 3 name for the legacy thread module)
+import _thread
 
 
-def exit_after(s):
+def cdquit(fn_name: str) -> None:
+    """Interrupt the main thread."""
+    _thread.interrupt_main()  # raises KeyboardInterrupt
+
+
+def exit_after(s: int) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """
-    use as decorator to exit the process if
-    function takes longer than s seconds
+    Decorator to exit the process if the function takes longer than s seconds.
+
+    Parameters
+    ----------
+    s : int
+        Maximum allowed execution time in seconds.
+
+    Returns
+    -------
+    Callable
+        A decorator that wraps functions with a timeout.
     """
 
-    def outer(fn):
-        def inner(*args, **kwargs):
+    def outer(fn: Callable[..., Any]) -> Callable[..., Any]:
+        def inner(*args: Any, **kwargs: Any) -> Any:
             timer = threading.Timer(s, cdquit, args=[fn.__name__])
             timer.start()
             try:

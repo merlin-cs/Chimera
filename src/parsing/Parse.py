@@ -20,6 +20,34 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+"""
+Legacy parser module - DEPRECATED.
+
+.. deprecated::
+    This module is deprecated. Use the parser facade from
+    ``chimera.core.smt_parser`` instead:
+
+        from chimera.core.smt_parser import parse_file, parse_string
+
+    The new module provides:
+    - Cleaner API with proper type hints
+    - Timeout handling
+    - Silent mode by default
+    - Returns ``None`` on parse failure instead of raising exceptions
+
+This module is maintained only for backward compatibility and will be removed
+in a future version.
+"""
+
+import warnings
+
+# Emit deprecation warning when this module is imported
+warnings.warn(
+    "src.parsing.Parse is deprecated. Use chimera.core.smt_parser instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
 import sys
 import traceback
 import logging

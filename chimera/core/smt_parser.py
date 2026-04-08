@@ -24,7 +24,7 @@ import logging
 import sys
 import traceback
 from pathlib import Path
-from typing import Dict, FrozenSet, Optional, Tuple
+from typing import Callable, Dict, FrozenSet, Optional, Tuple, TypeVar
 
 from antlr4.CommonTokenStream import CommonTokenStream
 from antlr4.error.ErrorListener import ErrorListener as _BaseErrorListener
@@ -46,6 +46,8 @@ from chimera.core.timeout import exit_after
 from chimera.core.smt_ast import Script, SmtSort
 
 logger = logging.getLogger(__name__)
+
+_T = TypeVar("_T")
 
 # The ANTLR visitor can recurse deeply on large formulas.
 sys.setrecursionlimit(100_000)
@@ -172,7 +174,7 @@ def parse_file(
         return _generate_ast(stream, prepare=prepare)
 
     try:
-        result = _inner(str(path))
+        result: Optional[Tuple[Script, Dict[str, SmtSort]]] = _inner(str(path))
         return result
     except KeyboardInterrupt:
         logger.debug("Parser timed out for %s", path)
@@ -211,7 +213,7 @@ def parse_string(
         return _generate_ast(stream, prepare=prepare)
 
     try:
-        result = _inner(text)
+        result: Optional[Tuple[Script, Dict[str, SmtSort]]] = _inner(text)
         return result
     except KeyboardInterrupt:
         logger.debug("Parser timed out on string input")
