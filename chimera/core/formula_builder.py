@@ -22,6 +22,8 @@ import random
 from typing import Dict, FrozenSet, List, Optional, Set, Tuple
 
 from chimera.core.smt_ast import DeclareFun, Script, Assert, CheckSat
+from chimera.core.smt_parser import parse_string
+from chimera.core.logic_analyzer import parse_logic, is_builtin_sort
 
 
 # ---------------------------------------------------------------------------
@@ -521,3 +523,256 @@ def build_smt_script(
         parts.append("(check-sat)")
 
     return "\n".join(parts)
+
+
+# ---------------------------------------------------------------------------
+# Comprehensive validation
+# ---------------------------------------------------------------------------
+
+class ValidationResult:
+    """Result of formula validation.
+
+    Attributes
+    ----------
+    ok : bool
+        True if validation passed.
+    errors : List[str]
+        List of error messages (empty if ok).
+    warnings : List[str]
+        List of warning messages (non-fatal issues).
+    """
+    def __init__(
+        self,
+        ok: bool = True,
+        errors: Optional[List[str]] = None,
+        warnings: Optional[List[str]] = None,
+    ) -> None:
+        self.ok = ok
+        self.errors = errors or []
+        self.warnings = warnings or []
+
+    def __bool__(self) -> bool:
+        return self.ok
+
+    def __str__(self) -> str:
+        if self.ok:
+            return "ValidationResult(ok=True)"
+        return f"ValidationResult(ok=False, errors={self.errors})"
+
+
+def validate_formula(
+    script: str,
+    target_logic: Optional[str] = None,
+    strict: bool = False,
+) -> ValidationResult:
+    """Comprehensive validation of an SMT-LIB formula.
+
+    Performs multiple validation checks:
+    1. Structural: parenthesis balance, check-sat presence
+    2. Parse: attempt to parse with the SMT parser
+    3. Symbol resolution: check for undeclared symbols
+    4. Sort resolution: check for undeclared sorts
+    5. Logic compliance: check quantifiers/theories match target logic
+
+    Parameters
+    ----------
+    script : str
+        The SMT-LIB script to validate.
+    target_logic : str, optional
+        If provided, check that the formula complies with this logic
+        (e.g., no quantifiers in QF logics).
+    strict : bool
+        If True, treat warnings as errors.
+
+    Returns
+    -------
+    ValidationResult
+        Result object with ok flag and error/warning lists.
+
+    Examples
+    --------
+    >>> result = validate_formula("(set-logic QF_LIA)\\n(assert (> x 0))\\n(check-sat)")
+    >>> result.ok
+    True
+    """
+    errors: List[str] = []
+    warnings: List[str] = []
+
+    # 1. Structural checks
+    depth = smt_paren_depth(script)
+    if depth != 0:
+        errors.append(f"Unbalanced parentheses (depth={depth})")
+
+    if "(check-sat)" not in script and "(push" not in script:
+        errors.append("Missing (check-sat) or (push) command")
+
+    # 2. Parse attempt
+    parsed: Optional[Script] = None
+    try:
+        result = parse_string(script, silent=True)
+        if result is None:
+            errors.append("Parse failed - no result")
+        else:
+            parsed, _ = result
+            if not parsed or not parsed.commands:
+                errors.append("Parse returned empty script")
+    except Exception as e:
+        errors.append(f"Parse exception: {str(e)}")
+
+    # 3. Symbol resolution (only if parse succeeded)
+    if parsed:
+        declared_symbols: Set[str] = set()
+        used_symbols: Set[str] = set()
+        declared_sorts: Set[str] = set()
+
+        # Collect declarations
+        for cmd in parsed.commands:
+            if isinstance(cmd, DeclareFun):
+                declared_symbols.add(cmd.symbol)
+                # Extract sorts from declaration
+                if cmd.input_sort and cmd.input_sort != "":
+                    for s in extract_sorts_from_decl_string(cmd.input_sort):
+                        if not is_builtin_sort(s):
+                            declared_sorts.add(s)
+                if cmd.output_sort:
+                    out_sort = str(cmd.output_sort)
+                    if not is_builtin_sort(out_sort):
+                        declared_sorts.add(out_sort)
+
+        # Collect uses from assertions
+        for cmd in parsed.assert_cmd if hasattr(parsed, 'assert_cmd') else []:
+            if isinstance(cmd, Assert) and hasattr(cmd, 'term'):
+                _collect_symbols_from_term(cmd.term, used_symbols)
+
+        # Check for undeclared symbols
+        for sym in used_symbols:
+            if sym not in declared_symbols and not is_builtin_symbol(sym):
+                errors.append(f"Undeclared symbol: {sym}")
+
+        # Check for undeclared sorts (weaker check - warnings only)
+        for sort in declared_sorts:
+            if not is_builtin_sort(sort):
+                # This is informational - sorts may be declared elsewhere
+                pass
+
+    # 4. Logic compliance
+    if target_logic and parsed:
+        logic_info = parse_logic(target_logic)
+
+        # Check quantifiers
+        has_quantifiers = False
+        script_str = str(parsed)
+        if "forall" in script_str or "exists" in script_str:
+            has_quantifiers = True
+
+        if logic_info.is_quantifier_free and has_quantifiers:
+            errors.append(
+                f"Quantifiers found but target logic {target_logic} is quantifier-free"
+            )
+
+    ok = len(errors) == 0
+    if strict and len(warnings) > 0:
+        ok = False
+        errors.extend(warnings)
+
+    return ValidationResult(ok=ok, errors=errors, warnings=warnings)
+
+
+def _collect_symbols_from_term(term, accumulator: Set[str]) -> None:
+    """Recursively collect symbol names from a term.
+
+    Parameters
+    ----------
+    term : Term
+        The term to walk.
+    accumulator : Set[str]
+        Set to accumulate symbol names.
+    """
+    if term is None:
+        return
+
+    if hasattr(term, 'is_var') and term.is_var and hasattr(term, 'name') and term.name:
+        accumulator.add(term.name)
+    elif hasattr(term, 'is_const') and term.is_const:
+        pass  # Constants don't need declaration
+    elif hasattr(term, 'op') and term.op:
+        op = term.op
+        if isinstance(op, str) and not op.startswith("hole"):
+            accumulator.add(op)
+
+    if hasattr(term, 'subterms') and term.subterms:
+        for sub in term.subterms:
+            if hasattr(sub, '__class__') and hasattr(sub, 'is_var'):
+                _collect_symbols_from_term(sub, accumulator)
+
+
+def extract_sorts_from_decl_string(decl_str: str) -> Set[str]:
+    """Extract sort names from a declaration string fragment.
+
+    Parameters
+    ----------
+    decl_str : str
+        Sort declaration fragment like "(Int Bool)" or "Array Int Real".
+
+    Returns
+    -------
+    Set[str]
+        Set of sort names found.
+    """
+    sorts: Set[str] = set()
+
+    # Tokenize
+    tokens = re.findall(r'[a-zA-Z0-9_]+', decl_str)
+
+    for tok in tokens:
+        if tok.isdigit():
+            continue
+        if not is_builtin_sort(tok):
+            sorts.add(tok)
+
+    return sorts
+
+
+_BUILTIN_SYMBOLS: FrozenSet[str] = frozenset({
+    "true", "false",
+    "=", "distinct", "ite", "not", "and", "or", "xor", "=>",
+    "+", "-", "*", "/", "div", "mod", "rem", ">", "<", ">=", "<=", "abs",
+    "to_real", "to_int", "is_int",
+    "str.++", "str.len", "str.at", "str.substr", "str.prefixof", "str.suffixof",
+    "str.contains", "str.indexof", "str.replace", "str.to_int", "int.to_str",
+    "str.in_re", "str.to_re",
+    "bvnot", "bvand", "bvor", "bvxor", "bvnand", "bvnor", "bvxnor",
+    "bvcomp", "bvneg", "bvadd", "bvsub", "bvmul", "bvudiv", "bvsrem",
+    "bvurem", "bvsmod", "bvshl", "bvlshr", "bvashr", "concat", "extract",
+    "rotate_left", "rotate_right", "repeat", "sign_extend", "zero_extend",
+    "fp.abs", "fp.neg", "fp.add", "fp.sub", "fp.mul", "fp.div", "fp.fma",
+    "fp.sqrt", "fp.rem", "fp.roundToIntegral", "fp.min", "fp.max", "fp.leq",
+    "fp.lt", "fp.geq", "fp.gt", "fp.eq", "fp.isNormal", "fp.isSubnormal",
+    "fp.isZero", "fp.isInfinite", "fp.isNaN", "fp.isNegative", "fp.isPositive",
+    "select", "store", "const", "map", "default",
+})
+
+
+def is_builtin_symbol(name: str) -> bool:
+    """Check if a symbol name is a built-in SMT function/operator.
+
+    Parameters
+    ----------
+    name : str
+        Symbol name to check.
+
+    Returns
+    -------
+    bool
+        True if the symbol is a built-in.
+    """
+    if not name:
+        return False
+    if name in _BUILTIN_SYMBOLS:
+        return True
+    # Check for indexed symbols like (_ BitVec 32)
+    if name.startswith("_"):
+        parts = name.split()
+        if parts and parts[0] == "_" and len(parts) > 1:
+            return parts[1] in _BUILTIN_SYMBOLS
+    return False

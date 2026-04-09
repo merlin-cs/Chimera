@@ -30,8 +30,10 @@ Chimera unifies these lines of work into a single framework for  Discovering bug
 
 - [Installation](#installation)
 - [Usage](#usage)
-  - [LLM-based Fuzzing](#llm-based-fuzzing)
-  - [History-based Fuzzing](#history-based-fuzzing)
+  - [LLM-based Fuzzing](#llm-based-fuzzing-once4all-mode)
+  - [History-based Fuzzing](#history-based-fuzzing-histfuzz-mode)
+  - [Rewrite-based Validation](#rewrite-based-validation-aries-mode)
+  - [Common Arguments](#common-arguments)
 - [Citing Chimera](#citing-chimera)
 - [Contributing](#contribution)
 - [License](#license)
@@ -61,37 +63,65 @@ pip install -r requirements.txt  # If available, or install dependencies manuall
 
 ## Usage
 
-Chimera is operated via `chimera.py`.
-
-### LLM-based Fuzzing (Default)
-
-This mode takes existing SMT files as seeds and performs fuzzing using LLM-synthesized generators.
+Chimera can be run via the installed command or as a Python module:
 
 ```bash
-python3 chimera.py \
-  --solver1 z3 --solverbin1 /path/to/z3 \
-  --solver2 cvc5 --solverbin2 /path/to/cvc5 \
-  --bugs ./bug_triggering_formulas
+# After installation (pip install -e .)
+chimera --mode histfuzz --solver1-bin /path/to/z3 --solver2-bin /path/to/cvc5 ...
+
+# Or run directly
+python -m chimera.chimera_cli --mode histfuzz --solver1-bin /path/to/z3 --solver2-bin /path/to/cvc5 ...
+```
+
+### LLM-based Fuzzing (Once4All Mode)
+
+This mode uses LLM-synthesized generators to produce formulas.
+
+```bash
+python -m chimera.chimera_cli \
+  --mode once4all \
+  --solver1-bin /path/to/z3 \
+  --solver2-bin /path/to/cvc5 \
+  --seed-dir ./seeds
 ```
 
 
-### History-based Fuzzing
+### History-based Fuzzing (HistFuzz Mode)
 
 Use historical bug-triggering cases to guide the synthesis of new formulas.
 
 ```bash
-python3 chimera.py \
-  --solver1 z3 --solverbin1 /path/to/z3 \
-  --solver2 cvc5 --solverbin2 /path/to/cvc5 \
-  --history
+python -m chimera.chimera_cli \
+  --mode histfuzz \
+  --solver1-bin /path/to/z3 \
+  --solver2-bin /path/to/cvc5 \
+  --seed-dir ./bug_triggering_formulas
+```
+
+
+### Rewrite-based Validation (Aries Mode)
+
+Mimetic mutation combined with equality saturation for rewrite rule exploration.
+
+```bash
+python -m chimera.chimera_cli \
+  --mode aries \
+  --solver1-bin /path/to/z3 \
+  --solver2-bin /path/to/cvc5 \
+  --seed-dir ./seeds \
+  --rules-csv ./RewriteRule.csv
 ```
 
 ### Common Arguments
 
-- `--processes` / `-p`: Number of parallel processes (default: CPU count).
-- `--timeout` / `-t`: Timeout in seconds for each solver invocation (default: 10s).
-- `--option`: Choice of solver options (`default`, `regular`, `comprehensive`).
-- `--temp`: Directory for temporary files (default: `./temp/`).
+- `--mode`: Fuzzing strategy (`histfuzz`, `once4all`, `aries`).
+- `--solver1-name` / `--solver2-name`: Solver names (default: z3, cvc5).
+- `--solver1-bin` / `--solver2-bin`: Paths to solver binaries (required).
+- `--solver-timeout`: Timeout in seconds for each solver invocation (default: 10s).
+- `--iterations`: Maximum number of test iterations (0 = unlimited).
+- `--output-dir`: Directory for bug artifacts.
+- `--seed-dir`: Directory with seed .smt2 files.
+- `-v` / `--verbose`: Enable debug logging.
 
 
 ---

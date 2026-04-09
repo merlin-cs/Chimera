@@ -81,6 +81,10 @@ def build_parser() -> argparse.ArgumentParser:
     hf.add_argument("--skeleton-files", nargs="*", default=None, help="Pre-exported skeleton files.")
     hf.add_argument("--resource-dir", default=None, help="Resource dir with skeleton/building-block files.")
     hf.add_argument("--num-asserts", type=int, default=3, help="Max assertions per generated formula.")
+    hf.add_argument("--logic", type=str, default=None,
+                    help="Target SMT-LIB logic (e.g., QF_LIA, AUFLIA). Only use compatible skeletons/blocks.")
+    hf.add_argument("--use-new-corpus", action="store_true",
+                    help="Use new logic-aware corpus system (experimental).")
 
     # -- Once4All options ----------------------------------------------------
     o4a = p.add_argument_group("Once4All options")
@@ -97,11 +101,22 @@ def build_parser() -> argparse.ArgumentParser:
 
     # -- oracle --------------------------------------------------------------
     orc = p.add_argument_group("Oracle tuning")
-    orc.add_argument("--detect-crashes", action="store_true", default=True, help="Report crashes.")
-    orc.add_argument("--detect-soundness", action="store_true", default=True, help="Report soundness bugs.")
-    orc.add_argument("--detect-invalid-models", action="store_true", default=False, help="Report invalid models.")
-    orc.add_argument("--detect-performance", action="store_true", default=False, help="Report perf regressions.")
-    orc.add_argument("--performance-ratio", type=float, default=10.0, help="Threshold for perf bugs.")
+    # New negation flags (preferred)
+    orc.add_argument("--no-crash-detection", action="store_true",
+                     help="Disable crash detection (enabled by default).")
+    orc.add_argument("--no-soundness-detection", action="store_true",
+                     help="Disable soundness bug detection (enabled by default).")
+    # Deprecated: kept for backward compatibility (no-op, enabled by default)
+    orc.add_argument("--detect-crashes", action="store_true", default=True,
+                     help=argparse.SUPPRESS)  # Deprecated: crashes detected by default
+    orc.add_argument("--detect-soundness", action="store_true", default=True,
+                     help=argparse.SUPPRESS)  # Deprecated: soundness checked by default
+    orc.add_argument("--detect-invalid-models", action="store_true", default=False,
+                     help="Report invalid models.")
+    orc.add_argument("--detect-performance", action="store_true", default=False,
+                     help="Report perf regressions.")
+    orc.add_argument("--performance-ratio", type=float, default=10.0,
+                     help="Threshold for perf bugs.")
 
     # -- logging -------------------------------------------------------------
     p.add_argument("-v", "--verbose", action="store_true", help="DEBUG-level logging.")
@@ -133,8 +148,8 @@ def _build_strategy(args: argparse.Namespace) -> FuzzingStrategy:
     solver2 = _make_solver(args.solver2_name, args.solver2_bin)
 
     oracle_cfg = OracleConfig(
-        detect_crashes=args.detect_crashes,
-        detect_soundness=args.detect_soundness,
+        detect_crashes=not args.no_crash_detection,
+        detect_soundness=not args.no_soundness_detection,
         detect_invalid_models=args.detect_invalid_models,
         detect_performance=args.detect_performance,
         performance_ratio=args.performance_ratio,
@@ -156,6 +171,8 @@ def _build_strategy(args: argparse.Namespace) -> FuzzingStrategy:
             seed_dir=args.seed_dir,
             skeleton_files=args.skeleton_files,
             resource_dir=args.resource_dir,
+            logic=args.logic,
+            use_new_corpus=args.use_new_corpus,
             num_asserts=args.num_asserts,
             **common,
         )

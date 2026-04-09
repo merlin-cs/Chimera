@@ -1,0 +1,19 @@
+# Test Dependencies
+# Install with: pip install -r requirements-test.txt
+
+# Testing framework
+pytest>=7.0.0
+pytest-cov>=4.0.0
+pytest-timeout>=2.1.0
+pytest-xdist>=3.0.0  # Parallel test execution
+
+# Mocking
+pytest-mock>=3.10.0
+
+# Code quality
+flake8>=6.0.0
+mypy>=1.0.0
+black>=23.0.0
+
+# Coverage
+coverage>=7.0.0
