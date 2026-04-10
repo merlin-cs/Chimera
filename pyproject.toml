@@ -53,7 +53,7 @@ where = ["."]
 include = ["chimera*"]
 
 [tool.setuptools.package-data]
-chimera = ["py.typed"]
+chimera = ["py.typed", "resources/*.csv", "resources/rewrite_config/*.txt"]
 
 # =============================================================================
 # Mypy Configuration

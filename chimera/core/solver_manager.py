@@ -23,7 +23,7 @@ import time
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from pathlib import Path
-from typing import Final, List, Optional, Sequence
+from typing import Final, List, Optional, Sequence, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +94,7 @@ class SolverResult:
 # Error-pattern classification (applied to combined output)
 # ---------------------------------------------------------------------------
 
-_ERROR_PATTERNS: Final[list[tuple[str, SolverOutcome]]] = [
+_ERROR_PATTERNS: Final[List[Tuple[str, SolverOutcome]]] = [
     ("Segmentation fault", SolverOutcome.SEGFAULT),
     ("segmentation fault", SolverOutcome.SEGFAULT),
     ("SIGSEGV", SolverOutcome.SEGFAULT),
@@ -136,9 +136,9 @@ class SolverConfig:
         Human-readable solver name (``z3``, ``cvc5``, ``bitwuzla``).
     binary : str | Path
         Absolute path to the solver executable.
-    base_args : list[str]
+    base_args : List[str]
         Arguments always passed (e.g. ``['-i']`` for incremental mode).
-    extra_args : list[str]
+    extra_args : List[str]
         Optional arguments added per-run (random options, check-models, …).
     """
 

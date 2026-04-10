@@ -34,6 +34,7 @@ from chimera.engines.base import FuzzingStrategy, FuzzStats
 from chimera.engines.histfuzz_engine import HistFuzzStrategy
 from chimera.engines.once4all_engine import Once4AllStrategy
 from chimera.engines.aries_engine import AriesStrategy
+from chimera.resources import REWRITE_RULES_CSV, REWRITE_CONFIG_DIR
 
 logger = logging.getLogger("chimera")
 
@@ -94,8 +95,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     # -- Aries options -------------------------------------------------------
     ar = p.add_argument_group("Aries options")
-    ar.add_argument("--rules-csv", default="", help="Path to RewriteRule.csv.")
-    ar.add_argument("--config-dir", default=None, help="Operator config directory for mimetic mutation.")
+    ar.add_argument("--rules-csv", default=str(REWRITE_RULES_CSV), help="Path to RewriteRule.csv.")
+    ar.add_argument("--config-dir", default=str(REWRITE_CONFIG_DIR), help="Operator config directory for mimetic mutation.")
     ar.add_argument("--mimetic-rounds", type=int, default=3, help="Mimetic mutation rounds per seed.")
     ar.add_argument("--no-egraph", action="store_true", help="Disable equality saturation.")
 

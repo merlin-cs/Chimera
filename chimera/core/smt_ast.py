@@ -834,18 +834,18 @@ class Script:
 
     Attributes
     ----------
-    commands : list[SmtCommand]
+    commands : List[SmtCommand]
         Ordered list of all commands.
-    global_vars : dict[str, SmtSort]
+    global_vars : Dict[str, SmtSort]
         Mapping from symbol name to sort for declared constants / 0-arity
         functions.
-    assert_cmd : list[Assert]
+    assert_cmd : List[Assert]
         Convenience view: only the ``Assert`` commands.
-    free_var_occs : list[Term]
+    free_var_occs : List[Term]
         All free-variable occurrences found in assert bodies.
-    op_occs : list[Term]
+    op_occs : List[Term]
         All sub-expression occurrences (non-leaf, non-label nodes).
-    const_occs : list[Term]
+    const_occs : List[Term]
         All constant occurrences.
     """
 

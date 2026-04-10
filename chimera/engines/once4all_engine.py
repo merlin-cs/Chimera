@@ -185,7 +185,7 @@ def _load_generator_function(
         for func_name in _candidate_function_names(module_base):
             fn = getattr(module, func_name, None)
             if callable(fn):
-                # Type: we know fn is Callable[[], tuple[str, str]] from generator contract
+                # Type: we know fn is Callable[[], Tuple[str, str]] from generator contract
                 return fn  # type: ignore[no-any-return]
 
         logger.debug("No suitable entry-point in %s", path)
@@ -208,7 +208,7 @@ class Once4AllStrategy(FuzzingStrategy):
         Solvers under differential testing.
     generator_dir : str, optional
         Path to the directory containing ``*_generator.py`` modules.
-    compatible_theories : list[str], optional
+    compatible_theories : List[str], optional
         Restrict generation to these theory keys.
     legacy_generators : dict, optional
         Pre-loaded ``GENERATORS`` dict from ``src.config.generator_loader``.

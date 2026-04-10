@@ -13,7 +13,7 @@ from __future__ import annotations
 import importlib.util
 import logging
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from chimera.config.generator_config import (
     USE_NEW_GENERATORS,
@@ -27,7 +27,7 @@ from chimera.config.generator_config import (
 logger = logging.getLogger(__name__)
 
 # Type alias for generator functions
-GeneratorFn = Callable[[], tuple[str, str]]
+GeneratorFn = Callable[[], Tuple[str, str]]
 
 
 def _candidate_function_names(module_base: str, short_name: Optional[str]) -> List[str]:

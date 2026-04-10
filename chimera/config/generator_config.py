@@ -58,7 +58,7 @@ GENERATOR_NAME_MAP = {
 }
 
 
-def get_new_generator_info(original_name: str) -> tuple[str, str]:
+def get_new_generator_info(original_name: str) -> Tuple[str, str]:
     """
     Get the new generator module name and function short name for a given original generator name.
 

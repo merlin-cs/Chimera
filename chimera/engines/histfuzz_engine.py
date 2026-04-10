@@ -281,7 +281,7 @@ class HistFuzzStrategy(FuzzingStrategy):
         The two solvers for differential testing.
     seed_dir : str
         Directory containing historical bug-triggering ``.smt2`` files.
-    skeleton_files : list[str], optional
+    skeleton_files : List[str], optional
         Pre-exported skeleton files (one skeleton per line).
     resource_dir : str, optional
         Directory containing per-logic building-block ``.txt`` files and
