@@ -35,6 +35,7 @@ from chimera.engines.histfuzz_engine import HistFuzzStrategy
 from chimera.engines.once4all_engine import Once4AllStrategy
 from chimera.engines.aries_engine import AriesStrategy
 from chimera.resources import REWRITE_RULES_CSV, REWRITE_CONFIG_DIR
+from chimera.history.collector import update_resources as _update_resources
 
 logger = logging.getLogger("chimera")
 
@@ -54,17 +55,18 @@ def build_parser() -> argparse.ArgumentParser:
     # -- mode ----------------------------------------------------------------
     p.add_argument(
         "--mode",
-        choices=["histfuzz", "once4all", "aries"],
+        choices=["histfuzz", "once4all", "aries", "update-resources"],
         required=True,
-        help="Fuzzing strategy to use.",
+        help="Fuzzing strategy to use, or 'update-resources' to refresh HistFuzz corpus.",
     )
 
     # -- solvers -------------------------------------------------------------
+    # Solver args required for fuzzing modes; validated in _validate_args().
     sol = p.add_argument_group("Solver configuration")
     sol.add_argument("--solver1-name", default="z3", help="Name of solver 1 (default: z3).")
-    sol.add_argument("--solver1-bin", required=True, help="Path to solver 1 binary.")
+    sol.add_argument("--solver1-bin", default=None, help="Path to solver 1 binary.")
     sol.add_argument("--solver2-name", default="cvc5", help="Name of solver 2 (default: cvc5).")
-    sol.add_argument("--solver2-bin", required=True, help="Path to solver 2 binary.")
+    sol.add_argument("--solver2-bin", default=None, help="Path to solver 2 binary.")
     sol.add_argument("--solver-timeout", type=float, default=10.0, help="Per-query timeout (seconds).")
 
     # -- I/O -----------------------------------------------------------------
@@ -99,6 +101,19 @@ def build_parser() -> argparse.ArgumentParser:
     ar.add_argument("--config-dir", default=str(REWRITE_CONFIG_DIR), help="Operator config directory for mimetic mutation.")
     ar.add_argument("--mimetic-rounds", type=int, default=3, help="Mimetic mutation rounds per seed.")
     ar.add_argument("--no-egraph", action="store_true", help="Disable equality saturation.")
+
+    # -- update-resources options ---------------------------------------------
+    ur = p.add_argument_group("Resource update options (mode=update-resources)")
+    ur.add_argument("--github-token", default=None,
+                    help="GitHub personal access token for collecting bug formulas from issue trackers.")
+    ur.add_argument("--formula-store", default="./bug_triggering_formulas",
+                    help="Directory for collected bug formulas (default: ./bug_triggering_formulas).")
+    ur.add_argument("--resource-output", default="./chimera/resources",
+                    help="Output directory for HistFuzz corpus (default: ./chimera/resources).")
+    ur.add_argument("--collect-solvers", nargs="*", default=None,
+                    help="Collect from specific solvers only (default: all known solvers).")
+    ur.add_argument("--skip-collection", action="store_true",
+                    help="Skip GitHub collection; only extract corpus from existing formula files.")
 
     # -- oracle --------------------------------------------------------------
     orc = p.add_argument_group("Oracle tuning")
@@ -214,6 +229,32 @@ def _configure_logging(verbose: bool, quiet: bool) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Resource update mode
+# ---------------------------------------------------------------------------
+
+def _run_update_resources(args: argparse.Namespace) -> int:
+    """Execute the resource update pipeline."""
+    try:
+        result = _update_resources(
+            github_token=args.github_token,
+            formula_store=args.formula_store,
+            resource_output=args.resource_output,
+            solvers=args.collect_solvers,
+            skip_collection=args.skip_collection,
+            debug=args.verbose,
+        )
+    except KeyboardInterrupt:
+        logger.info("Resource update interrupted by user")
+        return 1
+
+    print("\n=== Resource Update Summary ===")
+    print(f"  Formulas collected from GitHub: {result.formulas_collected}")
+    print(f"  Skeletons + blocks in corpus:   {result.formulas_standardized}")
+    print(f"  Logics covered:                 {', '.join(sorted(result.logics_found)) if result.logics_found else 'none'}")
+    return 0
+
+
+# ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
 
@@ -223,7 +264,22 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     _configure_logging(args.verbose, args.quiet)
 
+    # -- Validate solver args for fuzzing modes -------------------------------
+    if args.mode != "update-resources":
+        missing = []
+        if not args.solver1_bin:
+            missing.append("--solver1-bin")
+        if not args.solver2_bin:
+            missing.append("--solver2-bin")
+        if missing:
+            parser.error(f"--mode {args.mode} requires: {', '.join(missing)}")
+
     logger.info("Chimera starting — mode=%s", args.mode)
+
+    # -- resource update mode (no solver / campaign needed) --------------------
+    if args.mode == "update-resources":
+        return _run_update_resources(args)
+
     logger.info(
         "Solver 1: %s (%s)  |  Solver 2: %s (%s)",
         args.solver1_name,
