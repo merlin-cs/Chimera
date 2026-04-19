@@ -21,6 +21,7 @@ from typing import Dict, List, Optional, Sequence
 from chimera.core.smt_ast import Script
 from chimera.core.solver_manager import (
     SolverConfig,
+    SolverOutcome,
     SolverResult,
     run_solver,
 )
@@ -153,6 +154,22 @@ class FuzzingStrategy(ABC):
         # Invoke both solvers
         res1 = run_solver(self.solver1, smt_path, timeout=self.timeout)
         res2 = run_solver(self.solver2, smt_path, timeout=self.timeout)
+
+        logger.debug(
+            "%s iter %d: %s → %s | %s → %s",
+            self.name, iteration_id,
+            self.solver1.name, res1.outcome.name,
+            self.solver2.name, res2.outcome.name,
+        )
+
+        # Log solver output on parse errors or unexpected outcomes
+        for res, solver_name in ((res1, self.solver1.name), (res2, self.solver2.name)):
+            if res.outcome in (SolverOutcome.PARSE_ERROR, SolverOutcome.ERROR):
+                logger.warning(
+                    "%s %s outcome=%s stdout=%r stderr=%r",
+                    solver_name, res.smt_path, res.outcome.name,
+                    res.stdout.strip()[:500], res.stderr.strip()[:500],
+                )
 
         # Compare results
         bugs = compare(res1, res2, config=self.oracle_config)

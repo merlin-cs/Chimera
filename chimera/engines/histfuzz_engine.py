@@ -23,6 +23,7 @@ import copy
 import logging
 import os
 import random
+import re
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Set, Tuple
 
@@ -531,11 +532,17 @@ class HistFuzzStrategy(FuzzingStrategy):
 
         asserts = [f"(assert {filled_term})"]
 
-        return build_smt_script(
+        script = build_smt_script(
             declarations=unique_decls,
             assertions=asserts,
             logic="ALL",  # Use ALL since we filter at generation time
         )
+
+        # Sanitize: SkeletonExtractor renames quantifier variable types to
+        # TYPE0, TYPE1, etc. Replace with Int to avoid parse errors.
+        script = re.sub(r"\bTYPE\d+\b", "Int", script)
+
+        return script
 
     def _generate_legacy(self) -> Optional[str]:
         """Generate formula using legacy loading (backward compatible)."""
@@ -551,6 +558,17 @@ class HistFuzzStrategy(FuzzingStrategy):
 
         for skel_assert in chosen:
             filled = fill_holes(skel_assert.term, self._pool)
+
+            # Skip if any holes remain unfilled (no type-compatible block found)
+            hc = HoleCollector()
+            hc.visit(filled)
+            if hc.holes:
+                logger.debug(
+                    "HistFuzz: skipping skeleton with %d unfilled holes",
+                    len(hc.holes),
+                )
+                return None  # Regenerate on next call
+
             asserts.append(f"(assert {filled})")
 
             # Collect variable declarations from the filled term
@@ -566,6 +584,15 @@ class HistFuzzStrategy(FuzzingStrategy):
 
         parts = unique_decls + asserts + ["(check-sat)"]
         formula = "\n".join(parts)
+
+        # Sanitize: SkeletonExtractor renames quantifier variable types to
+        # TYPE0, TYPE1, etc. These are placeholder names that are invalid in
+        # SMT-LIB. Replace them with Int (a safe default sort).
+        formula = re.sub(r"\bTYPE\d+\b", "Int", formula)
+
+        # Fix undeclared free variables: collect all declared names and
+        # quantifier/let-bound names, then declare any remaining free symbols.
+        formula = self._declare_undeclared_vars(formula, unique_decls)
 
         # Optional validation if logic filter specified
         if self._logic_filter:
@@ -583,21 +610,196 @@ class HistFuzzStrategy(FuzzingStrategy):
     # -- helpers -------------------------------------------------------------
 
     def _collect_declarations(self, term: Term, decls: List[str]) -> None:
-        """Walk *term* and emit ``declare-const`` for every variable found."""
+        """Walk *term* and emit ``declare-const`` for every variable found.
+
+        Handles edge cases:
+        - Variables without type info (inferred from name heuristics)
+        - Non-standard sorts (mapped to ``Int``)
+        - Quantifier-bound variables are NOT declared here
+        """
         if isinstance(term, str):
             return
-        if term.is_var and term.name and term.type:
-            decl = f"(declare-const {term.name} {term.type})"
-            decls.append(decl)
+
+        # Check if this is a quantified term — bound vars are not declared
+        if term.quantifier is not None:
+            # Skip bound variables; recurse into body
+            if term.subterms:
+                for sub in term.subterms:
+                    if isinstance(sub, Term):
+                        self._collect_declarations(sub, decls)
             return
+
+        # Collect let-bound variable names so we don't declare them
+        let_bound: Set[str] = set()
+        if term.let_terms:
+            for lt in term.let_terms:
+                if isinstance(lt, Term):
+                    # let-binding vars are handled within the let scope
+                    self._collect_declarations(lt, decls)
+
+        if term.is_var and term.name:
+            type_str = str(term.type) if term.type else None
+
+            # Skip placeholder types
+            if type_str and (type_str == "Unknown" or re.match(r"^TYPE\d+$", type_str)):
+                pass  # fall through to skip
+            # Skip let-bound variable names
+            elif term.name in let_bound:
+                pass
+            elif type_str and type_str not in ("Unknown", None):
+                # Known type — emit declaration
+                # Map common non-standard sorts to Int as a safe default
+                if not self._is_valid_sort(type_str):
+                    type_str = "Int"
+                decl = f"(declare-const {term.name} {type_str})"
+                if decl not in decls:
+                    decls.append(decl)
+            # No type info — skip (variable may be bound by outer quantifier
+            # or may need declaration; we can't safely guess)
+
         if term.subterms:
             for sub in term.subterms:
                 if isinstance(sub, Term):
                     self._collect_declarations(sub, decls)
-        if term.let_terms:
-            for lt in term.let_terms:
-                if isinstance(lt, Term):
-                    self._collect_declarations(lt, decls)
+
+    @staticmethod
+    def _is_valid_sort(sort_str: str) -> bool:
+        """Check if a sort string is a recognized SMT-LIB sort."""
+        builtin = {
+            "Int", "Real", "Bool", "String",
+            # BitVec is parameterized but we accept the name
+            "bitvector", "BitVec",
+        }
+        # Parametric sorts start with "(" or contain known prefixes
+        if sort_str.startswith("("):
+            return True  # Assume parametric sort is valid
+        return sort_str in builtin
+
+    @staticmethod
+    def _declare_undeclared_vars(
+        formula: str, existing_decls: List[str]
+    ) -> str:
+        """Find undeclared free variables in *formula* and add declarations.
+
+        Scans the SMT-LIB string for symbols that appear as operands but are
+        not declared and not bound by quantifiers/let. Declares missing ones
+        as ``(declare-const NAME Int)``.
+        """
+        # Collect declared variable names from the actual declarations
+        declared: Set[str] = set()
+        for d in existing_decls:
+            # "(declare-const NAME SORT)"
+            m = re.match(r"\(declare-(?:const|fun)\s+(\S+)\s+", d)
+            if m:
+                declared.add(m.group(1))
+
+        # Collect quantifier/let-bound variable names
+        bound: Set[str] = set()
+        # forall/exists bindings: ((VAR0 TYPE0) (VAR1 TYPE1))
+        for m in re.finditer(r"\((?:forall|exists)\s+\(([^)]*)\)", formula):
+            for v in re.finditer(r"\((\S+)\s+\S+\)", m.group(1)):
+                bound.add(v.group(1))
+        # let bindings: ((name value) ...)
+        for m in re.finditer(r"\(let\s+\(\((\S+)\s+", formula):
+            bound.add(m.group(1))
+
+        # Known SMT-LIB keywords and built-in symbols to skip.
+        # Include hyphen-split fragments so "declare-const" doesn't produce
+        # false matches for "declare" and "const".
+        keywords: Set[str] = {
+            "_",  # Reserved underscore
+            "true", "false", "and", "or", "not", "xor",
+            "distinct", "ite", "let", "forall", "exists", "assert",
+            "check", "sat", "unsat", "unknown",
+            "declare", "const", "fun", "define",
+            "set", "logic", "push", "pop",
+            "match", "as", "par",
+            # String theory
+            "str", "re",
+            # Arithmetic
+            "div", "mod", "abs",
+            "to_real", "to_int", "is_int",
+            # BitVec
+            "bvand", "bvor", "bvxor", "bvnot", "bvneg",
+            "bvadd", "bvsub", "bvmul", "bvudiv", "bvurem",
+            "bvult", "bvule", "bvugt", "bvuge",
+            "bvslt", "bvsle", "bvsgt", "bvsge",
+            "concat", "extract", "sign_extend", "zero_extend",
+            "fp", "NaN", "inf",
+            # Reserved SMT-LIB theory function symbols (shadowing prevention)
+            "bv2nat", "nat2bv",
+            "exp", "log", "sin", "cos", "tan", "asin", "acos", "atan",
+            "arcsin", "arccos", "arctan",
+            "sqrt", "pow",
+            "store", "select",
+            "member",
+            "as", "par",
+            # Hyphen-split keywords (full forms)
+            "declare-fun", "declare-const", "define-fun", "set-logic",
+            "check-sat", "get-model", "get-value", "get-assignment",
+            "str.++", "str.len", "str.contains", "str.prefixof",
+            "str.suffixof", "str.indexof", "str.replace", "str.replace_all",
+            "str.replace_re", "str.replace_re_all",
+            "str.substr", "str.at", "str.to_re", "str.in_re",
+            "str.from_int", "str.to_int", "str.is_digit",
+            "str.to_code", "str.from_code",
+            "re.none", "re.all", "re.allchar", "re.++", "re.union",
+            "re.inter", "re.*", "re.+", "re.opt", "re.range",
+            "re.comp", "re.diff",
+            # Sorts
+            "Int", "Real", "Bool", "String", "RegL",
+        }
+
+        # Strip declaration/metadata lines, then scan only assert content.
+        # This avoids matching fragments like "declare", "const" from
+        # "(declare-const ...)" lines.
+        content_lines = []
+        for line in formula.split("\n"):
+            stripped = line.strip()
+            if not stripped:
+                continue
+            if stripped.startswith("(declare-"):
+                continue
+            if stripped.startswith("(set-logic"):
+                continue
+            if stripped.startswith("(push") or stripped.startswith("(pop"):
+                continue
+            content_lines.append(stripped)
+
+        content = " ".join(content_lines)
+
+        # Remove string literals to avoid matching symbols inside quotes
+        content = re.sub(r'"[^"]*"', " ", content)
+
+        # Remove sort annotations like (_ BitVec 32), (_ FloatingPoint 11 53)
+        content = re.sub(r"\(_\s+\S+\s+\d+[^)]*\)", " ", content)
+
+        # Find all identifier tokens in the remaining content
+        symbols: Set[str] = set()
+        pattern = r"\b([a-zA-Z_][a-zA-Z0-9_']*)\b"
+        for m in re.finditer(pattern, content):
+            sym = m.group(1)
+            if sym not in keywords and sym not in declared and sym not in bound:
+                # Skip pure numbers
+                if re.match(r"^\d+$", sym):
+                    continue
+                symbols.add(sym)
+
+        # Add declarations for missing symbols
+        if symbols:
+            extra_decls = []
+            for sym in sorted(symbols):
+                extra_decls.append(f"(declare-const {sym} Int)")
+            # Insert after any existing declarations
+            lines = formula.split("\n")
+            insert_idx = 0
+            for i, line in enumerate(lines):
+                if line.startswith("(declare-"):
+                    insert_idx = i + 1
+            lines[insert_idx:insert_idx] = extra_decls
+            formula = "\n".join(lines)
+
+        return formula
 
     @staticmethod
     def _discover_smt_files(directory: str) -> List[str]:

@@ -440,13 +440,24 @@ class EqualitySaturationRewriter:
 
     @staticmethod
     def _resolve_symbolic_terms(expr_str: str, globs: dict) -> str:
-        """Replace ``any_int`` / ``any_bool`` placeholders with concrete values."""
+        """Replace ``any_int`` / ``any_bool`` placeholders with concrete values.
+
+        Also catches egraph/mimetic placeholder names like RewriteX, RewriteZ,
+        or any symbol matching ^Rewrite[A-Z]\d*$ that would otherwise leak
+        into the output as undeclared variables.
+        """
+        import re
+
         if "any_int" in expr_str:
             # Fall back to a literal
             expr_str = expr_str.replace("any_int", str(random.randint(0, 100)))
 
         if "any_bool" in expr_str:
             expr_str = expr_str.replace("any_bool", random.choice(["true", "false"]))
+
+        # Strip egraph placeholder names (RewriteA, RewriteZ, RewriteX, etc.)
+        # Replace with a safe concrete value (0 for Int context, true for Bool)
+        expr_str = re.sub(r"\bRewrite[A-Z]\w*\b", "0", expr_str)
 
         return expr_str
 
@@ -562,6 +573,10 @@ class AriesStrategy(FuzzingStrategy):
         timeout: float = 10.0,
         oracle_config: Optional[OracleConfig] = None,
     ) -> None:
+        # Aries may emit push/pop or multiple check-sat commands,
+        # so cvc5 needs --incremental mode.
+        solver1, solver2 = self._ensure_incremental(solver1, solver2)
+
         super().__init__(
             solver1,
             solver2,
@@ -628,6 +643,11 @@ class AriesStrategy(FuzzingStrategy):
             script.commands.append(CheckSat())
 
         formula_str = str(script)
+
+        # Final sanitization: catch any leaked placeholder names that slipped
+        # through mimetic mutation or egraph rewriting.
+        formula_str = self._sanitize_output(formula_str, globs)
+
         return formula_str if formula_str.strip() else None
 
     # -- helpers -------------------------------------------------------------
@@ -640,3 +660,73 @@ class AriesStrategy(FuzzingStrategy):
                 if f.endswith(".smt2"):
                     result.append(os.path.join(root, f))
         return result
+
+    @staticmethod
+    def _ensure_incremental(
+        s1: SolverConfig, s2: SolverConfig
+    ) -> Tuple[SolverConfig, SolverConfig]:
+        """Ensure both solvers can handle push/pop in generated formulas.
+
+        For cvc5: add ``-i`` (incremental mode) — required for push/pop.
+        For z3: no extra flag needed — z3 handles push/pop in files natively.
+                (``-in`` would read from stdin, conflicting with file input.)
+        """
+
+        def with_incremental(cfg: SolverConfig) -> SolverConfig:
+            basename = os.path.basename(cfg.binary).lower()
+            if "cvc5" in basename or basename.startswith("cvc"):
+                # Preserve any caller-supplied base_args and extra_args.
+                # Only add -i if the existing args don't already contain it.
+                existing_args = list(cfg.base_args)
+                if "-i" not in existing_args and "--incremental" not in existing_args:
+                    existing_args.append("-i")
+                return SolverConfig(
+                    name=cfg.name,
+                    binary=cfg.binary,
+                    base_args=existing_args,
+                    extra_args=list(cfg.extra_args),
+                )
+            # z3 doesn't need an incremental flag for file-based push/pop
+            return cfg
+
+        return with_incremental(s1), with_incremental(s2)
+
+    @staticmethod
+    def _sanitize_output(formula_str: str, globs: dict) -> str:
+        """Remove any leaked placeholder names from the final SMT-LIB string.
+
+        This catches:
+        - ``Rewrite[A-Z]...`` egraph/mimetic placeholder names (only if NOT
+          declared — legitimate user symbols are preserved)
+        - ``any_int`` / ``any_bool`` that slipped through egraph resolution
+        - Unfilled ``hole`` placeholders from incomplete mutation
+
+        Each occurrence is replaced with a concrete value (0 for Int, true for Bool).
+        """
+        import re
+
+        # Collect declared symbol names so we don't corrupt legitimate
+        # user-defined constants that happen to match Rewrite* patterns.
+        declared_names: set = set()
+        for line in formula_str.splitlines():
+            m = re.match(r"\(declare-(?:const|fun)\s+(\S+)\s+", line.strip())
+            if m:
+                declared_names.add(m.group(1))
+
+        # Replace egraph placeholder names only when they are NOT declared.
+        def rewrite_placeholder(m: re.Match) -> str:
+            name = m.group(0)
+            if name in declared_names:
+                return name  # preserve legitimate user symbols
+            return "0"
+
+        formula_str = re.sub(r"\bRewrite[A-Z]\w*\b", rewrite_placeholder, formula_str)
+
+        # Replace any_int/any_bool leftovers
+        formula_str = formula_str.replace("any_int", "0")
+        formula_str = formula_str.replace("any_bool", "true")
+
+        # Replace unfilled hole placeholders (e.g. "hole 0", "hole 1")
+        formula_str = re.sub(r"\bhole\s+\d+\b", "true", formula_str)
+
+        return formula_str
