@@ -14,7 +14,12 @@ from __future__ import annotations
 import logging
 import os
 import re
+import sys
 from dataclasses import dataclass
+
+# Increase recursion limit to handle deeply nested ASTs (some formulas have depth > 2000,
+# and str() on a Script with such ASTs requires ~5000+ stack frames in _prepare_seed)
+sys.setrecursionlimit(100000)
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 

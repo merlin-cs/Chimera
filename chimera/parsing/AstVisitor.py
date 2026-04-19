@@ -531,7 +531,7 @@ class AstVisitor(SMTLIBv2Visitor):
                 return Var(name=name, type=self.global_vars[name],
                            is_indexed_id=True)
             else:
-                return name
+                return Var(name=name, type="Unknown", is_indexed_id=True)
 
         if ctx.symbol():
             name = self.visitSymbol(ctx.symbol())
@@ -540,7 +540,7 @@ class AstVisitor(SMTLIBv2Visitor):
             elif name in self.global_vars:
                 return Var(name=name, type=self.global_vars[name])
             else:
-                return self.visitSymbol(ctx.symbol())
+                return Var(name=name, type="Unknown")
         raise AstException("No match for identifier: ... |... |... ")
 
     def visitTerminal(self, ctx):

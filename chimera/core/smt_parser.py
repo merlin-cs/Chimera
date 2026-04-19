@@ -24,6 +24,9 @@ import logging
 import sys
 import traceback
 from pathlib import Path
+
+# Handle deeply nested ASTs (some formulas have depth > 2000)
+sys.setrecursionlimit(100000)
 from typing import Callable, Dict, FrozenSet, Optional, Tuple, TypeVar
 
 from antlr4.CommonTokenStream import CommonTokenStream
@@ -48,9 +51,6 @@ from chimera.core.smt_ast import Script, SmtSort
 logger = logging.getLogger(__name__)
 
 _T = TypeVar("_T")
-
-# The ANTLR visitor can recurse deeply on large formulas.
-sys.setrecursionlimit(100_000)
 
 # ---------------------------------------------------------------------------
 # Commands stripped during seed preparation.
