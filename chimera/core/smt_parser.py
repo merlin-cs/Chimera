@@ -46,7 +46,7 @@ from chimera.core.timeout import exit_after
 
 # Our refactored AST (the new modules re-export the same classes the visitor
 # constructs — they are source-compatible with the originals).
-from chimera.core.smt_ast import Script, SmtSort
+from chimera.core.smt_ast import GetValue, Script, Simplify, SmtSort, SMTLIBCommand
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +55,15 @@ _T = TypeVar("_T")
 # ---------------------------------------------------------------------------
 # Commands stripped during seed preparation.
 # ---------------------------------------------------------------------------
-_STRIP_PREFIXES: FrozenSet[str] = frozenset({
+
+# Typed AST node classes that are always stripped.
+_STRIP_TYPES: Tuple[type, ...] = (GetValue, Simplify)
+
+# SMTLIBCommand names (without the leading '(') that should be stripped.
+# These are matched against the *start* of the command string so that only
+# the command itself is matched, not identifiers that happen to contain one
+# of these strings (e.g. ``(declare-const get-model Bool)``).
+_STRIP_CMD_NAMES: FrozenSet[str] = frozenset({
     "set-info",
     "set-logic",
     "get-model",
@@ -63,9 +71,7 @@ _STRIP_PREFIXES: FrozenSet[str] = frozenset({
     "get-proof",
     "get-unsat-assumptions",
     "get-unsat-core",
-    "get-value",
     "echo",
-    "simplify",
 })
 
 
@@ -96,12 +102,23 @@ def _prepare_seed(script: Script) -> Script:
 
     This prevents false-positive bug reports caused by ``get-model``-style
     commands that produce output lines the oracle would misinterpret.
+
+    Typed command nodes (e.g. ``GetValue``, ``Simplify``) are matched by
+    type so that unrelated identifiers are never accidentally stripped.
+    For ``SMTLIBCommand`` catch-all nodes the match is anchored to the
+    *start* of the command string (``(cmd-name``), avoiding false positives
+    such as ``(declare-const get-model Bool)``.
     """
     cleaned = []
     for cmd in script.commands:
-        cmd_str = str(cmd)
-        if any(prefix in cmd_str for prefix in _STRIP_PREFIXES):
+        if isinstance(cmd, _STRIP_TYPES):
             continue
+        if isinstance(cmd, SMTLIBCommand):
+            stripped = cmd.cmd_str.lstrip()
+            if any(
+                stripped.startswith(f"({name}") for name in _STRIP_CMD_NAMES
+            ):
+                continue
         cleaned.append(cmd)
     script.commands = cleaned
     return script
