@@ -114,9 +114,9 @@ def _prepare_seed(script: Script) -> Script:
         if isinstance(cmd, _STRIP_TYPES):
             continue
         if isinstance(cmd, SMTLIBCommand):
-            stripped = cmd.cmd_str.lstrip()
+            trimmed = cmd.cmd_str.lstrip()
             if any(
-                stripped.startswith(f"({name}") for name in _STRIP_CMD_NAMES
+                trimmed.startswith(f"({name}") for name in _STRIP_CMD_NAMES
             ):
                 continue
         cleaned.append(cmd)
