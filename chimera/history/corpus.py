@@ -392,25 +392,22 @@ class Corpus:
         logic: Optional[str] = None,
         quantified: Optional[bool] = None,
     ) -> Optional[Skeleton]:
-        """Sample a random skeleton, optionally by logic and quantifier status.
+        """Sample a random skeleton.
 
-        When a logic is specified, samples from any skeleton whose logic is
-        compatible with the target (not just exact match).
+        Skeletons are not filtered by their source logic compatibility,
+        since only the quantifier-free distinction matters for skeletons —
+        the actual logic is determined by the blocks used to fill holes
+        and validated against the target logic later.
+
+        Parameters
+        ----------
+        logic : str, optional
+            Used only for the QF/non-QF distinction.
+        quantified : bool, optional
+            If True, only quantified skeletons. If False, only QF skeletons.
+            If None (default), return all.
         """
-        if logic:
-            # Find all compatible logics
-            compatible = set()
-            for key in self.skeletons:
-                if is_logic_compatible(key, logic):
-                    compatible.add(key)
-            candidates = self.get_skeletons(
-                logics=compatible,
-                quantified=quantified,
-            )
-        else:
-            candidates = self.get_skeletons(
-                quantified=quantified,
-            )
+        candidates = self.get_skeletons(quantified=quantified)
         return random.choice(candidates) if candidates else None
 
     def statistics(self) -> Dict[str, Any]:
