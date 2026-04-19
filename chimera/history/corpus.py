@@ -439,9 +439,10 @@ class Corpus:
         Creates structure:
             output_dir/
                 metadata.json
-                {LOGIC}/
-                    blocks.json
-                    skeletons.json
+                blocks/
+                    {LOGIC}.json        # Blocks grouped by logic
+                skeletons_qf.json       # Quantifier-free skeletons (all logics)
+                skeletons_quant.json    # Quantified skeletons (all logics)
         """
         out = Path(output_dir)
         out.mkdir(parents=True, exist_ok=True)
@@ -450,20 +451,33 @@ class Corpus:
         with open(out / "metadata.json", "w") as f:
             json.dump(self.statistics(), f, indent=2)
 
-        # Save per-logic files
-        all_logics = set(self.blocks.keys()) | set(self.skeletons.keys())
+        # Save blocks grouped by logic
+        blocks_dir = out / "blocks"
+        blocks_dir.mkdir(parents=True, exist_ok=True)
 
-        for logic in all_logics:
-            logic_dir = out / logic
-            logic_dir.mkdir(parents=True, exist_ok=True)
+        for logic, blocks in self.blocks.items():
+            if blocks:
+                with open(blocks_dir / f"{logic}.json", "w") as f:
+                    json.dump([b.to_dict() for b in blocks], f, indent=2)
 
-            if logic in self.blocks:
-                with open(logic_dir / "blocks.json", "w") as f:
-                    json.dump([b.to_dict() for b in self.blocks[logic]], f, indent=2)
+        # Save skeletons by quantifier status (not by logic)
+        qf_skeletons: List[Dict[str, Any]] = []
+        quant_skeletons: List[Dict[str, Any]] = []
 
-            if logic in self.skeletons:
-                with open(logic_dir / "skeletons.json", "w") as f:
-                    json.dump([s.to_dict() for s in self.skeletons[logic]], f, indent=2)
+        for logic, skeletons in self.skeletons.items():
+            for skel in skeletons:
+                if skel.is_quantified:
+                    quant_skeletons.append(skel.to_dict())
+                else:
+                    qf_skeletons.append(skel.to_dict())
+
+        if qf_skeletons:
+            with open(out / "skeletons_qf.json", "w") as f:
+                json.dump(qf_skeletons, f, indent=2)
+
+        if quant_skeletons:
+            with open(out / "skeletons_quant.json", "w") as f:
+                json.dump(quant_skeletons, f, indent=2)
 
     @classmethod
     def load(cls, input_dir: str) -> "Corpus":
@@ -472,9 +486,10 @@ class Corpus:
         Reads from:
             input_dir/
                 metadata.json (optional)
-                {LOGIC}/
-                    blocks.json
-                    skeletons.json
+                blocks/
+                    {LOGIC}.json
+                skeletons_qf.json
+                skeletons_quant.json
         """
         corpus = cls()
         inp = Path(input_dir)
@@ -488,26 +503,31 @@ class Corpus:
             with open(meta_file) as f:
                 corpus.metadata = json.load(f)
 
-        # Load per-logic files
-        for logic_dir in inp.iterdir():
-            if not logic_dir.is_dir():
-                continue
-
-            logic = logic_dir.name
-            if logic == ".DS_Store":
-                continue
-
-            blocks_file = logic_dir / "blocks.json"
-            if blocks_file.exists():
+        # Load blocks from blocks/ directory
+        blocks_dir = inp / "blocks"
+        if blocks_dir.is_dir():
+            for blocks_file in blocks_dir.glob("*.json"):
+                logic = blocks_file.stem  # filename without .json
                 with open(blocks_file) as f:
                     for bd in json.load(f):
-                        corpus.add_block(BuildingBlock.from_dict(bd))
+                        block = BuildingBlock.from_dict(bd)
+                        # Ensure logic matches filename
+                        block.logic = logic
+                        corpus.add_block(block)
 
-            skeletons_file = logic_dir / "skeletons.json"
-            if skeletons_file.exists():
-                with open(skeletons_file) as f:
-                    for sd in json.load(f):
-                        corpus.add_skeleton(Skeleton.from_dict(sd))
+        # Load QF skeletons
+        qf_file = inp / "skeletons_qf.json"
+        if qf_file.exists():
+            with open(qf_file) as f:
+                for sd in json.load(f):
+                    corpus.add_skeleton(Skeleton.from_dict(sd))
+
+        # Load quantified skeletons
+        quant_file = inp / "skeletons_quant.json"
+        if quant_file.exists():
+            with open(quant_file) as f:
+                for sd in json.load(f):
+                    corpus.add_skeleton(Skeleton.from_dict(sd))
 
         return corpus
 
