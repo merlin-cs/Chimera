@@ -2,7 +2,7 @@
 SMT-LIB parser facade — delegates to the existing ANTLR infrastructure.
 
 This module provides a clean, typed interface around the ANTLR-generated
-lexer/parser/visitor that already lives in ``src.parsing``.  **No parser
+lexer/parser/visitor that already lives in ``chimera.parsing``.  **No parser
 is re-written from scratch**: we wrap, sanitise, and re-export.
 
 Public API
