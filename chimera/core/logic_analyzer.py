@@ -337,7 +337,7 @@ def is_builtin_sort(sort_name: str) -> bool:
 
     # Indexed family: (_ BitVec 32) → base name is BitVec
     if name.startswith("(_"):
-        parts = name.split()
+        parts = name.replace(")", "").split()
         if len(parts) >= 2 and parts[1] in BUILTIN_SORTS:
             return True
 
@@ -381,10 +381,36 @@ def extract_sorts_from_declaration(decl_str: str) -> Set[str]:
         return sorts
 
     remainder = decl_str[match.end():]
+    is_define = 'define-fun' in decl_str or 'define-const' in decl_str
 
     # Tokenize: split by whitespace and parens, keeping paren chars
     tokens = re.findall(r'[()]|[^\s()]+', remainder)
 
+    # For define-fun, skip the parameter list ((x S1) (y S2) ...)
+    # and only process the return sort (not the body)
+    idx = 0
+    if is_define:
+        # Skip opening ((
+        if idx < len(tokens) and tokens[idx] == '(':
+            idx += 1
+        if idx < len(tokens) and tokens[idx] == '(':
+            idx += 1
+        # Skip to matching ))
+        depth = 2
+        while idx < len(tokens) and depth > 0:
+            if tokens[idx] == '(':
+                depth += 1
+            elif tokens[idx] == ')':
+                depth -= 1
+            idx += 1
+        # Now tokens[idx] should be the return sort
+        if idx < len(tokens):
+            tok = tokens[idx]
+            if tok not in ('(', ')', '_') and not tok.isdigit() and not is_builtin_sort(tok):
+                sorts.add(tok)
+        return sorts
+
+    # For declare-fun/declare-const, process all tokens (parameter sorts + return sort)
     for tok in tokens:
         if tok in ('(', ')') or tok == '_':
             continue

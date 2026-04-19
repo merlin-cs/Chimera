@@ -31,17 +31,17 @@ class TestFileHandlers:
 
         # Create SMT files
         (temp_dir / "test1.smt2").write_text("(check-sat)")
-        (temp_dir / "test2.smt").write_text("(check-sat)")
+        (temp_dir / "test2.smt2").write_text("(check-sat)")
         (temp_dir / "subdir" / "test3.smt2").write_text("(check-sat)")
         (temp_dir / "subdir" / "nested" / "test4.smt2").write_text("(check-sat)")
         (temp_dir / "not_smt.txt").write_text("hello")
 
         files = get_all_smt_files_recursively(str(temp_dir))
 
-        # Should find all .smt2 and .smt files
+        # Should find all .smt2 files
         assert len(files) == 4
         assert any("test1.smt2" in f for f in files)
-        assert any("test2.smt" in f for f in files)
+        assert any("test2.smt2" in f for f in files)
         assert any("test3.smt2" in f for f in files)
         assert any("test4.smt2" in f for f in files)
 

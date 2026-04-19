@@ -417,6 +417,10 @@ class Term:
         if self.is_const or self.is_var or self.is_indexed_id:
             return self.name or ""
 
+        # Bare constant/operator with no subterms (e.g. "true", "false")
+        if not self.subterms and isinstance(self.op, str):
+            return self.op
+
         if self.quantifier:
             bindings = " ".join(
                 f"({v} {t})"
@@ -458,12 +462,12 @@ class Term:
 
 def Var(name: str, type: SmtSort, *, is_indexed_id: bool = False) -> Term:
     """Create a variable ``Term``."""
-    return Term(name=name, type=type, is_var=True, is_indexed_id=is_indexed_id)
+    return Term(name=name, type=type, is_var=True, is_const=False, is_indexed_id=is_indexed_id)
 
 
 def Const(name: str, type: SmtSort = UNKNOWN, *, is_indexed_id: bool = False) -> Term:
     """Create a constant ``Term``."""
-    return Term(name=name, type=type, is_const=True, is_indexed_id=is_indexed_id)
+    return Term(name=name, type=type, is_const=True, is_var=False, is_indexed_id=is_indexed_id)
 
 
 def Expr(op: Union[str, Term], subterms: List[Union[Term, str]]) -> Term:

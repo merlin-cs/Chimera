@@ -243,7 +243,7 @@ class TestParenthesisDepth:
     def test_string_literal_handling(self):
         """Parentheses in strings should not count."""
         # Paren in string should not affect depth
-        assert _smt_paren_depth('(assert (= s "(()")()) )")') == 0
+        assert _smt_paren_depth('(assert (= s "(())"))') == 0
 
     def test_empty_string(self):
         """Empty string should return 0."""
@@ -279,19 +279,19 @@ class TestExtractSortsFromDecl:
 
     def test_declare_fun_simple(self):
         """Extract sorts from simple declare-fun."""
-        sorts = _extract_sorts_from_decl("(declare-fun x () Int)")
-        assert "Int" in sorts
+        sorts = _extract_sorts_from_decl("(declare-fun x () MySort)")
+        assert "MySort" in sorts
 
     def test_declare_fun_with_args(self):
         """Extract sorts from declare-fun with arguments."""
-        sorts = _extract_sorts_from_decl("(declare-fun f (Int Bool) Int)")
-        assert "Int" in sorts
-        assert "Bool" in sorts
+        sorts = _extract_sorts_from_decl("(declare-fun f (Int CustomSort) CustomSort)")
+        assert "CustomSort" in sorts
+        assert "Int" not in sorts  # Int is builtin
 
     def test_declare_const(self):
         """Extract sorts from declare-const."""
-        sorts = _extract_sorts_from_decl("(declare-const x Real)")
-        assert "Real" in sorts
+        sorts = _extract_sorts_from_decl("(declare-const x MyReal)")
+        assert "MyReal" in sorts
 
     def test_builtin_sorts_excluded(self):
         """Built-in sorts should not be included."""
@@ -421,10 +421,11 @@ class TestInsertPushAndPop:
         ast = ["(assert a)", "(assert b)", "(assert c)"]
         result = insert_push_and_pop(ast)
 
-        # Count push/pop to verify balance
-        push_count = sum(1 for s in result if s.startswith("(push"))
-        pop_count = sum(1 for s in result if s.startswith("(pop"))
-        assert push_count >= pop_count  # May have extra pops
+        # Extract total push/pop depth to verify semantic balance
+        import re
+        push_total = sum(int(m) for s in result for m in re.findall(r'\(push (\d+)\)', s))
+        pop_total = sum(int(m) for s in result for m in re.findall(r'\(pop (\d+)\)', s))
+        assert push_total == pop_total
 
     def test_single_assertion(self):
         """Test with single assertion."""

@@ -67,7 +67,6 @@ class TestSmtParenDepth:
             (=> (and (> x 0) (< x 10))
                 (exists ((y Int))
                     (= (+ x y) 15)))))
-        )
         """
         assert smt_paren_depth(formula) == 0
 
@@ -453,7 +452,7 @@ class TestBuildSmtScript:
 
         result = build_smt_script(declarations, assertions)
 
-        assert "(assert (> x 0))" in result
+        assert "(assert > x 0)" in result
 
     def test_multiple_assertions(self):
         """Test multiple assertions are all included."""

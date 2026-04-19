@@ -25,7 +25,6 @@ Or programmatically::
 Copyright (c) 2024-2026 The Chimera authors.
 SPDX-License-Identifier: MIT
 """
-
 from __future__ import annotations
 
 import logging

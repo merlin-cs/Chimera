@@ -275,7 +275,7 @@ def insert_push_and_pop(assertions: List[str]) -> List[str]:
         # Emit check-sat
         result.append("(check-sat)")
 
-        # Randomly pop some levels
+        # Randomly pop some levels to enhance test diversity
         if stack_depth > 0:
             pop_count = random.randint(1, stack_depth)
             stack_depth -= pop_count

@@ -150,11 +150,11 @@ class TestExpr:
         simple = Const("true", "Bool")
         assert simple.depth == 0
 
-        # Nested: depth 2
+        # Nested: depth 3
         inner = Expr(NOT, [Var("a", "Bool")])
         middle = Expr(AND, [inner, Var("b", "Bool")])
         outer = Expr(OR, [middle, Var("c", "Bool")])
-        assert outer.depth == 2
+        assert outer.depth == 3  # OR(AND(NOT(a), b), c)
 
     def test_expr_size(self):
         """Test expression size calculation."""

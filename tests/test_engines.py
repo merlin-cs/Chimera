@@ -20,6 +20,18 @@ from chimera.engines.base import (
 from chimera.core.solver_manager import SolverConfig, SolverOutcome, SolverResult
 
 
+@pytest.fixture
+def solver1():
+    """Create solver 1 config."""
+    return SolverConfig(name="z3", binary="/usr/bin/z3")
+
+
+@pytest.fixture
+def solver2():
+    """Create solver 2 config."""
+    return SolverConfig(name="cvc5", binary="/usr/bin/cvc5", base_args=["--strings-exp"])
+
+
 class TestFuzzStats:
     """Tests for FuzzStats dataclass."""
 
@@ -77,16 +89,6 @@ class ConcreteStrategy(FuzzingStrategy):
 
 class TestFuzzingStrategy:
     """Tests for FuzzingStrategy base class."""
-
-    @pytest.fixture
-    def solver1(self):
-        """Create solver 1 config."""
-        return SolverConfig(name="z3", binary="/usr/bin/z3")
-
-    @pytest.fixture
-    def solver2(self):
-        """Create solver 2 config."""
-        return SolverConfig(name="cvc5", binary="/usr/bin/cvc5", base_args=["--strings-exp"])
 
     @pytest.fixture
     def temp_dirs(self):
@@ -301,7 +303,8 @@ class TestFuzzingStrategy:
             stats = strategy.run_campaign(max_iterations=5)
 
             assert mock_iter.call_count == 5
-            assert stats.iterations == 5
+            # stats.iterations is 0 because the mock bypasses the real run_iteration
+            # which increments the counter; verify via call_count instead
 
     def test_run_campaign_keyboard_interrupt(self, solver1, solver2, temp_dirs):
         """Test run_campaign handles keyboard interrupt."""
@@ -317,6 +320,7 @@ class TestFuzzingStrategy:
 
         def interrupt_after_two(*args):
             call_count[0] += 1
+            strategy.stats.iterations += 1  # simulate the real method's counter
             if call_count[0] == 2:
                 raise KeyboardInterrupt()
             return []
@@ -341,6 +345,7 @@ class TestFuzzingStrategy:
 
         def stop_after_10(*args):
             call_count[0] += 1
+            strategy.stats.iterations += 1  # simulate the real method's counter
             if call_count[0] >= 10:
                 raise KeyboardInterrupt()
             return []

@@ -175,8 +175,9 @@ class TestParseFile:
     def test_parse_nonexistent_file(self, temp_dir):
         """Test handling of nonexistent file."""
         nonexistent = temp_dir / "nonexistent.smt2"
-        script, _ = parse_file(str(nonexistent), silent=True)
-        # Should handle gracefully
+        result = parse_file(str(nonexistent), silent=True)
+        # Should handle gracefully by returning None
+        assert result is None
 
 
 class TestTerm:
@@ -263,13 +264,13 @@ class TestDeclareFun:
 
     def test_declare_fun_creation(self):
         """Test declare-fun creation."""
-        decl = DeclareFun(symbol="x", arg_sorts=[], sort="Int")
+        decl = DeclareFun(symbol="x", input_sort="", output_sort="Int")
         assert decl.symbol == "x"
-        assert decl.sort == "Int"
+        assert decl.output_sort == "Int"
 
     def test_declare_fun_str_representation(self):
         """Test string representation of declare-fun."""
-        decl = DeclareFun(symbol="x", arg_sorts=[], sort="Int")
+        decl = DeclareFun(symbol="x", input_sort="", output_sort="Int")
         result = str(decl)
         assert "declare-fun" in result
         assert "x" in result

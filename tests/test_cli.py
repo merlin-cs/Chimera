@@ -227,9 +227,17 @@ class TestMakeSolver:
 class TestConfigureLogging:
     """Tests for logging configuration."""
 
+    def _reset_logging(self):
+        """Reset root logger so basicConfig works again."""
+        import logging
+        root = logging.getLogger()
+        root.handlers.clear()
+        root.setLevel(logging.WARNING)
+
     def test_verbose_logging(self):
         """Test verbose (DEBUG) logging configuration."""
         import logging
+        self._reset_logging()
         _configure_logging(verbose=True, quiet=False)
         # Should set DEBUG level
         assert logging.getLogger().level <= logging.DEBUG or \
@@ -238,6 +246,7 @@ class TestConfigureLogging:
     def test_quiet_logging(self):
         """Test quiet (WARNING) logging configuration."""
         import logging
+        self._reset_logging()
         _configure_logging(verbose=False, quiet=True)
         # Should set WARNING level
         assert logging.getLogger().level >= logging.WARNING or \
@@ -246,6 +255,7 @@ class TestConfigureLogging:
     def test_default_logging(self):
         """Test default (INFO) logging configuration."""
         import logging
+        self._reset_logging()
         _configure_logging(verbose=False, quiet=False)
         # Should set INFO level
         assert logging.getLogger().level <= logging.INFO
