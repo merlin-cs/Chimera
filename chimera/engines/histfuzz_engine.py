@@ -708,11 +708,9 @@ class HistFuzzStrategy(FuzzingStrategy):
                     self._logic_filter,
                 )
                 return None
-            # Prefer same logic if available
-            if self._logic_filter in compatible_logics:
-                target_logic = self._logic_filter
-            else:
-                target_logic = random.choice(list(compatible_logics))
+            # Use the user's target logic; sample_* will fall back to compatible
+            # logics if no exact match exists (e.g., QF_SLIA → QF_S + QF_LIA blocks)
+            target_logic = self._logic_filter
         else:
             compatible_logics = set(self._corpus.skeletons.keys())
             target_logic = random.choice(list(compatible_logics)) if compatible_logics else None

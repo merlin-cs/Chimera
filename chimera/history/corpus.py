@@ -288,8 +288,14 @@ class Corpus:
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     def add_block(self, block: BuildingBlock) -> None:
-        """Add a building block to the corpus."""
+        """Add a building block to the corpus.
+
+        The QF_ prefix is stripped from the logic name because the
+        quantifier-free distinction only matters for skeletons, not blocks.
+        """
         logic = block.logic.upper()
+        if logic.startswith("QF_"):
+            logic = logic[3:]
         if logic not in self.blocks:
             self.blocks[logic] = []
         self.blocks[logic].append(block)
@@ -353,8 +359,21 @@ class Corpus:
         return compatible
 
     def sample_block(self, sort_hint: Optional[str] = None, logic: Optional[str] = None) -> Optional[BuildingBlock]:
-        """Sample a random building block, optionally by sort and logic."""
-        candidates = self.get_blocks(logics={logic} if logic else None)
+        """Sample a random building block, optionally by sort and logic.
+
+        When a logic is specified, samples from any block whose logic is
+        compatible with the target (not just exact match). This allows,
+        for example, --logic QF_SLIA to pull blocks from LIA, S, SLIA, etc.
+        """
+        if logic:
+            # Find all compatible logics (blocks are stored without QF_ prefix)
+            compatible = set()
+            for key in self.blocks:
+                if is_logic_compatible(key, logic):
+                    compatible.add(key)
+            candidates = self.get_blocks(logics=compatible)
+        else:
+            candidates = self.get_blocks()
 
         if sort_hint and candidates:
             # Filter by sort compatibility
@@ -373,11 +392,25 @@ class Corpus:
         logic: Optional[str] = None,
         quantified: Optional[bool] = None,
     ) -> Optional[Skeleton]:
-        """Sample a random skeleton, optionally by logic and quantifier status."""
-        candidates = self.get_skeletons(
-            logics={logic} if logic else None,
-            quantified=quantified,
-        )
+        """Sample a random skeleton, optionally by logic and quantifier status.
+
+        When a logic is specified, samples from any skeleton whose logic is
+        compatible with the target (not just exact match).
+        """
+        if logic:
+            # Find all compatible logics
+            compatible = set()
+            for key in self.skeletons:
+                if is_logic_compatible(key, logic):
+                    compatible.add(key)
+            candidates = self.get_skeletons(
+                logics=compatible,
+                quantified=quantified,
+            )
+        else:
+            candidates = self.get_skeletons(
+                quantified=quantified,
+            )
         return random.choice(candidates) if candidates else None
 
     def statistics(self) -> Dict[str, Any]:
@@ -440,7 +473,7 @@ class Corpus:
             output_dir/
                 metadata.json
                 blocks/
-                    {LOGIC}.json        # Blocks grouped by logic
+                    {LOGIC}.json        # Blocks grouped by logic (QF_ prefix stripped)
                 skeletons_qf.json       # Quantifier-free skeletons (all logics)
                 skeletons_quant.json    # Quantified skeletons (all logics)
         """
@@ -506,12 +539,14 @@ class Corpus:
         # Load blocks from blocks/ directory
         blocks_dir = inp / "blocks"
         if blocks_dir.is_dir():
-            for blocks_file in blocks_dir.glob("*.json"):
+            for blocks_file in sorted(blocks_dir.glob("*.json")):
                 logic = blocks_file.stem  # filename without .json
+                # Strip QF_ prefix for consistency (QF/non-QF blocks are merged)
+                if logic.startswith("QF_"):
+                    logic = logic[3:]
                 with open(blocks_file) as f:
                     for bd in json.load(f):
                         block = BuildingBlock.from_dict(bd)
-                        # Ensure logic matches filename
                         block.logic = logic
                         corpus.add_block(block)
 
