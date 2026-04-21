@@ -13,13 +13,13 @@ import pytest
 from pathlib import Path
 
 # Check for OLD API availability (used by legacy tests)
+SKIP_REASON = "Old History API (SkeletonExtractor, BuildingBlockCorpus) not available"
 try:
     from chimera.history.extractor import SkeletonExtractor, extract_skeleton
     from chimera.history.corpus import BuildingBlockCorpus, BuggySeedCorpus
     OLD_HISTORY_API_AVAILABLE = True
 except ImportError:
     OLD_HISTORY_API_AVAILABLE = False
-    SKIP_REASON = "Old History API (SkeletonExtractor, BuildingBlockCorpus) not available"
 
 # Module-level skip marker only applies to tests that need the old API
 # New tests that use the current API should set pytestmark = [] at class level
