@@ -212,6 +212,55 @@ class Once4AllStrategy(FuzzingStrategy):
         and re-fill holes (diversity amplification).
     """
 
+    # -- theory-incompatibility filter ----------------------------------------
+    #
+    # Some generators produce constructs that only one solver family supports.
+    # When testing the *same* solver against itself (e.g. cvc5-v4 vs cvc5-v3),
+    # those generators are fine.  They are only blocked when the *other* solver
+    # would reject them.
+
+    # Generators that require cvc5-specific features.
+    _CVC5_ONLY_THEORIES = frozenset({
+        "finitefields",         # FiniteField sort not supported by Z3
+        "bags",                 # Bag sort not supported by Z3
+        "sequences",            # seq.* operators have limited cross-solver support
+        "transcendentals",      # real.pi not universally supported
+        "cvc5strings",          # cvc5-specific string extensions
+        "datatypes",            # Tuple/UnitTuple/tuple.project not standard
+        "setsandrelations",     # set.is_empty/set.empty not standard
+        "separationlogic",      # pto/sep/wand — cvc5 supports, Z3 does not
+        "hocore",               # Higher-order -> type syntax — cvc5 supports, Z3 does not
+    })
+
+    # Generators that require Z3-specific features.
+    _Z3_ONLY_THEORIES = frozenset({
+        "z3seq",                # Z3-specific seq extensions
+        "z3characters",         # Unicode sort not standard
+        "z3relation",           # piecewise-linear-order not standard
+    })
+
+    @staticmethod
+    def _incompatible_theories_for(solver1: SolverConfig, solver2: SolverConfig) -> frozenset[str]:
+        """Compute the set of theory keys to block for the given solver pair.
+
+        - If both solvers are cvc5, only Z3-only generators are blocked.
+        - If both solvers are Z3, only cvc5-only generators are blocked.
+        - If the solvers are from different families, both sets are blocked.
+        """
+        s1 = solver1.name.lower()
+        s2 = solver2.name.lower()
+        blocked: set[str] = set()
+
+        # cvc5-only theories: block unless both solvers are cvc5
+        if not (s1.startswith("cvc5") and s2.startswith("cvc5")):
+            blocked |= Once4AllStrategy._CVC5_ONLY_THEORIES
+
+        # Z3-only theories: block unless both solvers are Z3
+        if not (s1.startswith("z3") and s2.startswith("z3")):
+            blocked |= Once4AllStrategy._Z3_ONLY_THEORIES
+
+        return frozenset(blocked)
+
     @property
     def name(self) -> str:
         return "once4all"
@@ -250,9 +299,17 @@ class Once4AllStrategy(FuzzingStrategy):
                 generator_dir, theory_keys=compatible_theories
             )
 
+        # Remove generators incompatible with this solver pair
+        blocked = self._incompatible_theories_for(solver1, solver2)
+        for tlk in blocked:
+            self._registry._registry.pop(tlk, None)
+
         logger.info(
-            "Once4All initialised: %d generators, theories=%s",
+            "Once4All initialised: %d generators (blocked %d for %s vs %s), theories=%s",
             len(self._registry.theory_keys),
+            len(blocked),
+            solver1.name,
+            solver2.name,
             self._registry.theory_keys,
         )
 

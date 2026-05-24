@@ -1,5 +1,5 @@
 """
-Unit tests for generator modules (src/generator/).
+Unit tests for generator modules (generators/).
 
 Tests cover:
 - Generator loading and configuration

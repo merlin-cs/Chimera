@@ -1071,34 +1071,34 @@ def parse_arguments():
         epilog="""
 Examples:
   # Using default LIA example
-  python construct.py
-  
-  # Using custom theory documentation
-  python construct.py --doc-file theory.txt --theory-name "Arrays" --theory-abbrev "arrays"
-  
+  python generators/construct.py
+
+  # Using a bundled theory doc from generators/<backend>/docs/
+  python generators/construct.py --doc-file generators/general/docs/Ints.txt \\
+      --theory-name "Ints" --theory-abbrev "ints"
+
   # Specify LLM backend
   export LLM_BACKEND=anthropic
   export ANTHROPIC_API_KEY=your-key
-  python construct.py --doc-file theory.txt --theory-name "Strings" --theory-abbrev "strings"
-  
-  # Override default model
-  export LLM_MODEL=gpt-4-turbo
-  python construct.py --doc-file bitvectors.txt --theory-name "BitVectors" --theory-abbrev "bv"
-  
+  python generators/construct.py --doc-file generators/general/docs/Strings.txt \\
+      --theory-name "Strings" --theory-abbrev "strings"
+
   # Specify solvers for correction
-  python construct.py --doc-file theory.txt --theory-name "Ints" --theory-abbrev "ints" \\
-                      --solvers /usr/local/bin/z3 /usr/local/bin/cvc5
-  
+  python generators/construct.py --doc-file generators/cvc5/docs/Bags.txt \\
+      --theory-name "Bags" --theory-abbrev "bags" \\
+      --solvers /usr/local/bin/z3 /usr/local/bin/cvc5
+
   # Control correction parameters
-  python construct.py --doc-file theory.txt --theory-name "Reals" --theory-abbrev "reals" \\
-                      --max-iter 15 --sample-size 30 --min-valid 27
+  python generators/construct.py --doc-file generators/general/docs/Reals.txt \\
+      --theory-name "Reals" --theory-abbrev "reals" \\
+      --max-iter 15 --sample-size 30 --min-valid 27
         """
     )
     
     parser.add_argument(
         "--doc-file",
         type=str,
-        help="Path to text file containing theory documentation (if not provided, uses built-in LIA example)"
+        help="Path to theory documentation (see generators/<backend>/docs/ for bundled docs; defaults to built-in LIA example)"
     )
     
     parser.add_argument(
