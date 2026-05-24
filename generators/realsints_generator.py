@@ -69,7 +69,8 @@ class _FormulaGenerator:
 
     def _generate_numeral(self) -> str:
         """Generates a string for an integer literal."""
-        return str(random.randint(-1000, 1000))
+        val = random.randint(0, 1000)
+        return str(val)
 
     def _generate_positive_numeral(self) -> str:
         """Generates a string for a positive integer literal (> 0)."""
@@ -77,7 +78,7 @@ class _FormulaGenerator:
 
     def _generate_decimal(self) -> str:
         """Generates a string for a real literal."""
-        val = random.uniform(-1000.0, 1000.0)
+        val = random.uniform(0, 1000.0)
         # SMT-LIB requires at least one digit after the decimal point for reals
         return f"{val:.4f}"
 

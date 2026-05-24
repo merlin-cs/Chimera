@@ -29,7 +29,7 @@ _MAX_ARITY = 4
 _MAX_LET_BINDINGS = 3
 _MIN_VARS = 2
 _MAX_VARS = 8
-_NUMERAL_RANGE = (-100, 100)
+_NUMERAL_RANGE = (0, 100)
 _POS_NUMERAL_RANGE = (1, 100)
 _SYMBOL_LEN = 6
 
@@ -103,9 +103,9 @@ class _FormulaGenerator:
         productions = [
             self._gen_bool_terminal, self._gen_bool_not, self._gen_bool_n_ary_op,
             self._gen_bool_eq_distinct, self._gen_bool_ite, self._gen_bool_let,
-            self._gen_bool_int_relation, self._gen_bool_divisible,
+            self._gen_bool_int_relation,
         ]
-        weights = [10, 4, 10, 8, 6, 5, 10, 2] if depth < _MAX_DEPTH - 1 else [10, 1, 0, 0, 0, 0, 0, 0]
+        weights = [10, 4, 10, 8, 6, 5, 10] if depth < _MAX_DEPTH - 1 else [10, 1, 0, 0, 0, 0, 0]
         chosen_production = random.choices(productions, weights=weights, k=1)[0]
         return chosen_production(depth)
 

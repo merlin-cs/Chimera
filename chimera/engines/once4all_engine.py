@@ -217,6 +217,24 @@ class Once4AllStrategy(FuzzingStrategy):
         and re-fill holes (diversity amplification).
     """
 
+    # -- generators known to produce solver-incompatible output ---
+    _INCOMPATIBLE_THEORIES = frozenset({
+        "finitefields",     # FiniteField sort not supported
+        "bags",             # Bag sort not supported by Z3
+        "separationlogic",  # pto/sep/wand not supported in standard mode
+        "datatypes",        # Tuple/UnitTuple/tuple.project not standard
+        "sequences",        # seq.* operators have limited cross-solver support
+        "floatingpoint",    # FP sizes vary; Float16 unsupported by both solvers
+        "transcendentals",  # real.pi not universally supported
+        "z3seq",            # Z3-specific seq extensions
+        "z3characters",     # Unicode sort not standard
+        "cvc5strings",      # cvc5-specific string extensions
+        "hocore",           # Higher-order with -> type syntax
+        "fixedsizebitvectors",  # BV overflow/conversion ops vary between solvers
+        "z3relation",       # piecewise-linear-order not standard
+        "setsandrelations", # set.is_empty/set.empty not standard
+    })
+
     @property
     def name(self) -> str:
         return "once4all"
@@ -255,6 +273,10 @@ class Once4AllStrategy(FuzzingStrategy):
                 generator_dir, theory_keys=compatible_theories
             )
 
+        # Remove known incompatible generators
+        for tlk in self._INCOMPATIBLE_THEORIES:
+            self._registry._registry.pop(tlk, None)
+
         logger.info(
             "Once4All initialised: %d generators, theories=%s",
             len(self._registry.theory_keys),
@@ -263,35 +285,75 @@ class Once4AllStrategy(FuzzingStrategy):
 
     # -- generation ----------------------------------------------------------
 
-    def generate(self) -> Optional[str]:
-        """Invoke a random generator and return an SMT-LIB string."""
-        theory_key = self._registry.sample_key(self._theories)
-        if theory_key is None:
-            logger.warning("Once4All: no generators available")
-            return None
+    def generate(self, max_retries: int = 5) -> Optional[str]:
+        """Invoke a random generator, validate output, and return an SMT-LIB string."""
+        for _ in range(max_retries):
+            theory_key = self._registry.sample_key(self._theories)
+            if theory_key is None:
+                logger.warning("Once4All: no generators available")
+                return None
 
-        gen_fn = self._registry.get(theory_key)
-        if gen_fn is None:
-            return None
+            gen_fn = self._registry.get(theory_key)
+            if gen_fn is None:
+                return None
 
-        try:
-            result = gen_fn()
-        except Exception:
-            logger.debug("Generator '%s' raised an exception", theory_key, exc_info=True)
-            return None
+            try:
+                result = gen_fn()
+            except Exception:
+                logger.debug("Generator '%s' raised an exception", theory_key, exc_info=True)
+                continue
 
-        formula_str = self._unpack_generator_result(result)
-        if formula_str is None:
-            return None
+            formula_str = self._unpack_generator_result(result)
+            if formula_str is None:
+                continue
 
-        # Ensure check-sat is present
-        if "(check-sat)" not in formula_str:
-            formula_str += "\n(check-sat)"
+            # Ensure check-sat is present
+            if "(check-sat)" not in formula_str:
+                formula_str += "\n(check-sat)"
 
-        if self._merge_skeletons:
-            formula_str = self._skeleton_amplify(formula_str) or formula_str
+            if self._merge_skeletons:
+                formula_str = self._skeleton_amplify(formula_str) or formula_str
 
-        return formula_str
+            # Validate the generated formula
+            if self._validate_formula(formula_str):
+                return formula_str
+
+            logger.debug("Once4All: rejected formula from generator '%s'", theory_key)
+
+        return None
+
+    @staticmethod
+    def _validate_formula(formula: str) -> bool:
+        """Return True if *formula* contains no known incompatible constructs."""
+        import re
+
+        # Filter known solver-incompatible sorts
+        for bad in ("FiniteField", "Bag ", "RegLan", "UnitTuple", "Tuple ",
+                    "Unicode"):
+            if bad in formula:
+                return False
+
+        # Filter solver-incompatible functions
+        for bad in ("seq.", "pto ", "sep.emp", "wand ", "int_to_bv",
+                    "piecewise-linear-order", "bvsmulo", "bvumulo",
+                    "ubv_to_int", "bv_to_int"):
+            if bad in formula:
+                return False
+
+        # Filter 'divisible' predicate — not universally supported
+        if re.search(r'\(\s*divisible\b', formula) or re.search(r'(_\s+divisible)', formula):
+            return False
+
+        # Filter invalid SMT-LIB2: standalone negative decimals like "-8.74"
+        if re.search(r"(?<![-(\w])-\d+\.\d+(?![\w])", formula):
+            return False
+
+        # Filter invalid SMT-LIB2: standalone negative numbers like "-5"
+        # that cvc5 parses as a symbol. Valid negative numerals use "(- N)".
+        if re.search(r"(?<=[\s(])-\d+(?=[\s,)])", formula):
+            return False
+
+        return True
 
     # -- helpers -------------------------------------------------------------
 

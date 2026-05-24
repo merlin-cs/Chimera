@@ -33,19 +33,12 @@ class GeneratorState:
         self.symbol_table = {}  # sort -> [var_name, ...]
 
         # --- Sort Configuration ---
-        # Standard FP sorts
+        # Standard FP sorts only (Float16, Float32, Float64) — skip random custom sizes
         self.fp_sorts = [
             "(_ FloatingPoint 5 11)",  # Float16
             "(_ FloatingPoint 8 24)",  # Float32
             "(_ FloatingPoint 11 53)", # Float64
         ]
-        # Add a random custom FP sort
-        eb = random.randint(4, 12)
-        sb = random.randint(8, 60)
-        if eb > 1 and sb > 1:
-            self.fp_sorts.append(f"(_ FloatingPoint {eb} {sb})")
-        
-        self.fp_sorts = list(set(self.fp_sorts)) # Ensure uniqueness
 
         # Derive BV sorts from FP sorts
         self.bv_sorts = []

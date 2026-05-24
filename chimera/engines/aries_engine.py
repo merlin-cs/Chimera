@@ -606,8 +606,90 @@ class AriesStrategy(FuzzingStrategy):
 
     # -- generation ----------------------------------------------------------
 
-    def generate(self) -> Optional[str]:
+    def generate(self, max_retries: int = 10) -> Optional[str]:
         """Mutate a random seed and return the resulting SMT-LIB string."""
+        for _ in range(max_retries):
+            formula_str = self._generate_once()
+            if formula_str is None:
+                continue
+            # Validate using quick static checks
+            if not self._validate_formula_static(formula_str):
+                logger.debug("Aries: rejected formula (static check)")
+                continue
+            # Validate by running both solvers with short timeout
+            if self._validate_formula_solvers(formula_str):
+                return formula_str
+            logger.debug("Aries: rejected formula (solver check)")
+        return None
+
+    def _validate_formula_solvers(self, formula: str) -> bool:
+        """Run both solvers with short timeout. Return True if both accept."""
+        import subprocess
+        import tempfile
+
+        s1 = self.solver1
+        s2 = self.solver2
+
+        try:
+            fd, tmp = tempfile.mkstemp(suffix='.smt2')
+            with os.fdopen(fd, 'w') as f:
+                f.write(formula)
+
+            # Run solver 1
+            try:
+                r1 = subprocess.run(
+                    [s1.binary] + list(s1.base_args) + [tmp],
+                    capture_output=True, text=True, timeout=3
+                )
+                out1 = (r1.stdout + (r1.stderr or '')).lower()
+                if r1.returncode != 0 or '(error' in out1:
+                    os.unlink(tmp)
+                    return False
+            except (subprocess.TimeoutExpired, OSError):
+                pass
+
+            # Run solver 2
+            try:
+                r2 = subprocess.run(
+                    [s2.binary] + list(s2.base_args) + [tmp],
+                    capture_output=True, text=True, timeout=3
+                )
+                out2 = (r2.stdout + (r2.stderr or '')).lower()
+                if r2.returncode != 0 or '(error' in out2:
+                    os.unlink(tmp)
+                    return False
+            except (subprocess.TimeoutExpired, OSError):
+                pass
+
+            os.unlink(tmp)
+            return True
+        except OSError:
+            return True
+
+    @staticmethod
+    def _validate_formula_static(formula: str) -> bool:
+        """Quick static check before running solvers."""
+        # Check parentheses balance
+        depth = 0
+        for ch in formula:
+            if ch == '(':
+                depth += 1
+            elif ch == ')':
+                depth -= 1
+            if depth < 0:
+                return False
+        if depth != 0:
+            return False
+
+        # Reject known unsupported constants
+        for bad in ("real.pi", "any_int", "any_bool"):
+            if bad in formula:
+                return False
+
+        return True
+
+    def _generate_once(self) -> Optional[str]:
+        """Internal: perform one mutation attempt."""
         if not self._seed_paths:
             logger.warning("Aries: no seed files")
             return None
