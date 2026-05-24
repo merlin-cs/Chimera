@@ -27,31 +27,308 @@ import re
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Set, Tuple
 
+from chimera.core.differential_oracle import OracleConfig
+from chimera.core.formula_builder import build_smt_script, validate_formula
 from chimera.core.smt_ast import (
     Assert,
-    CheckSat,
     DeclareConst,
     DeclareFun,
-    Expr,
-    Hole,
     HoleCollector,
     Script,
     SkeletonExtractor,
     SmtSort,
     Term,
-    TermKind,
-    Var,
     collect_all_basic_subformulas,
-    is_hole,
 )
 from chimera.core.smt_parser import parse_file, parse_string
 from chimera.core.solver_manager import SolverConfig
-from chimera.core.differential_oracle import OracleConfig
 from chimera.engines.base import FuzzingStrategy
-from chimera.core.formula_builder import validate_formula, build_smt_script
-from chimera.core.logic_analyzer import is_logic_compatible
 
 logger = logging.getLogger(__name__)
+
+
+_BOOL_SORT = "Bool"
+_INT_SORT = "Int"
+_REAL_SORT = "Real"
+_UNKNOWN_SORT = "Unknown"
+
+_BOOLEAN_OPS = {"not", "and", "or", "xor", "=>", "implies"}
+_BOOLEAN_RESULT_OPS = _BOOLEAN_OPS | {"=", "distinct", "<", "<=", ">", ">="}
+_ARITHMETIC_OPS = {"+", "-", "*", "/", "div", "mod", "abs"}
+_BUILTIN_APPS = _BOOLEAN_RESULT_OPS | _ARITHMETIC_OPS | {
+    "ite",
+    "store",
+    "select",
+    "str.++",
+    "str.len",
+    "str.contains",
+    "str.prefixof",
+    "str.suffixof",
+    "str.indexof",
+    "str.replace",
+    "str.substr",
+}
+_UNSAFE_LEGACY_BLOCK_OPS = {"store", "select"}
+
+
+def _sort_key(sort: Optional[SmtSort]) -> Optional[str]:
+    if sort is None:
+        return None
+    return str(sort)
+
+
+def _is_unknown_sort(sort: Optional[SmtSort]) -> bool:
+    return _sort_key(sort) in (None, "", _UNKNOWN_SORT)
+
+
+def _op_name(op: object) -> str:
+    if isinstance(op, Term):
+        return op.name or str(op)
+    return str(op)
+
+
+def _force_unknown_sort(term: Term, sort: SmtSort) -> None:
+    """Propagate an expected sort through unknown leaves in simple expressions."""
+    if _is_unknown_sort(term.type):
+        term.type = sort
+    if term.is_var or term.is_const:
+        return
+    if term.subterms:
+        for sub in term.subterms:
+            if isinstance(sub, Term):
+                _force_unknown_sort(sub, sort)
+
+
+def _rename_term_symbols(term: Term, suffix: str) -> None:
+    """Rename variable symbols inside a sampled block to avoid sort collisions."""
+    rename_map: Dict[str, str] = {}
+
+    def renamed(name: str) -> str:
+        if name not in rename_map:
+            if name.startswith("|") and name.endswith("|") and len(name) >= 2:
+                rename_map[name] = f"{name[:-1]}_{suffix}|"
+            else:
+                rename_map[name] = f"{name}_{suffix}"
+        return rename_map[name]
+
+    def walk(node: Term) -> None:
+        if node.quantified_vars and len(node.quantified_vars) >= 2:
+            names, sorts = node.quantified_vars
+            new_names = []
+            for name in names:
+                new_names.append(renamed(str(name)))
+            node.quantified_vars = (new_names, sorts)
+
+        if node.is_var and node.name:
+            node.name = renamed(node.name)
+
+        if node.subterms:
+            for sub in node.subterms:
+                if isinstance(sub, Term):
+                    walk(sub)
+        if node.let_terms:
+            for sub in node.let_terms:
+                if isinstance(sub, Term):
+                    walk(sub)
+
+    walk(term)
+
+
+def _infer_term_types(term: Term, variables: Dict[str, SmtSort]) -> Optional[SmtSort]:
+    """Infer enough SMT sorts for HistFuzz type-compatible hole filling.
+
+    The ANTLR AST is mostly syntactic and often leaves expression types as
+    ``Unknown``. HistFuzz needs a conservative sort tag to avoid filling Bool
+    holes with Int fragments and vice versa.
+    """
+    if term.is_var and term.name in variables:
+        term.type = variables[term.name]
+        return term.type
+    if term.is_const or term.is_var:
+        return term.type
+
+    if term.quantifier is not None:
+        local_vars = dict(variables)
+        if term.quantified_vars and len(term.quantified_vars) >= 2:
+            names, sorts = term.quantified_vars
+            for name, sort in zip(names, sorts):
+                local_vars[name] = sort
+        if term.subterms:
+            for sub in term.subterms:
+                if isinstance(sub, Term):
+                    _infer_term_types(sub, local_vars)
+                    _force_unknown_sort(sub, _BOOL_SORT)
+        term.type = _BOOL_SORT
+        return term.type
+
+    child_sorts: List[Optional[SmtSort]] = []
+    if term.subterms:
+        for sub in term.subterms:
+            if isinstance(sub, Term):
+                child_sorts.append(_infer_term_types(sub, variables))
+
+    if term.op is None:
+        return term.type
+
+    op = _op_name(term.op)
+
+    if op in _BOOLEAN_OPS:
+        if term.subterms:
+            for sub in term.subterms:
+                if isinstance(sub, Term):
+                    _force_unknown_sort(sub, _BOOL_SORT)
+        term.type = _BOOL_SORT
+        return term.type
+
+    if op in {"=", "distinct"}:
+        known = [s for s in child_sorts if not _is_unknown_sort(s)]
+        if known and term.subterms:
+            expected = known[0]
+            for sub in term.subterms:
+                if isinstance(sub, Term):
+                    _force_unknown_sort(sub, expected)
+        term.type = _BOOL_SORT
+        return term.type
+
+    if op in {"<", "<=", ">", ">="}:
+        if term.subterms:
+            for sub in term.subterms:
+                if isinstance(sub, Term):
+                    _force_unknown_sort(sub, _INT_SORT)
+        term.type = _BOOL_SORT
+        return term.type
+
+    if op in _ARITHMETIC_OPS:
+        result_sort: SmtSort = (
+            _REAL_SORT if any(_sort_key(s) == _REAL_SORT for s in child_sorts) else _INT_SORT
+        )
+        if term.subterms:
+            for sub in term.subterms:
+                if isinstance(sub, Term):
+                    _force_unknown_sort(sub, result_sort)
+        term.type = result_sort
+        return term.type
+
+    if op == "ite" and len(child_sorts) >= 3:
+        if term.subterms and isinstance(term.subterms[0], Term):
+            _force_unknown_sort(term.subterms[0], _BOOL_SORT)
+        branch_sorts = [s for s in child_sorts[1:] if not _is_unknown_sort(s)]
+        if branch_sorts:
+            term.type = branch_sorts[0]
+        return term.type
+
+    if op == "store" and child_sorts:
+        if not _is_unknown_sort(child_sorts[0]):
+            term.type = child_sorts[0]
+        return term.type
+
+    if op == "str.len":
+        if term.subterms and isinstance(term.subterms[0], Term):
+            _force_unknown_sort(term.subterms[0], "String")
+        term.type = _INT_SORT
+        return term.type
+
+    if op in {"str.contains", "str.prefixof", "str.suffixof"}:
+        if term.subterms:
+            for sub in term.subterms:
+                if isinstance(sub, Term):
+                    _force_unknown_sort(sub, "String")
+        term.type = _BOOL_SORT
+        return term.type
+
+    if op == "str.++":
+        if term.subterms:
+            for sub in term.subterms:
+                if isinstance(sub, Term):
+                    _force_unknown_sort(sub, "String")
+        term.type = "String"
+        return term.type
+
+    if op == "str.substr" and term.subterms:
+        if isinstance(term.subterms[0], Term):
+            _force_unknown_sort(term.subterms[0], "String")
+        for sub in term.subterms[1:]:
+            if isinstance(sub, Term):
+                _force_unknown_sort(sub, _INT_SORT)
+        term.type = "String"
+        return term.type
+
+    if op == "str.indexof" and term.subterms:
+        for sub in term.subterms[:2]:
+            if isinstance(sub, Term):
+                _force_unknown_sort(sub, "String")
+        for sub in term.subterms[2:]:
+            if isinstance(sub, Term):
+                _force_unknown_sort(sub, _INT_SORT)
+        term.type = _INT_SORT
+        return term.type
+
+    if op == "str.replace" and term.subterms:
+        for sub in term.subterms:
+            if isinstance(sub, Term):
+                _force_unknown_sort(sub, "String")
+        term.type = "String"
+        return term.type
+
+    # A parsed function symbol can carry a declaration signature in its type.
+    if isinstance(term.op, Term) and not _is_unknown_sort(term.op.type):
+        parts = str(term.op.type).split()
+        if parts:
+            term.type = parts[-1]
+
+    return term.type
+
+
+def _infer_script_types(script: Script) -> Dict[str, SmtSort]:
+    variables: Dict[str, SmtSort] = {}
+    for cmd in script.commands:
+        if isinstance(cmd, DeclareConst):
+            variables[cmd.symbol] = cmd.sort
+        elif isinstance(cmd, DeclareFun) and cmd.input_sort == "":
+            variables[cmd.symbol] = cmd.output_sort
+
+    for cmd in script.commands:
+        if isinstance(cmd, Assert):
+            _infer_term_types(cmd.term, variables)
+            _force_unknown_sort(cmd.term, _BOOL_SORT)
+
+    return variables
+
+
+def _is_usable_block(term: Term) -> bool:
+    """Reject fragments that cannot be safely re-declared in generated scripts."""
+    seen_vars: Dict[str, str] = {}
+
+    def _has_conflicting_var_sorts(node: Term) -> bool:
+        if node.is_var and node.name:
+            sort = _sort_key(node.type)
+            previous = seen_vars.get(node.name)
+            if previous is not None and previous != sort:
+                return True
+            if sort is not None:
+                seen_vars[node.name] = sort
+        return any(_has_conflicting_var_sorts(sub) for sub in node.children())
+
+    if _has_conflicting_var_sorts(term):
+        return False
+    if _is_unknown_sort(term.type):
+        return False
+    if term.is_var or term.is_const:
+        return True
+    if term.quantifier is not None:
+        return all(_is_usable_block(sub) for sub in term.children())
+    if term.op is not None:
+        op = _op_name(term.op)
+        if op in _UNSAFE_LEGACY_BLOCK_OPS:
+            return False
+        arity = len(term.subterms or [])
+        if op in {"+", "*"} and arity < 2:
+            return False
+        if op in {"/", "div", "mod"} and arity != 2:
+            return False
+        if op not in _BUILTIN_APPS:
+            return False
+    return all(_is_usable_block(sub) for sub in term.children())
 
 
 # ---------------------------------------------------------------------------
@@ -70,11 +347,15 @@ class BuildingBlockPool:
         # sort_str → list of (term, {var_name: sort})
         self._pool: Dict[str, List[Tuple[Term, Dict[str, SmtSort]]]] = {}
         self._all: List[Tuple[Term, Dict[str, SmtSort]]] = []
+        self._sample_counter = 0
 
     # -- population ----------------------------------------------------------
 
     def add(self, term: Term, variables: Dict[str, SmtSort]) -> None:
         """Add a single building block."""
+        _infer_term_types(term, variables)
+        if not _is_usable_block(term):
+            return
         sort_key = str(term.type) if term.type else "Bool"
         entry = (term.clone(), dict(variables))
         self._pool.setdefault(sort_key, []).append(entry)
@@ -82,14 +363,10 @@ class BuildingBlockPool:
 
     def add_from_script(self, script: Script) -> None:
         """Extract all atomic sub-terms from *script* and add them."""
+        # Build a variable→sort map from the script declarations and infer
+        # expression sorts before collecting basic fragments.
+        var_map = _infer_script_types(script)
         basics = collect_all_basic_subformulas(script)
-        # Build a variable→sort map from the script declarations
-        var_map: Dict[str, SmtSort] = {}
-        for cmd in script.commands:
-            if isinstance(cmd, DeclareConst):
-                var_map[cmd.symbol] = cmd.sort
-            elif isinstance(cmd, DeclareFun) and cmd.input_sort == "":
-                var_map[cmd.symbol] = cmd.output_sort
         for term, _idx in basics:
             self.add(term, var_map)
 
@@ -102,7 +379,7 @@ class BuildingBlockPool:
         shuffled = list(paths)
         random.shuffle(shuffled)
         for p in shuffled[:max_seeds]:
-            result = parse_file(str(p), silent=True)
+            result = parse_file(str(p), timeout=5, silent=True)
             if result is None:
                 continue
             script, _globs = result
@@ -127,7 +404,10 @@ class BuildingBlockPool:
             if not candidates:
                 return None
         term, _vars = random.choice(candidates)
-        return term.clone()
+        sampled = term.clone()
+        self._sample_counter += 1
+        _rename_term_symbols(sampled, f"hf{self._sample_counter}")
+        return sampled
 
     @property
     def total(self) -> int:
@@ -160,10 +440,12 @@ class SkeletonStore:
         Returns the number of newly added skeletons.
         """
         added = 0
+        _infer_script_types(script)
         extractor = SkeletonExtractor(rename_quantified=rename_quantified)
         for cmd in script.commands:
             if not isinstance(cmd, Assert):
                 continue
+            _force_unknown_sort(cmd.term, _BOOL_SORT)
             skeleton_term = extractor.transform(cmd.term)
             key = str(skeleton_term)
             # Skip let-bindings (complex to fill)
@@ -175,16 +457,23 @@ class SkeletonStore:
                 added += 1
         return added
 
-    def add_from_files(self, paths: Sequence[str | Path]) -> int:
+    def add_from_files(self, paths: Sequence[str | Path], *, max_seeds: int = 100) -> int:
         """Extract skeletons from a list of ``.smt2`` files."""
         total_added = 0
-        for p in paths:
-            result = parse_file(str(p), silent=True)
+        shuffled = list(paths)
+        random.shuffle(shuffled)
+        for p in shuffled[:max_seeds]:
+            result = parse_file(str(p), timeout=5, silent=True)
             if result is None:
                 continue
             script, _globs = result
             total_added += self.add_from_script(script)
-        logger.info("Loaded %d unique skeletons from %d files", total_added, len(paths))
+        logger.info(
+            "Loaded %d unique skeletons from %d/%d seed files",
+            total_added,
+            min(max_seeds, len(paths)),
+            len(paths),
+        )
         return total_added
 
     def add_from_skeleton_file(self, path: str | Path) -> int:
@@ -329,7 +618,8 @@ class HistFuzzStrategy(FuzzingStrategy):
 
         if use_new_corpus:
             # Use new logic-aware corpus system
-            from chimera.history.corpus import Corpus, BuildingBlockPool as NewPool
+            from chimera.history.corpus import BuildingBlockPool as NewPool
+            from chimera.history.corpus import Corpus
 
             self._corpus: Optional[Corpus] = None
             self._pool: Optional[NewPool] = None
@@ -346,7 +636,7 @@ class HistFuzzStrategy(FuzzingStrategy):
                 )
             elif seed_dir and os.path.isdir(seed_dir):
                 # Extract corpus from seed files
-                from chimera.history.extractor import LogicAwareExtractor, extract_corpus
+                from chimera.history.extractor import extract_corpus
                 logger.info("Extracting corpus from seed directory: %s", seed_dir)
                 self._corpus = extract_corpus(seed_dir, seed_dir + "_corpus")
                 self._pool = NewPool(self._corpus)
@@ -380,7 +670,7 @@ class HistFuzzStrategy(FuzzingStrategy):
 
             # Also extract skeletons from seed files
             if seed_paths:
-                self._skeletons.add_from_files(seed_paths[:200])
+                self._skeletons.add_from_files(seed_paths)
 
             logger.info(
                 "HistFuzz initialised (legacy mode): %d skeletons, %d building blocks",
@@ -390,7 +680,7 @@ class HistFuzzStrategy(FuzzingStrategy):
 
     # -- generation ----------------------------------------------------------
 
-    def generate(self) -> Optional[str]:
+    def generate(self, max_retries: int = 1) -> Optional[str]:
         """Produce a formula by filling random skeletons with building blocks.
 
         If logic filtering is enabled, only uses skeletons and building blocks
@@ -404,7 +694,6 @@ class HistFuzzStrategy(FuzzingStrategy):
 
     def _generate_with_corpus(self) -> Optional[str]:
         """Generate formula using the new logic-aware corpus."""
-        from chimera.history.corpus import BuildingBlock
 
         if not self._corpus or not self._corpus.skeletons:
             logger.warning("HistFuzz (new corpus): empty corpus")
@@ -419,11 +708,9 @@ class HistFuzzStrategy(FuzzingStrategy):
                     self._logic_filter,
                 )
                 return None
-            # Prefer same logic if available
-            if self._logic_filter in compatible_logics:
-                target_logic = self._logic_filter
-            else:
-                target_logic = random.choice(list(compatible_logics))
+            # Use the user's target logic; sample_* will fall back to compatible
+            # logics if no exact match exists (e.g., QF_SLIA → QF_S + QF_LIA blocks)
+            target_logic = self._logic_filter
         else:
             compatible_logics = set(self._corpus.skeletons.keys())
             target_logic = random.choice(list(compatible_logics)) if compatible_logics else None
@@ -609,7 +896,12 @@ class HistFuzzStrategy(FuzzingStrategy):
 
     # -- helpers -------------------------------------------------------------
 
-    def _collect_declarations(self, term: Term, decls: List[str]) -> None:
+    def _collect_declarations(
+        self,
+        term: Term,
+        decls: List[str],
+        bound: Optional[Set[str]] = None,
+    ) -> None:
         """Walk *term* and emit ``declare-const`` for every variable found.
 
         Handles edge cases:
@@ -619,23 +911,29 @@ class HistFuzzStrategy(FuzzingStrategy):
         """
         if isinstance(term, str):
             return
+        bound = bound or set()
 
         # Check if this is a quantified term — bound vars are not declared
         if term.quantifier is not None:
+            q_bound = set(bound)
+            if term.quantified_vars and len(term.quantified_vars) >= 2:
+                q_bound.update(str(name) for name in term.quantified_vars[0])
             # Skip bound variables; recurse into body
             if term.subterms:
                 for sub in term.subterms:
                     if isinstance(sub, Term):
-                        self._collect_declarations(sub, decls)
+                        self._collect_declarations(sub, decls, q_bound)
             return
 
         # Collect let-bound variable names so we don't declare them
         let_bound: Set[str] = set()
+        if term.var_binders:
+            let_bound.update(str(name) for name in term.var_binders)
         if term.let_terms:
             for lt in term.let_terms:
                 if isinstance(lt, Term):
-                    # let-binding vars are handled within the let scope
-                    self._collect_declarations(lt, decls)
+                    self._collect_declarations(lt, decls, bound)
+        scoped_bound = bound | let_bound
 
         if term.is_var and term.name:
             type_str = str(term.type) if term.type else None
@@ -644,7 +942,7 @@ class HistFuzzStrategy(FuzzingStrategy):
             if type_str and (type_str == "Unknown" or re.match(r"^TYPE\d+$", type_str)):
                 pass  # fall through to skip
             # Skip let-bound variable names
-            elif term.name in let_bound:
+            elif term.name in scoped_bound:
                 pass
             elif type_str and type_str not in ("Unknown", None):
                 # Known type — emit declaration
@@ -660,7 +958,7 @@ class HistFuzzStrategy(FuzzingStrategy):
         if term.subterms:
             for sub in term.subterms:
                 if isinstance(sub, Term):
-                    self._collect_declarations(sub, decls)
+                    self._collect_declarations(sub, decls, scoped_bound)
 
     @staticmethod
     def _is_valid_sort(sort_str: str) -> bool:

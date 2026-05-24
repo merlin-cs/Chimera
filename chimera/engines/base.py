@@ -92,7 +92,7 @@ class FuzzingStrategy(ABC):
         ...
 
     @abstractmethod
-    def generate(self) -> Optional[str]:
+    def generate(self, max_retries: int = 1) -> Optional[str]:
         """Produce a single SMT-LIB formula string.
 
         Returns ``None`` when the engine has nothing to generate (e.g.

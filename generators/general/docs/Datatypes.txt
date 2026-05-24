@@ -1,0 +1,452 @@
+# Datatypes
+
+cvc5 extends the SMT‑LIB 2 support for (co)datatypes with some extra features and a C++ API.
+
+## Enabling datatypes
+
+To use the decision procedure for datatypes, choose a logic that contains `DT`, for example:
+
+```smt
+(set-logic QF_DT)
+```
+
+or simply use:
+
+```smt
+(set-logic ALL)
+```
+
+## Declaring datatypes (SMT‑LIB syntax)
+
+Mutually recursive datatypes are declared with:
+
+```smt
+(declare-datatypes ((D1 n1) ... (Dk nk))
+  (((C1 (S11 T1) ... (S1i Ti)) ... (Cj ...))
+   ...
+   ((...) ... (...))))
+```
+
+- `D1 ... Dk` are datatype names.
+- Each `ni` is the number of type parameters of `Di` (0 for non‑parametric).
+- `C1 ... Cj` are constructors of `D1`.
+- `S11 ... S1i` are selectors (fields) of constructor `C1`.
+- `T1 ... Ti` are already defined types or one of `D1 ... Dk`.
+
+For each constructor `C`, cvc5 automatically provides:
+
+- A tester (discriminator): `((_ is C) t)` – true iff `t`’s top constructor is `C`.
+- For each selector `Sij`, an updater: `((_ update Sij) t u)` – see below.
+
+The decision procedure for inductive datatypes is described in [BST07].
+
+## Examples of datatype declarations
+
+Enumeration:
+
+```smt
+(declare-datatypes ((Color 0))
+  (((Red) (Black))))
+```
+
+List of Int:
+
+```smt
+(declare-datatypes ((list 0))
+  (((cons (head Int) (tail list)) (nil))))
+```
+
+Parametric list:
+
+```smt
+(declare-datatypes ((list 1))
+  ((par (T)
+     ((cons (head T) (tail (list T))) (nil)))))
+```
+
+Mutual recursion between `list` and `tree`:
+
+```smt
+(declare-datatypes ((list 0) (tree 0))
+  (((cons (head tree) (tail list)) (nil))
+   ((node (data Int) (children list)))))
+```
+
+Non‑recursive record type:
+
+```smt
+(declare-datatypes ((record 0))
+  (((rec (fname String) (lname String) (id Int)))))
+```
+
+## Example uses
+
+Lists:
+
+```smt
+(declare-datatypes ((list 0))
+  (((cons (head Int) (tail list)) (nil))))
+(declare-const a list)
+(declare-const b list)
+(assert (and (= (tail a) b)
+             (not ((_ is nil) b))
+             (> (head b) 0)))
+(check-sat)
+```
+
+Records:
+
+```smt
+(declare-datatypes ((record 0))
+  (((rec (fname String) (lname String) (id Int)))))
+(declare-const x record)
+(assert (and (= (fname x) "John")
+             (= (lname x) "Smith")))
+(check-sat)
+```
+
+## Datatype updaters
+
+Updaters are a cvc5 extension. The term
+
+```smt
+((_ update Sij) t u)
+```
+
+means: “take `t` and replace the field selected by `Sij` with `u` if `Sij` applies to the constructor of `t`; otherwise leave `t` unchanged”.
+
+For the `list` datatype:
+
+```smt
+((_ update head) (cons 4 nil) 7)               = (cons 7 nil)
+((_ update tail) (cons 4 nil) (cons 5 nil))   = (cons 4 (cons 5 nil))
+((_ update head) nil 5)                       = nil
+```
+
+Conceptually, this behaves like an `ite` (if‑then‑else) checking `t`’s constructor and rebuilding it.
+
+## Parametric datatypes
+
+Parametric datatypes must be instantiated with concrete types.
+
+Example declaration:
+
+```smt
+(declare-datatypes ((list 1))
+  ((par (T)
+     ((cons (head T) (tail (list T))) (nil)))))
+```
+
+Instantiate a list of Int:
+
+```smt
+(declare-const f (list Int))
+```
+
+Ambiguous uses of constructors such as `nil` must be type‑cast:
+
+```smt
+(as nil (list Int))
+```
+
+## Tuples
+
+Tuples are implemented as a special kind of datatype, but have dedicated syntax.
+
+Declaration and use:
+
+```smt
+(declare-const t (Tuple Int Int))
+(assert (= ((_ tuple.select 0) t) 3))
+(assert (not (= t (tuple 3 4))))
+```
+
+## Codatatypes
+
+Codatatypes are co‑inductive versions of datatypes (e.g., infinite streams), as in [RB15].
+
+Syntax is the same as for datatypes, but using `declare-codatatypes`:
+
+```smt
+(declare-codatypes ((stream 0))
+  (((cons (head Int) (tail stream)))))
+```
+
+This declares streams of integers.
+
+---
+
+# Syntax and C++ API correspondence
+
+Assume:
+
+```cpp
+cvc5::Solver solver;
+```
+
+Below, “SMT‑LIB language” shows the input syntax; “C++ API” shows how to build the same objects via the API.
+
+---
+
+## Logic
+
+- SMT‑LIB:
+
+  ```smt
+  (set-logic QF_DT)
+  ```
+
+- C++:
+
+  ```cpp
+  solver.setLogic("QF_DT");
+  ```
+
+## Datatype sort (single)
+
+- SMT‑LIB: `(declare-datatype ...)`
+- C++:
+
+  ```cpp
+  Sort s = solver.mkDatatypeSort(...);
+  ```
+
+## Datatype sorts (mutually recursive)
+
+- SMT‑LIB: `(declare-datatypes ...)`
+- C++:
+
+  ```cpp
+  std::vector<Sort> s = solver.mkDatatypeSorts(...);
+  ```
+
+## Constructors
+
+- SMT‑LIB term:
+
+  ```smt
+  (Ci <Term_1> ... <Term_n>)
+  ```
+
+- C++:
+
+  ```cpp
+  Sort s = solver.mkDatatypeSort(...);
+  Datatype dt = s.getDatatype();
+  Term ci = dt[i].getTerm(); // i‑th constructor
+  Term r = solver.mkTerm(Kind::APPLY_CONSTRUCTOR,
+                         {ci, <Term_1>, ..., <Term_n>});
+  ```
+
+## Selectors
+
+- SMT‑LIB term:
+
+  ```smt
+  (Sij t)
+  ```
+
+- C++:
+
+  ```cpp
+  Sort s = solver.mkDatatypeSort(...);
+  Datatype dt = s.getDatatype();
+  Term sij = dt[i].getSelector(j).getTerm();
+  Term r = solver.mkTerm(Kind::APPLY_SELECTOR, {sij, t});
+  ```
+
+## Updaters
+
+- SMT‑LIB term:
+
+  ```smt
+  ((_ update Sij) t u)
+  ```
+
+- C++:
+
+  ```cpp
+  Sort s = solver.mkDatatypeSort(...);
+  Datatype dt = s.getDatatype();
+  Term upd = dt[i].getSelector(j).getUpdaterTerm();
+  Term r = solver.mkTerm(Kind::APPLY_UPDATER, {upd, t, u});
+  ```
+
+## Testers
+
+- SMT‑LIB term:
+
+  ```smt
+  ((_ is Ci) t)
+  ```
+
+- C++:
+
+  ```cpp
+  Sort s = solver.mkDatatypeSort(...);
+  Datatype dt = s.getDatatype();
+  Term tst = dt[i].getTesterTerm();
+  Term r = solver.mkTerm(Kind::APPLY_TESTER, {tst, t});
+  ```
+
+*(The original text seems to have an extra `u` in the parameter list; logically testers are unary.)*
+
+## Tuple sorts
+
+- SMT‑LIB sort:
+
+  ```smt
+  (Tuple <Sort_1> ... <Sort_n>)
+  ```
+
+- C++:
+
+  ```cpp
+  std::vector<cvc5::Sort> sorts = { ... };
+  Sort s = solver.mkTupleSort(sorts);
+  ```
+
+Declaring a constant of tuple sort:
+
+- SMT‑LIB:
+
+  ```smt
+  (declare-const t (Tuple Int Int))
+  ```
+
+- C++:
+
+  ```cpp
+  Sort s_int = solver.getIntegerSort();
+  Sort s = solver.mkTupleSort({s_int, s_int});
+  Term t = solver.mkConst(s, "t");
+  ```
+
+## Tuple constructor
+
+- SMT‑LIB:
+
+  ```smt
+  (tuple <Term_1> ... <Term_n>)
+  ```
+
+- C++:
+
+  ```cpp
+  Term r = solver.mkTuple({<Term_1>, ..., <Term_n>});
+  ```
+
+## Unit tuple
+
+- SMT‑LIB sort: `UnitTuple`
+- SMT‑LIB term: `tuple.unit`
+
+- C++:
+
+  ```cpp
+  Sort s = solver.mkTupleSort({});
+  Term r = solver.mkTuple({});
+  ```
+
+## Tuple selector
+
+- SMT‑LIB:
+
+  ```smt
+  ((_ tuple.select i) t)
+  ```
+
+- C++:
+
+  ```cpp
+  Sort s = solver.mkTupleSort(sorts);
+  Datatype dt = s.getDatatype();
+  Term sel = dt[0].getSelector(i).getTerm();
+  Term r = solver.mkTerm(Kind::APPLY_SELECTOR, {sel, t});
+  ```
+
+## Tuple updater
+
+- SMT‑LIB:
+
+  ```smt
+  ((_ tuple.update i) t u)
+  ```
+
+- C++:
+
+  ```cpp
+  Sort s = solver.mkTupleSort(sorts);
+  Datatype dt = s.getDatatype();
+  Term upd = dt[0].getSelector(i).getUpdaterTerm();
+  Term r = solver.mkTerm(Kind::APPLY_UPDATER, {upd, t, u});
+  ```
+
+## Tuple projection
+
+Projecting selected components of a tuple:
+
+- SMT‑LIB:
+
+  ```smt
+  ((_ tuple.project i1 ... in) t)
+  ```
+
+- C++:
+
+  ```cpp
+  Sort s = solver.mkTupleSort(sorts);
+  Datatype dt = s.getDatatype();
+  Term proj = solver.mkOp(Kind::TUPLE_PROJECT, {i1, ..., in});
+  Term r = solver.mkTerm(Kind::TUPLE_PROJECT, {proj, t});
+  ```
+
+## Records
+
+There is no direct SMT‑LIB record syntax shown here, but records are implemented as datatypes in the API.
+
+### Record sort
+
+- C++:
+
+  ```cpp
+  std::vector<std::pair<std::string, Sort>> fields;
+  fields.push_back(std::pair<std::string, Sort>("fst", solver.getIntegerSort()));
+  fields.push_back(std::pair<std::string, Sort>("snd", solver.getIntegerSort()));
+  Sort s = mkRecordSort(fields);
+  ```
+
+### Record constructor
+
+- C++:
+
+  ```cpp
+  Sort s = mkRecordSort(fields);
+  Datatype dt = s.getDatatype();
+  Term c = dt[0].getTerm(); // the record constructor
+  Term r = solver.mkTerm(Kind::APPLY_CONSTRUCTOR,
+                         {c, <Term_1>, ..., <Term_n>});
+  ```
+
+### Record selectors
+
+- C++:
+
+  ```cpp
+  Sort s = mkRecordSort(fields);
+  Datatype dt = s.getDatatype();
+  Term sel = dt[0].getSelector(name).getSelectorTerm();
+  Term r = solver.mkTerm(Kind::APPLY_SELECTOR, {sel, t});
+  ```
+
+### Record updaters
+
+- C++:
+
+  ```cpp
+  Sort s = solver.mkRecordSort(sorts);
+  Datatype dt = s.getDatatype();
+  Term upd = dt[0].getSelector(name).getUpdaterTerm();
+  Term r = solver.mkTerm(Kind::APPLY_UPDATER, {upd, t, u});
+  ```
+

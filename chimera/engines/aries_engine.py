@@ -606,8 +606,41 @@ class AriesStrategy(FuzzingStrategy):
 
     # -- generation ----------------------------------------------------------
 
-    def generate(self) -> Optional[str]:
+    def generate(self, max_retries: int = 10) -> Optional[str]:
         """Mutate a random seed and return the resulting SMT-LIB string."""
+        for _ in range(max_retries):
+            formula_str = self._generate_once()
+            if formula_str is None:
+                continue
+            if self._validate_formula_static(formula_str):
+                return formula_str
+            logger.debug("Aries: rejected formula (static check)")
+        return None
+
+    @staticmethod
+    def _validate_formula_static(formula: str) -> bool:
+        """Quick static check before running solvers."""
+        # Check parentheses balance
+        depth = 0
+        for ch in formula:
+            if ch == '(':
+                depth += 1
+            elif ch == ')':
+                depth -= 1
+            if depth < 0:
+                return False
+        if depth != 0:
+            return False
+
+        # Reject known unsupported constants
+        for bad in ("real.pi", "any_int", "any_bool"):
+            if bad in formula:
+                return False
+
+        return True
+
+    def _generate_once(self) -> Optional[str]:
+        """Internal: perform one mutation attempt."""
         if not self._seed_paths:
             logger.warning("Aries: no seed files")
             return None

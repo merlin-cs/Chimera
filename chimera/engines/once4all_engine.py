@@ -41,6 +41,7 @@ from chimera.core.smt_parser import parse_string
 from chimera.core.solver_manager import SolverConfig
 from chimera.core.differential_oracle import OracleConfig
 from chimera.engines.base import FuzzingStrategy
+from chimera.config.generator_config import BACKEND_DIRS
 
 logger = logging.getLogger(__name__)
 
@@ -73,26 +74,10 @@ class GeneratorRegistry:
         *,
         theory_keys: Optional[Sequence[str]] = None,
     ) -> int:
-        """Auto-discover and load generator modules from *directory*.
+        """Auto-discover and load generator modules from *directory* and subdirs.
 
-        Each module is expected to expose a function named::
-
-            generate_<module_base>_formula_with_decls
-
-        or one of several common variants (see
-        :func:`_candidate_function_names`).
-
-        Parameters
-        ----------
-        directory
-            Root directory containing ``<theory>_generator.py`` files.
-        theory_keys
-            If given, only load these theory keys.
-
-        Returns
-        -------
-        int
-            Number of generators successfully loaded.
+        Searches the root directory and known backend subdirectories
+        (``general``, ``cvc5``, ``z3``).
         """
         root = Path(directory)
         if not root.is_dir():
@@ -100,19 +85,29 @@ class GeneratorRegistry:
             return 0
 
         loaded = 0
-        for py_file in sorted(root.glob("*_generator.py")):
-            module_base = py_file.stem.replace("_generator", "")
-            if theory_keys and module_base not in theory_keys:
-                continue
-            fn = _load_generator_function(py_file, module_base)
-            if fn is not None:
-                self._registry[module_base] = fn
-                loaded += 1
+        attempted = 0
+        # Scan root AND known backend subdirectories
+        search_dirs = [root]
+        for subdir in BACKEND_DIRS:
+            sub = root / subdir
+            if sub.is_dir():
+                search_dirs.append(sub)
+
+        for search_dir in search_dirs:
+            for py_file in sorted(search_dir.glob("*_generator.py")):
+                module_base = py_file.stem.replace("_generator", "")
+                if theory_keys and module_base not in theory_keys:
+                    continue
+                attempted += 1
+                fn = _load_generator_function(py_file, module_base)
+                if fn is not None:
+                    self._registry[module_base] = fn
+                    loaded += 1
 
         logger.info(
             "Loaded %d/%d generators from %s",
             loaded,
-            len(list(root.glob("*_generator.py"))),
+            attempted,
             root,
         )
         return loaded
@@ -217,6 +212,55 @@ class Once4AllStrategy(FuzzingStrategy):
         and re-fill holes (diversity amplification).
     """
 
+    # -- theory-incompatibility filter ----------------------------------------
+    #
+    # Some generators produce constructs that only one solver family supports.
+    # When testing the *same* solver against itself (e.g. cvc5-v4 vs cvc5-v3),
+    # those generators are fine.  They are only blocked when the *other* solver
+    # would reject them.
+
+    # Generators that require cvc5-specific features.
+    _CVC5_ONLY_THEORIES = frozenset({
+        "finitefields",         # FiniteField sort not supported by Z3
+        "bags",                 # Bag sort not supported by Z3
+        "sequences",            # seq.* operators have limited cross-solver support
+        "transcendentals",      # real.pi not universally supported
+        "cvc5strings",          # cvc5-specific string extensions
+        "datatypes",            # Tuple/UnitTuple/tuple.project not standard
+        "setsandrelations",     # set.is_empty/set.empty not standard
+        "separationlogic",      # pto/sep/wand — cvc5 supports, Z3 does not
+        "hocore",               # Higher-order -> type syntax — cvc5 supports, Z3 does not
+    })
+
+    # Generators that require Z3-specific features.
+    _Z3_ONLY_THEORIES = frozenset({
+        "z3seq",                # Z3-specific seq extensions
+        "z3characters",         # Unicode sort not standard
+        "z3relation",           # piecewise-linear-order not standard
+    })
+
+    @staticmethod
+    def _incompatible_theories_for(solver1: SolverConfig, solver2: SolverConfig) -> frozenset[str]:
+        """Compute the set of theory keys to block for the given solver pair.
+
+        - If both solvers are cvc5, only Z3-only generators are blocked.
+        - If both solvers are Z3, only cvc5-only generators are blocked.
+        - If the solvers are from different families, both sets are blocked.
+        """
+        s1 = solver1.name.lower()
+        s2 = solver2.name.lower()
+        blocked: set[str] = set()
+
+        # cvc5-only theories: block unless both solvers are cvc5
+        if not (s1.startswith("cvc5") and s2.startswith("cvc5")):
+            blocked |= Once4AllStrategy._CVC5_ONLY_THEORIES
+
+        # Z3-only theories: block unless both solvers are Z3
+        if not (s1.startswith("z3") and s2.startswith("z3")):
+            blocked |= Once4AllStrategy._Z3_ONLY_THEORIES
+
+        return frozenset(blocked)
+
     @property
     def name(self) -> str:
         return "once4all"
@@ -247,7 +291,7 @@ class Once4AllStrategy(FuzzingStrategy):
         self._merge_skeletons = merge_skeletons
         self._registry = GeneratorRegistry()
 
-        # Populate the registry
+        # Populate the registry — directory loading now searches subdirs
         if legacy_generators:
             self._registry.load_from_existing_loader(legacy_generators)
         if generator_dir:
@@ -255,43 +299,81 @@ class Once4AllStrategy(FuzzingStrategy):
                 generator_dir, theory_keys=compatible_theories
             )
 
+        # Remove generators incompatible with this solver pair
+        blocked = self._incompatible_theories_for(solver1, solver2)
+        for tlk in blocked:
+            self._registry._registry.pop(tlk, None)
+
         logger.info(
-            "Once4All initialised: %d generators, theories=%s",
+            "Once4All initialised: %d generators (blocked %d for %s vs %s), theories=%s",
             len(self._registry.theory_keys),
+            len(blocked),
+            solver1.name,
+            solver2.name,
             self._registry.theory_keys,
         )
 
     # -- generation ----------------------------------------------------------
 
-    def generate(self) -> Optional[str]:
-        """Invoke a random generator and return an SMT-LIB string."""
-        theory_key = self._registry.sample_key(self._theories)
-        if theory_key is None:
-            logger.warning("Once4All: no generators available")
-            return None
+    def generate(self, max_retries: int = 5) -> Optional[str]:
+        """Invoke a random generator, validate output, and return an SMT-LIB string."""
+        for _ in range(max_retries):
+            theory_key = self._registry.sample_key(self._theories)
+            if theory_key is None:
+                logger.warning("Once4All: no generators available")
+                return None
 
-        gen_fn = self._registry.get(theory_key)
-        if gen_fn is None:
-            return None
+            gen_fn = self._registry.get(theory_key)
+            if gen_fn is None:
+                logger.debug("Once4All: no function for theory key '%s'", theory_key)
+                continue
 
-        try:
-            result = gen_fn()
-        except Exception:
-            logger.debug("Generator '%s' raised an exception", theory_key, exc_info=True)
-            return None
+            try:
+                result = gen_fn()
+            except Exception:
+                logger.debug("Generator '%s' raised an exception", theory_key, exc_info=True)
+                continue
 
-        formula_str = self._unpack_generator_result(result)
-        if formula_str is None:
-            return None
+            formula_str = self._unpack_generator_result(result)
+            if formula_str is None:
+                continue
 
-        # Ensure check-sat is present
-        if "(check-sat)" not in formula_str:
-            formula_str += "\n(check-sat)"
+            # Ensure check-sat is present
+            if "(check-sat)" not in formula_str:
+                formula_str += "\n(check-sat)"
 
-        if self._merge_skeletons:
-            formula_str = self._skeleton_amplify(formula_str) or formula_str
+            if self._merge_skeletons:
+                formula_str = self._skeleton_amplify(formula_str) or formula_str
 
-        return formula_str
+            # Validate the generated formula
+            if self._validate_formula(formula_str):
+                return formula_str
+
+            logger.debug("Once4All: rejected formula from generator '%s'", theory_key)
+
+        return None
+
+    @staticmethod
+    def _validate_formula(formula: str) -> bool:
+        """Return True if *formula* has valid SMT-LIB2 syntax."""
+        # Parenthesis balance
+        depth = 0
+        for ch in formula:
+            if ch == '(':
+                depth += 1
+            elif ch == ')':
+                depth -= 1
+            if depth < 0:
+                return False
+        if depth != 0:
+            return False
+
+        # Reject leaked placeholders
+        for bad in ("any_int", "any_bool", "real.pi"):
+            if bad in formula:
+                return False
+
+        return True
 
     # -- helpers -------------------------------------------------------------
 

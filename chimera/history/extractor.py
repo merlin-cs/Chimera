@@ -483,6 +483,9 @@ class LogicAwareExtractor:
 
         Returns all non-connective subterms that can be used to fill
         skeleton holes.
+
+        For variable-free terms, logic is inferred from the operators used
+        rather than inherited from the source file.
         """
         blocks = []
         basics = collect_all_basic_subformulas(script, rename_quantified=False)
@@ -495,10 +498,18 @@ class LogicAwareExtractor:
                 # Collect function dependencies
                 func_deps = self._collect_func_deps(term, func_decls)
 
+                # Determine logic for this building block
+                if not self._term_has_variables(term):
+                    # Variable-free term: infer logic from operators
+                    block_logic = self._infer_logic_from_term(term)
+                else:
+                    # Term contains variables: use file's logic
+                    block_logic = logic
+
                 # Create building block
                 block = BuildingBlock(
                     term_smt2=str(term),
-                    logic=logic,
+                    logic=block_logic,
                     sort_deps=sort_deps,
                     func_deps=func_deps,
                     var_decls=var_decls,
@@ -521,6 +532,251 @@ class LogicAwareExtractor:
                 if isinstance(s, Term) and self._term_has_quantifier(s):
                     return True
         return False
+
+    def _term_has_variables(self, term: Term) -> bool:
+        """Check if a term contains any variable references.
+
+        Variables are terms with is_var=True, meaning they reference declared
+        variables (not constants or operators).
+
+        Note: Indexed literals like (_ bv1 8) or (_ +oo 8 24) may have is_var=True
+        but are actually constants, not variables. We detect these by their name
+        pattern starting with "(_ ".
+
+        Similarly, rounding mode constants (RNE, RNA, RTZ, RTN, RTP) are built-in
+        constants, not variables.
+        """
+        # Built-in rounding mode constants
+        ROUNDING_MODES = frozenset({"RNE", "RNA", "RTZ", "RTN", "RTP"})
+
+        def is_indexed_literal(t: Term) -> bool:
+            """Check if term is an indexed literal (BV or FP constant)."""
+            if t.name and t.name.startswith("(_ "):
+                return True
+            return False
+
+        def is_builtin_constant(t: Term) -> bool:
+            """Check if term is a built-in constant (rounding modes, etc.)."""
+            if t.name and t.name in ROUNDING_MODES:
+                return True
+            return False
+
+        if term.is_var:
+            # Check if this is actually an indexed literal or built-in constant
+            if is_indexed_literal(term) or is_builtin_constant(term):
+                return False
+            return True
+        if term.subterms:
+            for s in term.subterms:
+                if isinstance(s, Term) and self._term_has_variables(s):
+                    return True
+        # Check quantified variables as well
+        # quantified_vars can be: {} (empty dict), tuple of two lists, or None
+        if term.quantifier is not None:
+            # This is a quantifier term - it binds variables
+            # The quantified variables are bound but count as variables
+            if term.quantified_vars:
+                if isinstance(term.quantified_vars, tuple) and len(term.quantified_vars) >= 1:
+                    qvars = term.quantified_vars[0]
+                    if qvars:
+                        return True
+        return False
+
+    def _infer_logic_from_term(self, term: Term) -> str:
+        """Infer the minimal logic required for a term based on operators used.
+
+        This is used for variable-free terms to determine their actual logic
+        requirements, rather than inheriting the file's logic classification.
+
+        Analysis order (most specific first):
+        1. String operators -> QF_S
+        2. Bitvector operators -> QF_BV
+        3. Floating-point operators -> QF_FP
+        4. Array operators -> QF_AUFLIA (or simpler)
+        5. Integer arithmetic -> QF_LIA or QF_NIA
+        6. Real arithmetic -> QF_LRA or QF_NRA
+        7. Core/Boolean only -> QF_UF
+        8. Unclear/ambiguous -> "general"
+        """
+        from chimera.core.types import (
+            CORE_OPS, NUMERICAL_OPS, INT_OPS, REAL_OPS,
+            STRING_OPS, ARRAY_OPS, BV_OPS, FP_OPS,
+        )
+
+        term_str = str(term)
+
+        # Collect all operators used in the term
+        operators: Set[str] = set()
+        has_nonlinear = False
+
+        # Track types found by inspecting subterm.type and subterm.name
+        has_int_type = False    # From explicit Int type
+        has_real_type = False   # From explicit Real type
+        has_bv_type = False     # From BitVec type
+        has_fp_type = False     # From FloatingPoint type
+        has_string_type = False  # From String type
+        has_array_type = False  # From Array type
+        has_unknown_type = False  # Unknown type (could be FP literal)
+
+        def collect_info(t: Term) -> None:
+            """Collect operators and type information from term tree."""
+            nonlocal has_nonlinear
+            nonlocal has_int_type, has_real_type, has_bv_type, has_fp_type
+            nonlocal has_string_type, has_array_type, has_unknown_type
+
+            # Collect operator
+            if t.op is not None:
+                if isinstance(t.op, str):
+                    operators.add(t.op)
+                    if t.op == "*":
+                        has_nonlinear = True
+                    # Check for FP operator prefix
+                    if t.op.startswith("fp.") or t.op == "fp":
+                        has_fp_type = True
+                elif isinstance(t.op, Term):
+                    op_str = str(t.op)
+                    op_name = op_str.split(":")[0]
+                    operators.add(op_name)
+                    if op_name == "*":
+                        has_nonlinear = True
+                    if op_name.startswith("fp.") or op_name == "fp":
+                        has_fp_type = True
+
+            # Check type attribute
+            if t.type:
+                type_str = str(t.type)
+                if "BitVec" in type_str:
+                    has_bv_type = True
+                elif "FloatingPoint" in type_str:
+                    has_fp_type = True
+                elif type_str == "Int":
+                    has_int_type = True
+                elif type_str == "Real":
+                    has_real_type = True
+                elif type_str == "String":
+                    has_string_type = True
+                elif type_str == "Bool":
+                    pass  # Boolean is core, doesn't affect logic
+                elif type_str == "Unknown":
+                    has_unknown_type = True
+                elif "Array" in type_str:
+                    has_array_type = True
+
+            # Check name attribute for indexed literals
+            # BV literals: (_ bvN width) like (_ bv1 8), (_ bv255 32)
+            # FP literals: (_ +oo eb sb), (_ NaN eb sb), (_ +zero eb sb)
+            if t.name:
+                name = t.name
+                # Bit-vector indexed literals: (_ bv<digits> <width>)
+                if name.startswith("(_ bv") or "(_ BitVec" in name:
+                    has_bv_type = True
+                # FP indexed literals: (_ +oo ...), (_ -oo ...), (_ NaN ...), (_ +zero ...), (_ -zero ...)
+                elif name.startswith("(_ +oo") or name.startswith("(_ -oo"):
+                    has_fp_type = True
+                elif name.startswith("(_ NaN") or name.startswith("(_ +zero") or name.startswith("(_ -zero"):
+                    has_fp_type = True
+                # FP infinity/zero names without underscore prefix
+                elif name in ("+oo", "-oo", "NaN", "+zero", "-zero"):
+                    has_fp_type = True
+
+            # Recurse into subterms
+            if t.subterms:
+                for s in t.subterms:
+                    if isinstance(s, Term):
+                        collect_info(s)
+
+        collect_info(term)
+
+        # Also check operators for BV/FP/String/Array
+        has_bv_ops = any(op in operators for op in BV_OPS)
+        has_fp_ops = any(op in operators for op in FP_OPS)
+        has_string_ops = any(op in operators for op in STRING_OPS)
+        has_array_ops = any(op in operators for op in ARRAY_OPS)
+        has_int_ops = any(op in operators for op in INT_OPS)
+        has_real_ops = any(op in operators for op in REAL_OPS)
+        has_arith_ops = any(op in operators for op in NUMERICAL_OPS)
+
+        # Combine type and operator information
+        has_strings = has_string_type or has_string_ops
+        has_bv = has_bv_type or has_bv_ops
+        has_fp = has_fp_type or has_fp_ops
+        has_arrays = has_array_type or has_array_ops
+        has_int = has_int_type or has_int_ops
+        has_real = has_real_type or has_real_ops
+
+        # Detect Int/Real by looking for numeric literals in the term string
+        # But be careful: (_ bv1 8) contains "1" and "8" but they're BV indices, not Int
+        if not has_int and not has_real and not has_bv and not has_fp:
+            import re
+            # Check for integer literals (whole numbers not followed by .)
+            # But exclude numbers in BV literal patterns like (_ bv1 8)
+            # by checking the whole context
+            if re.search(r'(?<!\.)\b\d+\b(?!\.)', term_str):
+                # If this looks like a BV literal pattern, don't mark as Int
+                if not re.search(r'\(_\s*bv\d+\s+\d+\)', term_str):
+                    has_int = True
+            # Check for real literals (numbers with decimal point)
+            if re.search(r'\d+\.\d*', term_str) or re.search(r'\.\d+', term_str):
+                has_real = True
+
+        # Build logic name based on theories detected
+        # Priority: Strings > BV > FP > Arrays > Arithmetic > Core
+
+        if has_strings:
+            return "QF_S"
+
+        # Pure bitvector (no mixing with arithmetic or FP)
+        if has_bv and not has_fp and not has_arrays and not has_int and not has_real:
+            return "QF_BV"
+
+        # Pure floating-point
+        if has_fp and not has_bv and not has_arrays and not has_int and not has_real:
+            return "QF_FP"
+
+        if has_arrays:
+            parts = ["QF", "A"]
+            if has_int or has_real:
+                parts.append("UFLIA" if has_int else "UFLRA")
+            else:
+                parts.append("UF")
+            return "".join(parts)
+
+        # Arithmetic logics
+        if has_int and has_real:
+            if has_nonlinear:
+                return "QF_NIRA"
+            return "QF_LIRA"
+        elif has_int:
+            if has_nonlinear:
+                return "QF_NIA"
+            return "QF_LIA"
+        elif has_real:
+            if has_nonlinear:
+                return "QF_NRA"
+            return "QF_LRA"
+
+        # Check for arithmetic operators even without explicit types
+        if has_int_ops:
+            if has_nonlinear:
+                return "QF_NIA"
+            return "QF_LIA"
+        if has_real_ops:
+            if has_nonlinear:
+                return "QF_NRA"
+            return "QF_LRA"
+        if has_arith_ops:
+            return "QF_LIA"
+
+        # Only core Boolean operators (and, or, not, =>, true, false, =, distinct, ite)
+        if operators <= set(CORE_OPS) or not (operators - set(CORE_OPS)):
+            return "QF_UF"
+
+        # Has unknown types or operators we can't classify -> use "general"
+        if has_unknown_type or (operators and not (operators <= set(CORE_OPS))):
+            return "general"
+
+        # Default: use UF as fallback
+        return "QF_UF"
 
     def _collect_sort_deps(self, term: Term) -> Set[str]:
         """Collect all non-built-in sort dependencies from a term."""
