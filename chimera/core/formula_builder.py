@@ -21,7 +21,7 @@ import re
 import random
 from typing import Dict, FrozenSet, List, Optional, Set, Tuple
 
-from chimera.core.smt_ast import DeclareFun, Script, Assert, CheckSat
+from chimera.core.smt_ast import DeclareConst, DeclareFun, Script, Assert, CheckSat, SMTLIBCommand
 from chimera.core.smt_parser import parse_string
 from chimera.core.logic_analyzer import parse_logic, is_builtin_sort
 
@@ -627,7 +627,11 @@ def validate_formula(
 
         # Collect declarations
         for cmd in parsed.commands:
-            if isinstance(cmd, DeclareFun):
+            if isinstance(cmd, DeclareConst):
+                declared_symbols.add(cmd.symbol)
+                if not is_builtin_sort(str(cmd.sort)):
+                    declared_sorts.add(str(cmd.sort))
+            elif isinstance(cmd, DeclareFun):
                 declared_symbols.add(cmd.symbol)
                 # Extract sorts from declaration
                 if cmd.input_sort and cmd.input_sort != "":
@@ -638,6 +642,20 @@ def validate_formula(
                     out_sort = str(cmd.output_sort)
                     if not is_builtin_sort(out_sort):
                         declared_sorts.add(out_sort)
+            elif isinstance(cmd, SMTLIBCommand):
+                # Generic command — parse declare-const/declare-fun from string
+                text = cmd.cmd_str.strip()
+                if text.startswith("(declare-const "):
+                    parts = text.split()
+                    if len(parts) >= 3:
+                        declared_symbols.add(parts[1])
+                        sort_name = parts[2].rstrip(")")
+                        if not is_builtin_sort(sort_name):
+                            declared_sorts.add(sort_name)
+                elif text.startswith("(declare-fun "):
+                    parts = text.split()
+                    if len(parts) >= 4:
+                        declared_symbols.add(parts[1])
 
         # Collect uses from assertions
         for cmd in parsed.assert_cmd if hasattr(parsed, 'assert_cmd') else []:

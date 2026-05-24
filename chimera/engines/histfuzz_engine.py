@@ -822,7 +822,7 @@ class HistFuzzStrategy(FuzzingStrategy):
         script = build_smt_script(
             declarations=unique_decls,
             assertions=asserts,
-            logic="ALL",  # Use ALL since we filter at generation time
+            logic=self._logic_filter or "ALL",
         )
 
         # Sanitize: SkeletonExtractor renames quantifier variable types to
@@ -869,7 +869,10 @@ class HistFuzzStrategy(FuzzingStrategy):
                 seen_decls.add(d)
                 unique_decls.append(d)
 
-        parts = unique_decls + asserts + ["(check-sat)"]
+        parts = ["(set-logic %s)" % (self._logic_filter or "ALL")]
+        parts.extend(unique_decls)
+        parts.extend(asserts)
+        parts.append("(check-sat)")
         formula = "\n".join(parts)
 
         # Sanitize: SkeletonExtractor renames quantifier variable types to
