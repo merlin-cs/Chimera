@@ -54,7 +54,7 @@ GENERATOR_NAME_MAP = {
     "cvc5strings": ("cvc5strings", "cvc5strings"),  # CVC5-specific strings
     "trans": ("transcendentals", "transcendentals"),  # Transcendentals (newly added)
     "sep": ("separationlogic", "separationlogic"),    # Separation logic (newly added)
-    "z3_seq": ("sequences", "sequences"),  # Z3 sequences map to the same as CVC5
+    "z3_seq": ("z3seq", "z3seq"),  # Z3-specific sequences (alias for z3seq)
     "z3seq": ("z3seq", "z3seq"),
     "z3characters": ("z3characters", "z3characters"),
     "z3relation": ("z3relation", "z3relation"),
@@ -90,6 +90,9 @@ def get_new_generator_name(original_name: str) -> str:
 
 GENERATOR_PROFILE = "gemini"
 
+# Backend subdirectories searched during generator discovery.
+BACKEND_DIRS: tuple[str, ...] = ("general", "cvc5", "z3")
+
 
 def expected_generator_filename(module_name: str) -> str:
     """Return the expected filename for a generator module."""
@@ -107,7 +110,7 @@ def find_generator_module_path(module_name: str) -> str | None:
         return str(candidate)
 
     # Search known backend subdirectories
-    for subdir in ("general", "cvc5", "z3"):
+    for subdir in BACKEND_DIRS:
         candidate = root / subdir / filename
         if candidate.exists():
             return str(candidate)

@@ -41,6 +41,7 @@ from chimera.core.smt_parser import parse_string
 from chimera.core.solver_manager import SolverConfig
 from chimera.core.differential_oracle import OracleConfig
 from chimera.engines.base import FuzzingStrategy
+from chimera.config.generator_config import BACKEND_DIRS
 
 logger = logging.getLogger(__name__)
 
@@ -84,9 +85,10 @@ class GeneratorRegistry:
             return 0
 
         loaded = 0
+        attempted = 0
         # Scan root AND known backend subdirectories
         search_dirs = [root]
-        for subdir in ("general", "cvc5", "z3"):
+        for subdir in BACKEND_DIRS:
             sub = root / subdir
             if sub.is_dir():
                 search_dirs.append(sub)
@@ -96,14 +98,16 @@ class GeneratorRegistry:
                 module_base = py_file.stem.replace("_generator", "")
                 if theory_keys and module_base not in theory_keys:
                     continue
+                attempted += 1
                 fn = _load_generator_function(py_file, module_base)
                 if fn is not None:
                     self._registry[module_base] = fn
                     loaded += 1
 
         logger.info(
-            "Loaded %d generators from %s",
+            "Loaded %d/%d generators from %s",
             loaded,
+            attempted,
             root,
         )
         return loaded
@@ -208,9 +212,6 @@ class Once4AllStrategy(FuzzingStrategy):
         and re-fill holes (diversity amplification).
     """
 
-    # Backend subdirectories scanned during generator discovery.
-    _BACKEND_DIRS = ("general", "cvc5", "z3")
-
     @property
     def name(self) -> str:
         return "once4all"
@@ -267,7 +268,8 @@ class Once4AllStrategy(FuzzingStrategy):
 
             gen_fn = self._registry.get(theory_key)
             if gen_fn is None:
-                return None
+                logger.debug("Once4All: no function for theory key '%s'", theory_key)
+                continue
 
             try:
                 result = gen_fn()

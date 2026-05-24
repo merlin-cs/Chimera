@@ -4,13 +4,12 @@ import random
 # SMT-LIB2 Keywords to avoid
 # ============================================================================
 SMTLIB_KEYWORDS = {
-    'and', 'or', 'not', 'xor', 'ite', 'true', 'false', 'let', 'exists', 
+    'and', 'or', 'not', 'xor', 'ite', 'true', 'false', 'let', 'exists',
     'forall', 'assert', 'declare-fun', 'declare-const', 'define-fun',
     'check-sat', 'get-model', 'set-logic', 'set-option', 'distinct',
     'concat', 'extract', 'bvnot', 'bvneg', 'bvand', 'bvor', 'bvadd',
     'bvmul', 'bvudiv', 'bvurem', 'bvshl', 'bvlshr', 'bvult',
-    'bvuaddo', 'bvsaddo', 'bvumulo', 'bvsmulo',
-    'int_to_bv', 'ubv_to_int', 'sbv_to_int', 'Bool', 'Int', 'BitVec'
+    'Bool', 'Int', 'BitVec'
 }
 
 # ============================================================================

@@ -680,7 +680,7 @@ class HistFuzzStrategy(FuzzingStrategy):
 
     # -- generation ----------------------------------------------------------
 
-    def generate(self) -> Optional[str]:
+    def generate(self, max_retries: int = 1) -> Optional[str]:
         """Produce a formula by filling random skeletons with building blocks.
 
         If logic filtering is enabled, only uses skeletons and building blocks
