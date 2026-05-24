@@ -94,9 +94,9 @@ def generate_bv_term(ctx, width, allow_let=True):
         choices.append('let')
     
     if ctx.depth < ctx.max_depth - 1:
-        choices.extend(['concat', 'extract', 'bvnot', 'bvneg', 'bvand', 'bvor', 
-                       'bvadd', 'bvmul', 'bvudiv', 'bvurem', 'bvshl', 'bvlshr', 
-                       'ite', 'int_to_bv'])
+        choices.extend(['concat', 'extract', 'bvnot', 'bvneg', 'bvand', 'bvor',
+                       'bvadd', 'bvmul', 'bvudiv', 'bvurem', 'bvshl', 'bvlshr',
+                       'ite'])
     
     choice = random.choice(choices)
     
@@ -151,9 +151,6 @@ def generate_bv_term(ctx, width, allow_let=True):
         t1 = generate_bv_term(ctx, width, allow_let=False)
         t2 = generate_bv_term(ctx, width, allow_let=False)
         result = f"(ite {cond} {t1} {t2})"
-    elif choice == 'int_to_bv':
-        int_term = generate_int_term(ctx, allow_let=False)
-        result = f"((_ int_to_bv {width}) {int_term})"
     else:
         result = generate_bv_literal(width)
     
@@ -173,7 +170,7 @@ def generate_int_term(ctx, allow_let=True):
     choices = ['literal', 'var']
     
     if ctx.depth < ctx.max_depth - 1:
-        choices.extend(['ubv_to_int', 'sbv_to_int', 'ite'])
+        choices.extend(['ite'])
     
     choice = random.choice(choices)
     
@@ -186,14 +183,6 @@ def generate_int_term(ctx, allow_let=True):
             name = generate_name()
             ctx.add_int_var(name)
             result = name
-    elif choice == 'ubv_to_int':
-        width = random.choice([8, 16, 32])
-        bv = generate_bv_term(ctx, width, allow_let=False)
-        result = f"(ubv_to_int {bv})"
-    elif choice == 'sbv_to_int':
-        width = random.choice([8, 16, 32])
-        bv = generate_bv_term(ctx, width, allow_let=False)
-        result = f"(sbv_to_int {bv})"
     elif choice == 'ite':
         cond = generate_bool_term(ctx, allow_let=False)
         t1 = generate_int_term(ctx, allow_let=False)
@@ -221,9 +210,8 @@ def generate_bool_term(ctx, allow_let=True):
         choices.append('let')
     
     if ctx.depth < ctx.max_depth - 1:
-        choices.extend(['not', 'and', 'or', 'xor', 'implies', 'equals', 
-                       'distinct', 'ite', 'bvult', 'bvuaddo', 
-                       'bvsaddo', 'bvumulo', 'bvsmulo'])
+        choices.extend(['not', 'and', 'or', 'xor', 'implies', 'equals',
+                       'distinct', 'ite', 'bvult'])
     
     choice = random.choice(choices)
     
@@ -298,12 +286,6 @@ def generate_bool_term(ctx, allow_let=True):
         t1 = generate_bv_term(ctx, width, allow_let=False)
         t2 = generate_bv_term(ctx, width, allow_let=False)
         result = f"(bvult {t1} {t2})"
-    elif choice in ['bvuaddo', 'bvsaddo', 'bvumulo', 'bvsmulo']:
-        # Overflow predicates - ensure both operands have same width
-        width = random.choice([8, 16, 32])
-        t1 = generate_bv_term(ctx, width, allow_let=False)
-        t2 = generate_bv_term(ctx, width, allow_let=False)
-        result = f"({choice} {t1} {t2})"
     else:
         result = random.choice(['true', 'false'])
     

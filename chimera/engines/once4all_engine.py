@@ -73,26 +73,10 @@ class GeneratorRegistry:
         *,
         theory_keys: Optional[Sequence[str]] = None,
     ) -> int:
-        """Auto-discover and load generator modules from *directory*.
+        """Auto-discover and load generator modules from *directory* and subdirs.
 
-        Each module is expected to expose a function named::
-
-            generate_<module_base>_formula_with_decls
-
-        or one of several common variants (see
-        :func:`_candidate_function_names`).
-
-        Parameters
-        ----------
-        directory
-            Root directory containing ``<theory>_generator.py`` files.
-        theory_keys
-            If given, only load these theory keys.
-
-        Returns
-        -------
-        int
-            Number of generators successfully loaded.
+        Searches the root directory and known backend subdirectories
+        (``general``, ``cvc5``, ``z3``).
         """
         root = Path(directory)
         if not root.is_dir():
@@ -100,19 +84,26 @@ class GeneratorRegistry:
             return 0
 
         loaded = 0
-        for py_file in sorted(root.glob("*_generator.py")):
-            module_base = py_file.stem.replace("_generator", "")
-            if theory_keys and module_base not in theory_keys:
-                continue
-            fn = _load_generator_function(py_file, module_base)
-            if fn is not None:
-                self._registry[module_base] = fn
-                loaded += 1
+        # Scan root AND known backend subdirectories
+        search_dirs = [root]
+        for subdir in ("general", "cvc5", "z3"):
+            sub = root / subdir
+            if sub.is_dir():
+                search_dirs.append(sub)
+
+        for search_dir in search_dirs:
+            for py_file in sorted(search_dir.glob("*_generator.py")):
+                module_base = py_file.stem.replace("_generator", "")
+                if theory_keys and module_base not in theory_keys:
+                    continue
+                fn = _load_generator_function(py_file, module_base)
+                if fn is not None:
+                    self._registry[module_base] = fn
+                    loaded += 1
 
         logger.info(
-            "Loaded %d/%d generators from %s",
+            "Loaded %d generators from %s",
             loaded,
-            len(list(root.glob("*_generator.py"))),
             root,
         )
         return loaded
@@ -217,23 +208,8 @@ class Once4AllStrategy(FuzzingStrategy):
         and re-fill holes (diversity amplification).
     """
 
-    # -- generators known to produce solver-incompatible output ---
-    _INCOMPATIBLE_THEORIES = frozenset({
-        "finitefields",     # FiniteField sort not supported
-        "bags",             # Bag sort not supported by Z3
-        "separationlogic",  # pto/sep/wand not supported in standard mode
-        "datatypes",        # Tuple/UnitTuple/tuple.project not standard
-        "sequences",        # seq.* operators have limited cross-solver support
-        "floatingpoint",    # FP sizes vary; Float16 unsupported by both solvers
-        "transcendentals",  # real.pi not universally supported
-        "z3seq",            # Z3-specific seq extensions
-        "z3characters",     # Unicode sort not standard
-        "cvc5strings",      # cvc5-specific string extensions
-        "hocore",           # Higher-order with -> type syntax
-        "fixedsizebitvectors",  # BV overflow/conversion ops vary between solvers
-        "z3relation",       # piecewise-linear-order not standard
-        "setsandrelations", # set.is_empty/set.empty not standard
-    })
+    # Backend subdirectories scanned during generator discovery.
+    _BACKEND_DIRS = ("general", "cvc5", "z3")
 
     @property
     def name(self) -> str:
@@ -265,17 +241,13 @@ class Once4AllStrategy(FuzzingStrategy):
         self._merge_skeletons = merge_skeletons
         self._registry = GeneratorRegistry()
 
-        # Populate the registry
+        # Populate the registry — directory loading now searches subdirs
         if legacy_generators:
             self._registry.load_from_existing_loader(legacy_generators)
         if generator_dir:
             self._registry.load_from_directory(
                 generator_dir, theory_keys=compatible_theories
             )
-
-        # Remove known incompatible generators
-        for tlk in self._INCOMPATIBLE_THEORIES:
-            self._registry._registry.pop(tlk, None)
 
         logger.info(
             "Once4All initialised: %d generators, theories=%s",
@@ -324,34 +296,23 @@ class Once4AllStrategy(FuzzingStrategy):
 
     @staticmethod
     def _validate_formula(formula: str) -> bool:
-        """Return True if *formula* contains no known incompatible constructs."""
-        import re
+        """Return True if *formula* has valid SMT-LIB2 syntax."""
+        # Parenthesis balance
+        depth = 0
+        for ch in formula:
+            if ch == '(':
+                depth += 1
+            elif ch == ')':
+                depth -= 1
+            if depth < 0:
+                return False
+        if depth != 0:
+            return False
 
-        # Filter known solver-incompatible sorts
-        for bad in ("FiniteField", "Bag ", "RegLan", "UnitTuple", "Tuple ",
-                    "Unicode"):
+        # Reject leaked placeholders
+        for bad in ("any_int", "any_bool", "real.pi"):
             if bad in formula:
                 return False
-
-        # Filter solver-incompatible functions
-        for bad in ("seq.", "pto ", "sep.emp", "wand ", "int_to_bv",
-                    "piecewise-linear-order", "bvsmulo", "bvumulo",
-                    "ubv_to_int", "bv_to_int"):
-            if bad in formula:
-                return False
-
-        # Filter 'divisible' predicate — not universally supported
-        if re.search(r'\(\s*divisible\b', formula) or re.search(r'(_\s+divisible)', formula):
-            return False
-
-        # Filter invalid SMT-LIB2: standalone negative decimals like "-8.74"
-        if re.search(r"(?<![-(\w])-\d+\.\d+(?![\w])", formula):
-            return False
-
-        # Filter invalid SMT-LIB2: standalone negative numbers like "-5"
-        # that cvc5 parses as a symbol. Valid negative numerals use "(- N)".
-        if re.search(r"(?<=[\s(])-\d+(?=[\s,)])", formula):
-            return False
 
         return True
 

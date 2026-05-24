@@ -171,4 +171,7 @@ GENERATORS: Dict[str, Optional[Callable]] = {
     "array": get_generator_function("array"),
     "z3_seq": get_generator_function("z3_seq"),
     "reals_ints": get_generator_function("reals_ints"),
+    "z3seq": get_generator_function("z3seq"),
+    "z3characters": get_generator_function("z3characters"),
+    "z3relation": get_generator_function("z3relation"),
 }

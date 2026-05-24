@@ -612,59 +612,10 @@ class AriesStrategy(FuzzingStrategy):
             formula_str = self._generate_once()
             if formula_str is None:
                 continue
-            # Validate using quick static checks
-            if not self._validate_formula_static(formula_str):
-                logger.debug("Aries: rejected formula (static check)")
-                continue
-            # Validate by running both solvers with short timeout
-            if self._validate_formula_solvers(formula_str):
+            if self._validate_formula_static(formula_str):
                 return formula_str
-            logger.debug("Aries: rejected formula (solver check)")
+            logger.debug("Aries: rejected formula (static check)")
         return None
-
-    def _validate_formula_solvers(self, formula: str) -> bool:
-        """Run both solvers with short timeout. Return True if both accept."""
-        import subprocess
-        import tempfile
-
-        s1 = self.solver1
-        s2 = self.solver2
-
-        try:
-            fd, tmp = tempfile.mkstemp(suffix='.smt2')
-            with os.fdopen(fd, 'w') as f:
-                f.write(formula)
-
-            # Run solver 1
-            try:
-                r1 = subprocess.run(
-                    [s1.binary] + list(s1.base_args) + [tmp],
-                    capture_output=True, text=True, timeout=3
-                )
-                out1 = (r1.stdout + (r1.stderr or '')).lower()
-                if r1.returncode != 0 or '(error' in out1:
-                    os.unlink(tmp)
-                    return False
-            except (subprocess.TimeoutExpired, OSError):
-                pass
-
-            # Run solver 2
-            try:
-                r2 = subprocess.run(
-                    [s2.binary] + list(s2.base_args) + [tmp],
-                    capture_output=True, text=True, timeout=3
-                )
-                out2 = (r2.stdout + (r2.stderr or '')).lower()
-                if r2.returncode != 0 or '(error' in out2:
-                    os.unlink(tmp)
-                    return False
-            except (subprocess.TimeoutExpired, OSError):
-                pass
-
-            os.unlink(tmp)
-            return True
-        except OSError:
-            return True
 
     @staticmethod
     def _validate_formula_static(formula: str) -> bool:
