@@ -646,16 +646,25 @@ def validate_formula(
                 # Generic command — parse declare-const/declare-fun from string
                 text = cmd.cmd_str.strip()
                 if text.startswith("(declare-const "):
-                    parts = text.split()
-                    if len(parts) >= 3:
-                        declared_symbols.add(parts[1])
-                        sort_name = parts[2].rstrip(")")
-                        if not is_builtin_sort(sort_name):
-                            declared_sorts.add(sort_name)
+                    # (declare-const <sym> <sort>) — extract everything after the symbol
+                    rest = text[len("(declare-const "):].rstrip(")").strip()
+                    first_space = rest.find(" ")
+                    if first_space >= 0:
+                        declared_symbols.add(rest[:first_space])
+                        for s in extract_sorts_from_decl_string(rest[first_space:]):
+                            if not is_builtin_sort(s):
+                                declared_sorts.add(s)
+                    else:
+                        declared_symbols.add(rest)
                 elif text.startswith("(declare-fun "):
-                    parts = text.split()
-                    if len(parts) >= 4:
-                        declared_symbols.add(parts[1])
+                    # (declare-fun <sym> (<input_sorts>) <output_sort>)
+                    rest = text[len("(declare-fun "):].rstrip(")").strip()
+                    first_space = rest.find(" ")
+                    if first_space >= 0:
+                        declared_symbols.add(rest[:first_space])
+                        for s in extract_sorts_from_decl_string(rest[first_space:]):
+                            if not is_builtin_sort(s):
+                                declared_sorts.add(s)
 
         # Collect uses from assertions
         for cmd in parsed.assert_cmd if hasattr(parsed, 'assert_cmd') else []:
