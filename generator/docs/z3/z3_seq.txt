@@ -1,0 +1,199 @@
+## Sequences in Z3
+
+Z3 has a sort (type) constructor called `Seq` that represents sequences over any element type.
+
+- A sequence of integers: `(Seq Int)`
+- A sequence of Unicode code points: `(Seq Unicode)`  
+  Z3’s `String` type is defined as `(Seq Unicode)`.
+
+So “sequences” generalize strings to arbitrary element types.
+
+---
+
+## Basic operations on sequences
+
+Most string operations have direct counterparts for sequences. In addition, sequences have generic operations to create:
+
+- a single‑element sequence (a “unit” sequence)
+- an empty sequence of a given element type
+
+Below is a list of the core operations.
+
+### Construction and length
+
+- **`(seq.unit elem)`**  
+  Create a sequence with a single element `elem`.  
+  Example: `(seq.unit 5)` has type `(Seq Int)` and length 1.
+
+- **`(as seq.empty (Seq Int))`**  
+  The empty sequence of integers.  
+  You can replace `(Seq Int)` with any other element type, e.g. `(Seq Bool)`.
+
+- **`(seq.++ a b c ...)`**  
+  Concatenate one or more sequences.  
+  Example: `(seq.++ s1 s2 s3)` is the sequence `s1` followed by `s2` followed by `s3`.
+
+- **`(seq.len s)`**  
+  The length of sequence `s`. Returns an `Int`.
+
+### Extracting subsequences and elements
+
+- **`(seq.extract s offset length)`**  
+  Returns the subsequence of `s` that starts at position `offset` (0‑based) and has the given `length`.  
+  If `offset` or `length` are out of range, the result is defined in the same way as for strings: positions beyond the end just give the part that exists, or empty if there is none.
+
+- **`(seq.indexof s sub [offset])`**  
+  Returns the first position (0‑based index) where the subsequence `sub` occurs in `s`.  
+  - Returns `-1` if `sub` does not occur.  
+  - The optional `offset` says where to start searching.
+
+- **`(seq.at s offset)`**  
+  Returns a subsequence of length 1 containing the element at index `offset` in `s`.  
+  If `offset` is out of bounds, the result is the empty sequence.
+
+- **`(seq.nth s offset)`**  
+  Returns the element at index `offset` in `s` (not a sequence, but the element itself).  
+  If `offset` is out of bounds, the result is *underspecified*: Z3 is allowed to treat it as an arbitrary fresh value.
+
+### Predicates on sequences
+
+- **`(seq.contains s sub)`**  
+  True if `sub` occurs as a contiguous subsequence of `s`.
+
+- **`(seq.prefixof pre s)`**  
+  True if `pre` is a prefix of `s`.
+
+- **`(seq.suffixof suf s)`**  
+  True if `suf` is a suffix of `s`.
+
+### Replacement
+
+- **`(seq.replace s src dst)`**  
+  In `s`, replace the *first* occurrence of src by `dst`.  
+  If src does not occur in `s`, the result is just `s`.
+
+---
+
+## Map and Fold over sequences
+
+Z3 also provides higher‑order operations modeled after functions in ML‑style languages:
+
+- **`(seq.map fn s)`**  
+  Apply a function `fn` element‑wise to sequence `s`.  
+  - `s` has type `(Seq S)`.  
+  - `fn` is treated as an array of type `(Array S T)` (a mapping from `S` to `T`).  
+  - The result is a sequence of type `(Seq T)`.
+
+- **`(seq.mapi fn o s)`**  
+  Like `map`, but the mapping function can depend on both the index and the element, and has an offset `o`.  
+  - `s` has type `(Seq S)`.  
+  - `fn` has type `(Array Int (Array S T))` or equivalently `(Array Int S T)` in SMT‑LIB notation: it maps an index and an element to a result.  
+  - `o` is an integer offset added to the index of each element.
+
+- **`(seq.fold_left fn b s)`**  
+  Fold (reduce) a sequence from the left.  
+  - `s` has type `(Seq S)`.  
+  - `b` is the initial accumulator of type `T`.  
+  - `fn` has type `(Array T (Array S T))` (or `(Array T S T)`): it takes the current accumulator and an element and produces a new accumulator.  
+  - The result has type `T`.
+
+- **`(seq.fold_lefti fn o b s)`**  
+  Fold from the left, but let the function depend on the index as well, with a base offset `o`.  
+  - `fn` has type `(Array Int (Array T (Array S T)))` (or `(Array Int T S T)`).  
+  - `o` is added to the current index in the sequence.
+
+These `map` and `fold` operations are handled by Z3 in a way similar to unfolding recursive definitions: they work best when models are finite or when proofs don’t require complex inductive reasoning.
+
+### Overloaded names
+
+For convenience, there are shorter aliases:
+
+- `seq.foldl` is the same as `seq.fold_left`
+- `seq.foldli` is the same as `seq.fold_lefti`
+
+---
+
+## Example: inserting an element into a sequence
+
+This example shows inserting an element `b` into a sequence `s` of integers, at some valid position `j` between 8 (inclusive) and the length of `s` (exclusive). The resulting sequence is `t`.
+
+```smt2
+(declare-const s (Seq Int))
+(declare-const t (Seq Int))
+(declare-const j Int)
+(declare-const b Int)
+
+;; s has length at least 10
+(assert (<= 10 (seq.len s)))
+
+;; j is at least 8
+(assert (<= 8 j))
+
+;; j is a valid index into s
+(assert (< j (seq.len s)))
+
+;; t is s with b inserted at position j
+(assert (= t
+  (seq.++ (seq.extract s 0 j)
+          (seq.unit b)
+          (seq.extract s (+ j 1) (- (seq.len s) j 1)))))
+```
+
+Then we check various properties:
+
+1. At position `j`, `t` has the inserted element `b`:
+
+```smt2
+(push)
+(assert (not (= (seq.unit b) (seq.at t j))))
+(check-sat)
+(pop)
+```
+
+2. The length of `t` is the same as the length of `s` (because we removed one element and inserted one element):
+
+```smt2
+(push)
+(assert (not (= (seq.len s) (seq.len t))))
+(check-sat)
+(pop)
+```
+
+3. Characters at positions 8 and 9 are unchanged (under the constraints on `j`):
+
+```smt2
+(push)
+(assert (not (= (seq.at s 8) (seq.at t 8))))
+(assert (not (= (seq.at s 9) (seq.at t 9))))
+(check-sat)
+(pop)
+```
+
+Each `push`/`pop` pair lets you temporarily add assumptions and then discard them.
+
+---
+
+## Example: using `seq.map`
+
+Here is a simple example of using `seq.map` to double each element in a sequence of integers:
+
+```smt2
+(declare-const s (Seq Int))
+(declare-const t (Seq Int))
+
+;; t is obtained by doubling every element of s
+(assert (= t (seq.map (lambda ((x Int)) (* x 2)) s)))
+
+;; require that t has length greater than 3
+(assert (> (seq.len t) 3))
+
+(check-sat)
+(get-model)
+```
+
+This asks Z3 for a model where there is a sequence `s` such that:
+
+- `t` is `s` with each element multiplied by 2
+- `t` has length > 3
+
+You can then inspect the model to see concrete sequences that satisfy these constraints.

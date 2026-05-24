@@ -1,0 +1,508 @@
+# Sequences (cvc5)
+
+## Note
+
+cvc5 currently only supports sequences where the element type:
+
+- has an infinite domain (for example, `Int`), or  
+- has a finite domain of fixed size (for example, bit-vectors).
+
+So you can have sequences like `(Seq Int)` or `(Seq (_ BitVec 8))`, but not arbitrary user-defined sorts unless they meet these conditions.
+
+---
+
+## Semantics of sequence operators
+
+Let `S` be a sort (e.g., `Int`), and `(Seq S)` the corresponding sequence sort.
+
+### `seq.empty`
+
+**Type**
+
+- SMT-LIB: `(seq.empty (Seq S))` (as a constant of sort `(Seq S)`)
+
+**Meaning**
+
+- Denotes the empty sequence `[]`.
+
+---
+
+### `seq.unit`
+
+**Type**
+
+- SMT-LIB: `(seq.unit S (Seq S))`
+
+**Meaning**
+
+- `(seq.unit x)` is the sequence containing exactly one element `x`.
+- Semantically: `⟦seq.unit⟧(x) = [x]`.
+
+---
+
+### `seq.len`
+
+**Type**
+
+- SMT-LIB: `(seq.len (Seq S) Int)`
+
+**Meaning**
+
+- `(seq.len s)` is the length of sequence `s`, written `|s|`.
+
+---
+
+### `seq.nth`
+
+**Type**
+
+- SMT-LIB: `(seq.nth ((Seq S) Int) S)`
+
+**Meaning**
+
+- `(seq.nth s i)` is the `i`‑th element of sequence `s`.
+- Semantically: `⟦seq.nth⟧(s, i) = nth(s, i)`.
+- If `i` is out of bounds (`i < 0` or `i ≥ |s|`), the value is *uninterpreted* (i.e., unconstrained, not an error/exception).
+
+---
+
+### `seq.update`
+
+**Type**
+
+- SMT-LIB: `(seq.update ((Seq S) Int (Seq S)) (Seq S))`
+
+**Meaning**
+
+- `(seq.update s i sub)` updates a contiguous sub-sequence of `s` starting at index `i` with the sequence `sub`.
+- The result has the same length as `s`.
+- If `i + |sub| > |s|`, the part of `sub` that goes out of bounds is ignored.
+- If `i` is out of bounds (`i < 0` or `i ≥ |s|`), the result is just `s` (no change).
+
+---
+
+### `seq.extract`
+
+**Type**
+
+- SMT-LIB: `(seq.extract ((Seq S) Int Int) (Seq S))`
+
+**Meaning**
+
+- `(seq.extract s i j)` returns the maximal sub-sequence of `s` that:
+  - starts at index `i`, and
+  - has length *at most* `j`.
+- It returns the empty sequence if:
+  - `i` is negative, or  
+  - `j` is negative, or  
+  - `i ≥ |s|`.
+
+---
+
+### `seq.++` (concatenation)
+
+**Type**
+
+- SMT-LIB: `(seq.++ ((Seq S) (Seq S)) (Seq S))`
+
+**Meaning**
+
+- `(seq.++ s1 s2)` is the concatenation of sequences `s1` and `s2`.
+
+---
+
+### `seq.at`
+
+**Type**
+
+- SMT-LIB: `(seq.at ((Seq S) Int) (Seq S))`
+
+**Meaning**
+
+- `(seq.at s i)` returns a *unit* sequence containing only the `i`‑th element of `s`, if `i` is in bounds.
+- If `i` is out of bounds (`i < 0` or `i ≥ |s|`), it returns the empty sequence.
+  - (The text says `i > |s|`, but in practice it’s the usual 0‑based bounds.)
+
+---
+
+### `seq.contains`
+
+**Type**
+
+- SMT-LIB: `(seq.contains ((Seq S) (Seq S)) Bool)`
+
+**Meaning**
+
+- `(seq.contains s sub)` is `true` if `sub` is a contiguous sub-sequence of `s`, i.e., there exist indices `i, j` such that:
+  - `sub = (seq.extract s i j)`.
+- Otherwise it is `false`.
+
+---
+
+### `seq.indexof`
+
+**Type**
+
+- SMT-LIB: `(seq.indexof ((Seq S) (Seq S) Int) Int)`
+
+**Meaning**
+
+- `(seq.indexof s sub i)` returns the first position (index) where `sub` occurs in `s` at or after index `i`.
+- If `sub` does not occur, the result is `-1`.
+
+---
+
+### `seq.replace`
+
+**Type**
+
+- SMT-LIB: `(seq.replace ((Seq S) (Seq S) (Seq S)) (Seq S))`
+
+**Meaning**
+
+- `(seq.replace s src dst)` returns the sequence obtained from `s` by replacing the *first* occurrence of src with `dst`.
+- If src does not occur in `s`, the result is `s` unchanged.
+
+---
+
+### `seq.replace_all`
+
+**Type**
+
+- SMT-LIB: `(seq.replace_all ((Seq S) (Seq S) (Seq S)) (Seq S))`
+
+**Meaning**
+
+- `(seq.replace_all s src dst)` replaces *all* (non-overlapping) occurrences of src in `s` by `dst`, from left to right.
+- If src does not occur, the result is `s`.
+
+---
+
+### `seq.rev`
+
+**Type**
+
+- SMT-LIB: `(seq.rev (Seq S) (Seq S))`
+
+**Meaning**
+
+- `(seq.rev s)` is the sequence `s` reversed.
+
+---
+
+### `seq.prefixof`
+
+**Type**
+
+- SMT-LIB: `(seq.prefixof ((Seq S) (Seq S)) Bool)`
+
+**Meaning**
+
+- `(seq.prefixof pre s)` is `true` iff `pre` is a prefix of `s`, i.e., there exists `t` with:
+  - `(seq.++ pre t) = s`.
+
+---
+
+### `seq.suffixof`
+
+**Type**
+
+- SMT-LIB: `(seq.suffixof ((Seq S) (Seq S)) Bool)`
+
+**Meaning**
+
+- `(seq.suffixof suf s)` is `true` iff `suf` is a suffix of `s`, i.e., there exists `t` with:
+  - `(seq.++ t suf) = s`.
+
+---
+
+## Using sequences (SMT-LIB vs C++ API)
+
+In the C++ API examples, we assume:
+
+```cpp
+Solver solver;
+```
+
+### Logic for sequences and strings
+
+- In SMT-LIB, use `S` in the logic name to enable sequences/strings:
+  - `(set-logic QF_SLIA)`
+- In C++:
+  ```cpp
+  solver.setLogic("QF_SLIA");
+  ```
+
+### Sequence sort
+
+- SMT-LIB:
+  ```smt2
+  (Seq <Sort>)
+  ```
+- C++:
+  ```cpp
+  Sort s = solver.mkSequenceSort(<Sort>);
+  ```
+
+### Declaring a sequence constant
+
+- SMT-LIB:
+  ```smt2
+  (declare-const X (Seq Int))
+  ```
+- C++:
+  ```cpp
+  Sort s = solver.mkSequenceSort(solver.getIntegerSort());
+  Term X = solver.mkConst(s, "X");
+  ```
+
+### Empty sequence
+
+- SMT-LIB:
+  ```smt2
+  (as seq.empty (Seq Int))
+  ```
+- C++:
+  ```cpp
+  Sort intSort = solver.getIntegerSort();
+  Term t = solver.mkEmptySequence(intSort);
+  ```
+
+### Unit sequence
+
+- SMT-LIB:
+  ```smt2
+  (seq.unit 1)
+  ```
+- C++:
+  ```cpp
+  Term t = solver.mkTerm(Kind::SEQ_UNIT, { solver.mkInteger(1) });
+  ```
+
+### Sequence length
+
+- SMT-LIB:
+  ```smt2
+  (seq.len X)
+  ```
+- C++:
+  ```cpp
+  Term t = solver.mkTerm(Kind::SEQ_LENGTH, { X });
+  ```
+
+### Element access (`seq.nth`)
+
+- SMT-LIB:
+  ```smt2
+  (seq.nth X i)
+  ```
+- C++:
+  ```cpp
+  Term t = solver.mkTerm(Kind::SEQ_NTH, { X, i });
+  ```
+
+### Element update (`seq.update`)
+
+- SMT-LIB:
+  ```smt2
+  (seq.update X i Y)
+  ```
+- C++:
+  ```cpp
+  Term t = solver.mkTerm(Kind::SEQ_UPDATE, { X, i, Y });
+  ```
+
+### Extraction (`seq.extract`)
+
+- SMT-LIB:
+  ```smt2
+  (seq.extract X i j)
+  ```
+- C++:
+  ```cpp
+  Term t = solver.mkTerm(Kind::SEQ_EXTRACT, { X, i, j });
+  ```
+
+### Concatenation (`seq.++`)
+
+- SMT-LIB:
+  ```smt2
+  (seq.++ X Y)
+  ```
+- C++:
+  ```cpp
+  Term t = solver.mkTerm(Kind::SEQ_CONCAT, { X, Y });
+  ```
+
+### Single-element sub-sequence (`seq.at`)
+
+- SMT-LIB:
+  ```smt2
+  (seq.at X i)
+  ```
+- C++:
+  ```cpp
+  Term t = solver.mkTerm(Kind::SEQ_AT, { X, i });
+  ```
+
+### Containment (`seq.contains`)
+
+- SMT-LIB:
+  ```smt2
+  (seq.contains X Y)
+  ```
+- C++:
+  ```cpp
+  Term t = solver.mkTerm(Kind::SEQ_CONTAINS, { X, Y });
+  ```
+
+### Index of (`seq.indexof`)
+
+- SMT-LIB:
+  ```smt2
+  (seq.indexof X Y i)
+  ```
+- C++:
+  ```cpp
+  Term t = solver.mkTerm(Kind::SEQ_INDEXOF, { X, Y, i });
+  ```
+
+### Replace first occurrence (`seq.replace`)
+
+- SMT-LIB:
+  ```smt2
+  (seq.replace X Y Z)
+  ```
+- C++:
+  ```cpp
+  Term t = solver.mkTerm(Kind::SEQ_REPLACE, { X, Y, Z });
+  ```
+
+### Replace all occurrences (`seq.replace_all`)
+
+- SMT-LIB:
+  ```smt2
+  (seq.replace_all X Y Z)
+  ```
+- C++:
+  ```cpp
+  Term t = solver.mkTerm(Kind::SEQ_REPLACE_ALL, { X, Y, Z });
+  ```
+
+### Reverse (`seq.rev`)
+
+- SMT-LIB:
+  ```smt2
+  (seq.rev X)
+  ```
+- C++:
+  ```cpp
+  Term t = solver.mkTerm(Kind::SEQ_REV, { X });
+  ```
+
+### Prefix (`seq.prefixof`)
+
+- SMT-LIB:
+  ```smt2
+  (seq.prefixof X Y)
+  ```
+- C++:
+  ```cpp
+  Term t = solver.mkTerm(Kind::SEQ_PREFIX, { X, Y });
+  ```
+
+### Suffix (`seq.suffixof`)
+
+- SMT-LIB:
+  ```smt2
+  (seq.suffixof X Y)
+  ```
+- C++:
+  ```cpp
+  Term t = solver.mkTerm(Kind::SEQ_SUFFIX, { X, Y });
+  ```
+
+---
+
+## Examples
+
+### 1. Updating a sequence at index 0 with different elements
+
+```smt2
+(set-logic QF_SLIA)
+(set-info :status unsat)
+
+(declare-fun x () (Seq Int))
+(declare-fun y () (Seq Int))
+(declare-fun z () (Seq Int))
+(declare-fun a () Int)
+(declare-fun b () Int)
+
+;; y and z are x updated at position 0 with a and b respectively
+(assert (= y (seq.update x 0 (seq.unit a))))
+(assert (= z (seq.update x 0 (seq.unit b))))
+
+;; a and b are different
+(assert (not (= a b)))
+
+;; but y and z are assumed equal
+(assert (= y z))
+
+;; and y is non-empty
+(assert (> (seq.len y) 0))
+
+(check-sat)
+```
+
+This is unsatisfiable: if `y` and `z` differ at position 0, they cannot be equal.
+
+---
+
+### 2. Extracted element must match original sequence
+
+```smt2
+(set-logic QF_SLIA)
+(set-info :status unsat)
+
+(declare-fun A () (Seq Int))
+(declare-fun S () (Seq Int))
+(declare-fun i () Int)
+
+(assert (<= 0 i))
+(assert (< i (- (seq.len A) 1)))
+
+;; S is the length-1 sub-sequence of A starting at i
+(assert (= S (seq.extract A i 1)))
+
+;; But we claim its only element differs from A[i]
+(assert (distinct (seq.nth S 0) (seq.nth A i)))
+
+(check-sat)
+```
+
+Also unsatisfiable: extracting a length‑1 slice at `i` must agree with `nth A i`.
+
+---
+
+### 3. Concatenation vs update at index 0
+
+```smt2
+(set-logic QF_SLIA)
+(set-info :status unsat)
+
+(declare-fun x () (Seq Int))
+(declare-fun y () (Seq Int))
+(declare-fun a () Int)
+(declare-fun b () Int)
+
+;; (a) concatenated with y equals x updated at 0 with (b)
+(assert (= (seq.++ (seq.unit a) y)
+           (seq.update x 0 (seq.unit b))))
+
+;; but a and b are different
+(assert (not (= a b)))
+
+(check-sat)
+```
+
+Again unsatisfiable: if these sequences are equal and index 0 is updated, the first elements must match.

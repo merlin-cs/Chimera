@@ -1,0 +1,70 @@
+## Unicode characters in Z3
+
+Z3 has a sort (type) called `Unicode` that represents individual Unicode characters.
+
+So, instead of working with whole strings, you can work with single characters of type `Unicode`.
+
+Z3 provides a few basic operations on these characters.
+
+---
+
+## Declaring Unicode character variables
+
+You can declare character‑typed constants like this:
+
+```smt2
+(declare-const a Unicode)
+(declare-const b Unicode)
+```
+
+Here, `a` and `b` are variables that can hold any Unicode character.
+
+---
+
+## Comparing characters
+
+You can compare characters using `char.<=` (less than or equal):
+
+```smt2
+(simplify (char.<= a b))
+```
+
+This expression asks whether character `a` is less than or equal to character `b` in Z3’s internal Unicode ordering.
+
+You can also write character literals directly using `(_ Char n)`, where `n` is the code point:
+
+```smt2
+(simplify (char.<= (_ Char 1) (_ Char 2)))
+```
+
+This asks if the character with code point 1 is less than or equal to the character with code point 2.
+
+---
+
+## Converting a character to an integer code point
+
+`char.to_int` converts a `Unicode` character to its integer code point:
+
+```smt2
+(simplify (char.to_int (_ Char 1)))
+```
+
+This returns the integer `1`, the code point of that character.
+
+---
+
+## Checking whether a character is a digit
+
+`char.is_digit` checks if a character is a decimal digit (`'0'`–`'9'`):
+
+```smt2
+(simplify (char.is_digit (_ Char 1)))
+```
+
+This returns `false`, because code point 1 is not a digit.
+
+```smt2
+(simplify (char.is_digit (_ Char 49))) ; it is the digit 1
+```
+
+Here, code point 49 corresponds to the character `'1'`, so this returns `true`.

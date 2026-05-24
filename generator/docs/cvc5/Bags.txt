@@ -1,0 +1,341 @@
+# Theory Reference: Bags
+
+## Finite Bags
+
+cvc5 supports the theory of **finite bags** (multisets). A bag is like a set where each element can occur multiple times (has a *multiplicity*). The theory provides:
+
+- A bag sort constructor
+- Constants of bag type
+- Functions on bags
+- Predicates over bags
+
+In the C++ examples below, assume you have:
+
+```cpp
+cvc5::Solver solver;
+```
+
+### Logic
+
+- **SMT-LIB**:  
+  ```smt2
+  (set-logic ALL)
+  ```
+- **C++**:  
+  ```cpp
+  solver.setLogic("ALL");
+  ```
+
+### Sort: Bag Sort
+
+- **SMT-LIB**:  
+  ```smt2
+  (Bag <Sort>)
+  ```
+- **C++**:  
+  ```cpp
+  Sort elementSort = ...;              // e.g., solver.getStringSort()
+  Sort s = solver.mkBagSort(elementSort);
+  ```
+
+### Constants
+
+- **SMT-LIB**:  
+  ```smt2
+  (declare-const X (Bag String))
+  ```
+- **C++**:  
+  ```cpp
+  Sort s = solver.mkBagSort(solver.getStringSort());
+  Term X = solver.mkConst(s, "X");
+  ```
+
+### Bag Operations (C++ vs SMT-LIB)
+
+Below, assume `X` and `Y` are bag terms of the same bag sort.
+
+#### Union Disjoint
+
+Union where multiplicities are **added**.
+
+- **SMT-LIB**:  
+  ```smt2
+  (bag.union_disjoint X Y)
+  ```
+- **C++**:  
+  ```cpp
+  Term Y = solver.mkConst(s, "Y");
+  Term t = solver.mkTerm(Kind::BAG_UNION_DISJOINT, {X, Y});
+  ```
+
+#### Union Max
+
+Union where multiplicities are the **maximum** of the two.
+
+- **SMT-LIB**:  
+  ```smt2
+  (bag.union_max X Y)
+  ```
+- **C++**:  
+  ```cpp
+  Term Y = solver.mkConst(s, "Y");
+  Term t = solver.mkTerm(Kind::BAG_UNION_MAX, {X, Y});
+  ```
+
+#### Intersection (Min)
+
+Intersection where multiplicities are the **minimum**.
+
+- **SMT-LIB**:  
+  ```smt2
+  (bag.inter_min X Y)
+  ```
+- **C++**:  
+  ```cpp
+  Term t = solver.mkTerm(Kind::BAG_INTER_MIN, {X, Y});
+  ```
+
+#### Difference Subtract
+
+Subtract multiplicities, but never go below 0.
+
+- **SMT-LIB**:  
+  ```smt2
+  (bag.difference_subtract X Y)
+  ```
+- **C++**:  
+  ```cpp
+  Term t = solver.mkTerm(Kind::BAG_DIFFERENCE_SUBTRACT, {X, Y});
+  ```
+
+#### Duplicate Elimination (`setof`)
+
+Convert a bag to the corresponding set: any element that appears at least once gets multiplicity 1.
+
+- **SMT-LIB**:  
+  ```smt2
+  (bag.setof X)
+  ```
+- **C++**:  
+  ```cpp
+  Term t = solver.mkTerm(Kind::BAG_SETOF, {X});
+  ```
+
+#### Membership
+
+Check whether an element occurs with **positive** multiplicity in a bag.
+
+- **SMT-LIB**:  
+  ```smt2
+  (bag.member x X)
+  ```
+- **C++**:  
+  ```cpp
+  Term x = solver.mkConst(solver.getStringSort(), "x");
+  Term t = solver.mkTerm(Kind::BAG_MEMBER, {x, X});
+  ```
+
+#### Subbag
+
+Check whether every element appears in `X` with multiplicity ≤ its multiplicity in `Y`.
+
+- **SMT-LIB**:  
+  ```smt2
+  (bag.subbag X Y)
+  ```
+- **C++**:  
+  ```cpp
+  Term t = solver.mkTerm(Kind::BAG_SUBBAG, {X, Y});
+  ```
+
+#### Empty Bag
+
+The empty bag of a given bag sort.
+
+- **SMT-LIB**:  
+  ```smt2
+  (as bag.empty (Bag Int))
+  ```
+- **C++**:  
+  ```cpp
+  Term t = solver.mkEmptyBag(s);   // s is a bag sort
+  ```
+
+#### Make Bag (Singleton with Given Multiplicity)
+
+Create a bag that has a single element with a given multiplicity.
+
+- **SMT-LIB**:  
+  ```smt2
+  (bag "a" 3)
+  ```
+- **C++**:  
+  ```cpp
+  Term t = solver.mkTerm(
+      Kind::BAG_MAKE,
+      {solver.mkString("a"), solver.mkInteger(1)}
+  );
+  ```
+
+---
+
+## Semantics
+
+A **bag** (multiset) `m` over a domain `D` is a function:
+
+- `m : D → ℕ`
+
+where `m(e)` is the multiplicity (a natural number) of element `e` in `m`.
+
+### Operators and Their Meanings
+
+Let `m`, `m₁`, `m₂` be bags and `e` be an element.
+
+- **Disjoint union** `m₁ ⊎ m₂` (`bag.union_disjoint`):  
+  Multiplicities add.
+  \[
+    ∀e.\; (m₁ ⊎ m₂)(e) = m₁(e) + m₂(e)
+  \]
+
+- **Max union** `m₁ ∪ m₂` (`bag.union_max`):  
+  Multiplicities are the maximum.
+  \[
+    ∀e.\; (m₁ ∪ m₂)(e) = \max(m₁(e), m₂(e))
+  \]
+
+- **Intersection** `m₁ ∩ m₂` (`bag.inter_min`):  
+  Multiplicities are the minimum.
+  \[
+    ∀e.\; (m₁ ∩ m₂)(e) = \min(m₁(e), m₂(e))
+  \]
+
+- **Difference subtract** `m₁ \ m₂` (`bag.difference_subtract`):  
+  Subtract multiplicities, but floor at 0.
+  \[
+    ∀e.\; (m₁ \ m₂)(e) = \max(m₁(e) - m₂(e), 0)
+  \]
+
+- **Difference remove** `m₁ \\ m₂` (`bag.difference_remove`):  
+  Remove all elements that appear in `m₂` at least once; keep others unchanged.
+  \[
+    ∀e.\; (m₁ \\ m₂)(e) =
+      \text{ite}(m₂(e) = 0,\; m₁(e),\; 0)
+  \]
+
+- **`setof`** `δ(m)` (`bag.setof`):  
+  Turn a bag into the corresponding set bag: multiplicity 1 if it appears at least once, otherwise 0.
+  \[
+    ∀e.\; δ(m)(e) = \text{ite}(1 ≤ m(e), 1, 0)
+  \]
+
+- **Subbag** `m₁ ⊆ m₂` (`bag.subbag`):  
+  \[
+    ∀e.\; m₁(e) ≤ m₂(e)
+  \]
+
+- **Equality** `m₁ = m₂`:
+  \[
+    ∀e.\; m₁(e) = m₂(e)
+  \]
+
+- **Membership** `e ∈ m` (`bag.member`):  
+  True iff `m(e) > 0` (informally; the spec expresses it via `bag.member`).
+
+---
+
+## Example SMT-LIB Script Explained
+
+```smt2
+(set-logic ALL)
+
+(set-option :produce-models true)
+(set-option :incremental true)
+
+(declare-const A (Bag String))
+(declare-const B (Bag String))
+(declare-const C (Bag String))
+(declare-const x String)
+```
+
+- Declares three string bags `A`, `B`, `C` and a string element `x`.
+
+### 1. Union disjoint vs intersection
+
+```smt2
+; union disjoint does not distribute over intersection
+; sat
+(check-sat-assuming
+ ((distinct
+   (bag.inter_min (bag.union_disjoint A B) C)
+   (bag.union_disjoint (bag.inter_min A C) (bag.inter_min B C)))))
+```
+
+- Asks whether there exist `A`, `B`, `C` such that:
+  - `intersection(union_disjoint(A, B), C)`  
+    is different from  
+  - `union_disjoint(intersection(A, C), intersection(B, C))`.
+- `sat` means such bags do exist, so **disjoint union does not distribute over intersection**.
+
+### 2. Union max vs intersection
+
+```smt2
+; union max distributes over intersection
+; unsat
+(check-sat-assuming
+ ((distinct
+   (bag.inter_min (bag.union_max A B) C)
+   (bag.union_max (bag.inter_min A C) (bag.inter_min B C)))))
+```
+
+- Asks if there exist `A`, `B`, `C` where:
+  - `intersection(union_max(A, B), C)`  
+    differs from  
+  - `union_max(intersection(A, C), intersection(B, C))`.
+- `unsat` means there are **no** such bags, i.e. **max union does distribute over intersection**.
+
+### 3. Empty bag is a subbag of any bag
+
+```smt2
+; Verify emptbag is a subbag of any bag
+; unsat
+(check-sat-assuming
+ ((not (bag.subbag (as bag.empty (Bag String)) A))))
+```
+
+- Asks if it’s possible that the empty bag is **not** a subbag of `A`.
+- `unsat` means this is impossible, so for all `A`, the empty bag **is** a subbag of `A`.
+
+### 4. Find an element with multiplicity 4
+
+```smt2
+; find an element with multiplicity 4 in the disjoint union of
+; {|"a", "a", "b", "b", "b"|} and {|"b", "c", "c"|}
+(check-sat-assuming
+ ((= 4
+     (bag.count x
+                (bag.union_disjoint
+                 (bag.union_disjoint (bag "a" 2) (bag "b" 3))
+                 (bag.union_disjoint (bag "b" 1) (bag "c" 2)))))))
+```
+
+The big union builds this bag:
+
+- First part: `(bag "a" 2)` → `"a"` with multiplicity 2  
+  `(bag "b" 3)` → `"b"` with multiplicity 3  
+  Disjoint-union → `{ "a":2, "b":3 }`.
+
+- Second part: `(bag "b" 1)` and `(bag "c" 2)` → `{ "b":1, "c":2 }`.
+
+- Disjoint union of those two bags:
+  - `"a"`: `2`
+  - `"b"`: `3 + 1 = 4`
+  - `"c"`: `2`
+
+The constraint says: find an `x` such that `bag.count x (that bag) = 4`.  
+
+```smt2
+; x is "b"
+(get-value (x))
+```
+
+- The model returns `x = "b"`, since `"b"` has multiplicity 4.

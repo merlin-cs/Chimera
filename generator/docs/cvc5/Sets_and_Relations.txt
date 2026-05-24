@@ -1,0 +1,181 @@
+# Theory Reference: Sets and Relations
+
+This note summarizes the pieces of the cvc5 documentation that describe how to work with finite sets and finite relations, both in SMT-LIB syntax and in the C++ API.
+
+## Finite Sets
+
+cvc5 supports the theory of finite sets and provides matching helpers in the C++ API.  The main reference is Bansal et al., “A new decision procedure for finite sets and cardinality constraints in SMT” (CoRR, 2017), which the cvc5 manual cites as [BBRT17].
+
+When the examples below mention the API, assume an existing `cvc5::Solver solver` instance.
+
+### Quick reference
+
+- **Logic string**
+	- SMT-LIB: append `FS`, e.g., `(set-logic QF_UFLIAFS)`
+	- C++: `solver.setLogic("QF_UFLIAFS");`
+- **Set sort**
+	- SMT-LIB: `(Set <Sort>)`
+	- C++: `solver.mkSetSort(elementSort);`
+- **Constant declaration**
+	- SMT-LIB: `(declare-const X (Set Int))`
+	- C++: `Sort s = solver.mkSetSort(solver.getIntegerSort());` then `Term X = solver.mkConst(s, "X");`
+- **Basic operators**
+	- Union: `(set.union X Y)` ↔ `solver.mkTerm(Kind::SET_UNION, {X, Y});`
+	- Intersection: `(set.inter X Y)` ↔ `solver.mkTerm(Kind::SET_INTER, {X, Y});`
+	- Difference: `(set.minus X Y)` ↔ `solver.mkTerm(Kind::SET_MINUS, {X, Y});`
+	- Membership: `(set.member x X)` ↔ `solver.mkTerm(Kind::SET_MEMBER, {x, X});`
+	- Subset: `(set.subset X Y)` ↔ `solver.mkTerm(Kind::SET_SUBSET, {X, Y});`
+- **Special sets and testers**
+	- Empty set: `(as set.empty (Set Int))` ↔ `solver.mkEmptySet(s);`
+	- Singleton: `(set.singleton 1)` ↔ `solver.mkTerm(Kind::SET_SINGLETON, {solver.mkInteger(1)});`
+	- Is empty / singleton: `(set.is_empty X)` and `(set.is_singleton X)` ↔ the kinds `SET_IS_EMPTY` and `SET_IS_SINGLETON`.
+- **Cardinality and insertion**
+	- Cardinality: `(set.card X)` ↔ `solver.mkTerm(Kind::SET_CARD, {X});`
+	- Insert elements: `(set.insert 1 2 3 (set.singleton 4))` ↔ build the integers, create the singleton, then call `SET_INSERT` with `{one, two, three, sgl}`.
+- **Complement and universe**
+	- Complement: `(set.complement X)` ↔ `solver.mkTerm(Kind::SET_COMPLEMENT, {X});`
+	- Universe: `(as set.universe (Set Int))` ↔ `solver.mkUniverseSet(s);`
+
+### Semantics of universe and complement
+
+Most operators (union, intersection, difference, etc.) behave as expected.  The universe set and complement need a short explanation:
+
+- `(as set.universe (Set T))` is **not** “all elements of `T`.”  Instead, it is any set that contains every set of type `(Set T)` that appears in the input.  In effect, it is the union of the interpretations of all finitely described sets in the problem.
+- Complement is evaluated with respect to that universe.  For every `(Set T)` value `X`, the solver guarantees that
+  
+	$$(= (set.complement\
+			X) (set.minus (as\ set.universe\ (Set\ T)) X))$$
+
+	holds in every model.
+
+Example showing how the universe is determined from the input:
+
+```
+(declare-fun x () (Set Int))
+(declare-fun y () (Set Int))
+(declare-fun z () (Set Int))
+(assert (set.member 0 x))
+(assert (set.member 1 y))
+(assert (= z (as set.universe (Set Int))))
+(check-sat)
+```
+
+One model that satisfies this formula is:
+
+```
+(define-fun x () (set.singleton 0))
+(define-fun y () (set.singleton 1))
+(define-fun z () (set.union (set.singleton 1) (set.singleton 0)))
+```
+
+Here, the universe is the same as `z`, because `x`, `y`, and `z` are the only sets that appear in the problem.
+
+> **Note**
+> When quantifiers are present, the implementation allows infinite sets.  For example, the formula below is satisfiable (although cvc5 does not currently prove it):
+>
+> ```
+> (set-logic ALL)
+> (declare-fun x () (Set Int))
+> (assert (forall ((z Int)) (set.member (* 2 z) x)))
+> (check-sat)
+> ```
+
+### Extended finite-set example
+
+```
+(set-logic QF_UFLIAFS)
+(set-option :produce-models true)
+(set-option :incremental true)
+(declare-const A (Set Int))
+(declare-const B (Set Int))
+(declare-const C (Set Int))
+(declare-const x Int)
+
+; Verify union distributes over intersection
+(check-sat-assuming
+	((distinct
+		 (set.inter (set.union A B) C)
+		 (set.union (set.inter A C) (set.inter B C)))))
+
+; Verify the empty set is a subset of any set
+(check-sat-assuming
+	((not (set.subset (as set.empty (Set Int)) A))))
+
+; Find an element in {1, 2} ∩ {2, 3}
+(check-sat-assuming
+	((set.member
+		 x
+		 (set.inter
+			 (set.union (set.singleton 1) (set.singleton 2))
+			 (set.union (set.singleton 2) (set.singleton 3))))))
+
+(echo "A member: ")
+(get-value (x))
+```
+
+## Finite Relations
+
+cvc5 also supports finite relations.  The full description appears in Meng et al., “Relational constraint solving in SMT” (CADE 26, 2017), cited as [MRTB17].
+
+### Quick reference
+
+- **Logic string**
+	- SMT-LIB: `(set-logic QF_ALL)`
+	- C++: `solver.setLogic("QF_ALL");`
+- **Tuple sorts and constants**
+	- SMT-LIB: `(Tuple <Sort_1> ... <Sort_n>)`, e.g., `(declare-const t (Tuple Int Int))`
+	- C++: build a vector of sorts and call `solver.mkTupleSort(sorts);`, then `solver.mkConst(s, "t");`
+- **Tuple constructor and selectors**
+	- SMT-LIB: `(tuple <Term_1> ... <Term_n>)` and `((_ tuple.select i) t)`
+	- C++: `solver.mkTuple({...});` and selector terms obtained via the datatype API plus `APPLY_SELECTOR`.
+- **Unit tuple**
+	- SMT-LIB: `UnitTuple` for the sort and `tuple.unit` for the value
+	- C++: `solver.mkTupleSort({});` and `solver.mkTuple({});`
+- **Relation sorts**
+	- SMT-LIB sugar: `(Relation <Sort_1> ... <Sort_n>)` ≡ `(Set (Tuple ...))`
+	- C++: `solver.mkSetSort(solver.mkTupleSort(...));`
+- **Common relation operators**
+	- `rel.transpose`, `rel.tclosure`, `rel.join`, and `rel.product` map directly to the C++ kinds `RELATION_TRANSPOSE`, `RELATION_TCLOSURE`, `RELATION_JOIN`, and `RELATION_PRODUCT`.
+
+### Example involving families
+
+```
+(set-logic ALL)
+(set-option :produce-models true)
+(set-option :finite-model-find true) ; needed for universal quantifiers
+(set-option :sets-exp true)          ; needed for set.universe
+
+(declare-sort Person 0)
+
+(declare-fun people () (Relation Person))
+(declare-fun males () (Relation Person))
+(declare-fun females () (Relation Person))
+(declare-fun father () (Relation Person Person))
+(declare-fun mother () (Relation Person Person))
+(declare-fun parent () (Relation Person Person))
+(declare-fun ancestor () (Relation Person Person))
+(declare-fun descendant () (Relation Person Person))
+
+(assert (= people (as set.universe (Relation Person))))
+(assert (not (= males (as set.empty (Relation Person)))))
+(assert (not (= females (as set.empty (Relation Person)))))
+(assert (= (set.inter males females) (as set.empty (Relation Person))))
+
+; father and mother relations are non-empty
+(assert (not (= father (as set.empty (Relation Person Person)))))
+(assert (not (= mother (as set.empty (Relation Person Person)))))
+
+; type constraints
+(assert (set.subset (rel.join father people) males))
+(assert (set.subset (rel.join mother people) females))
+
+(assert (= parent (set.union father mother)))
+(assert (forall ((x Person)) (not (set.member (tuple x x) ancestor))))
+(assert (= ancestor (rel.tclosure parent)))
+(assert (= descendant (rel.transpose ancestor)))
+
+(check-sat)
+(get-model)
+```
+
+This script exercises most of the relation operators and shows how families of sets, joins, and closures interact in practice.

@@ -1,0 +1,269 @@
+# Theory Reference: Finite Fields
+
+**Note**
+
+Currently, cvc5 only supports finite fields of prime order `p`.  
+Such a field is isomorphic to the integers modulo `p`.
+
+---
+
+## Semantics
+
+For an integer \(x\) and a positive integer \(y\), define \((x \bmod y)\) as the unique integer \(r\) such that
+\(x = qy + r\) (where \(q\) is an integer) and \(0 \le r < y\).  
+This is the usual remainder when using floor division.
+
+We interpret:
+
+- **Field sorts** as prime fields.
+- **Field terms** as integers (with arithmetic done modulo \(p\)).
+
+In what follows, let:
+
+- `N` be an integer numeral, and \(N\) its integer value.
+- `p` be a prime numeral, and \(p\) the corresponding prime number.
+- `F` be an SMT field sort of order \(p\).
+- `x` and `y` be SMT field terms of sort `F`, with interpretations \(x\) and \(y\).
+
+The basic constructs are:
+
+| SMT construct                      | Semantics                          | Notes                                        |
+|------------------------------------|------------------------------------|----------------------------------------------|
+| `(_ FiniteField p)`                | the field of order \(p\)          | represented as integers modulo \(p\)         |
+| `(as ffN F)`                       | the integer \((N \bmod p)\)       |                                              |
+| `(ff.add x y)`                     | the integer \(((x + y) \bmod p)\) | `ff.add` is an n-ary operator                |
+| `(ff.mul x y)`                     | the integer \(((x * y) \bmod p)\) | `ff.mul` is an n-ary operator                |
+| `(= x y)`                          | the Boolean \(x = y\)             | usual equality over the interpreted values   |
+
+---
+
+## Syntax
+
+For the C++ API examples below, assume we have:
+
+```cpp
+Solver solver;
+```
+
+### Logic
+
+- SMT-LIB:
+
+  ```smtlib
+  (set-logic QF_FF)
+  ```
+
+- C++:
+
+  ```cpp
+  solver.setLogic("QF_FF");
+  ```
+
+Use logic `QF_FF` for quantifier-free formulas over finite fields.
+
+### Sorts
+
+- SMT-LIB:
+
+  ```smtlib
+  (_ FiniteField <Prime Order>)
+  ```
+
+- C++:
+
+  ```cpp
+  Sort s = solver.mkFiniteFieldSort("<Prime Order As String>");
+  ```
+
+Example: field of order 7:
+
+- SMT-LIB:
+
+  ```smtlib
+  (_ FiniteField 7)
+  ```
+
+- C++:
+
+  ```cpp
+  Sort s = solver.mkFiniteFieldSort("7");
+  ```
+
+### Constants
+
+- SMT-LIB:
+
+  ```smtlib
+  (declare-const X (_ FiniteField 7))
+  ```
+
+- C++:
+
+  ```cpp
+  Sort s = solver.mkFiniteFieldSort("7");
+  Term X = solver.mkConst(s, "X");
+  ```
+
+### Finite Field Values
+
+- SMT-LIB:
+
+  ```smtlib
+  (as ff3 (_ FiniteField 7))
+  ```
+
+- C++:
+
+  ```cpp
+  Sort ffSort = solver.mkFiniteFieldSort("7");
+  Term t = solver.mkFiniteFieldElem("3", ffSort);
+  ```
+
+Here `ff3` is the element 3 (mod 7) in the field of order 7.
+
+### Addition
+
+- SMT-LIB:
+
+  ```smtlib
+  (ff.add x y)
+  ```
+
+- C++:
+
+  ```cpp
+  Term t = solver.mkTerm(Kind::FINITE_FIELD_ADD, {x, y});
+  ```
+
+`ff.add` can take more than two arguments.
+
+### Multiplication
+
+- SMT-LIB:
+
+  ```smtlib
+  (ff.mul x y)
+  ```
+
+- C++:
+
+  ```cpp
+  Term t = solver.mkTerm(Kind::FINITE_FIELD_MULT, {x, y});
+  ```
+
+`ff.mul` can also be n-ary.
+
+### Equality
+
+- SMT-LIB:
+
+  ```smtlib
+  (= x y)
+  ```
+
+- C++:
+
+  ```cpp
+  Term t = solver.mkTerm(Kind::EQUAL, {x, y});
+  ```
+
+---
+
+## Examples
+
+### Example 1
+
+```smtlib
+(set-logic QF_FF)
+(set-info :status unsat)
+(define-sort F () (_ FiniteField 3))
+(declare-const x F)
+(assert (= (ff.mul x x) (as ff-1 F)))
+(check-sat)
+; unsat
+```
+
+This asks for an element \(x\) in the field of order 3 such that \(x^2 = -1\).  
+In \(\mathbb{F}_3\), no such element exists, so the problem is unsatisfiable.
+
+### Example 2
+
+```smtlib
+(set-logic QF_FF)
+(set-info :status sat)
+(define-sort F () (_ FiniteField 3))
+(declare-const x F)
+(assert (= (ff.mul x x) (as ff0 F)))
+(check-sat)
+; sat: (= x (as ff0 F)) is the only model
+```
+
+Here we ask for \(x\) such that \(x^2 = 0\) in \(\mathbb{F}_3\).  
+The only solution is \(x = 0\), so the problem is satisfiable and has a unique model.
+
+### Example 3
+
+```smtlib
+(set-logic QF_FF)
+(set-info :status unsat)
+(define-sort F () (_ FiniteField 3))
+(declare-const x F)
+(declare-const y F)
+(declare-const z F)
+(assert (= (ff.mul (ff.add x y z) (ff.add x y z)) (as ff-1 F)))
+(check-sat)
+; unsat
+```
+
+This is asking whether \((x + y + z)^2 = -1\) has a solution in \(\mathbb{F}_3\).  
+It does not, so the formula is unsatisfiable.
+
+---
+
+## Experimental Extensions
+
+These features are **experimental** and may change or be removed:
+
+- `ff.bitsum`: an n-ary operator for bit-sums.
+
+  Example:
+
+  ```smtlib
+  (ff.bitsum x0 x1 x2)
+  ```
+
+  Semantically, this is:
+
+  \[
+    x_0 + 2 x_1 + 4 x_2
+  \]
+
+  (all arithmetic done modulo \(p\)).
+
+- `ff.neg`: unary negation in the finite field (i.e., maps \(x\) to \(-x\) mod \(p\)).
+
+---
+
+## Solvers
+
+Internally, cvc5 implements two solvers for the theory of finite fields:
+
+1. **Default finite field solver**  
+   Described in:
+
+   - *Satisfiability Modulo Finite Fields* (OKTB23)  
+     (CAV 2023, Springer, LNCS 13965, pp. 163–186).
+
+2. **Split solver (`--ff-solver split`)**  
+   Enabled with:
+
+   ```bash
+   cvc5 --ff-solver split ...
+   ```
+
+   This solver is based on:
+
+   - *Split Gröbner Bases for Satisfiability Modulo Finite Fields* (OPB+24)  
+     (CAV 2024, LNCS, preprint: https://ia.cr/2024/572)
+
+   It may perform better on field equations that encode bit decompositions.

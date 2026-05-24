@@ -1,0 +1,267 @@
+## Special relations in Z3
+
+Z3 has built‑in support for some common kinds of binary relations:
+
+- partial orders  
+- linear (total) orders  
+- tree orders  
+- piece‑wise linear orders  
+- transitive closure of a relation  
+
+You can describe these relations using ordinary first‑order axioms with quantifiers, but that tends to be slow: Z3 may need a lot of quantifier instantiations (potentially quadratic in the number of terms).
+
+Instead, Z3 provides special interpreted symbols (like `(_ partial-order 0)`) that tell it “this relation is a partial order,” etc. This lets Z3 use more efficient, specialized decision procedures (based on graph algorithms such as Bellman–Ford / push‑relabel).
+
+The general pattern is:
+
+- *Naïve way*: declare a Boolean relation `R` and add axioms.  
+- *Efficient way*: define `R` in terms of one of Z3’s special relation operators.
+
+---
+
+## Partial order
+
+A **partial order** is a relation `R` that is:
+
+- **reflexive**: everything is related to itself  
+- **antisymmetric**: if `x R y` and `y R x`, then `x = y`  
+- **transitive**: if `x R y` and `y R z`, then `x R z`
+
+### Axiomatized (slow) style
+
+```smt2
+(declare-sort A 0)
+(declare-fun R (A A) Bool)
+
+;; reflexive
+(assert (forall ((x A)) (R x x)))
+
+;; antisymmetric
+(assert (forall ((x A) (y A))
+  (=> (and (R x y) (R y x)) (= x y))))
+
+;; transitive
+(assert (forall ((x A) (y A) (z A))
+  (=> (and (R x y) (R y z)) (R x z))))
+```
+
+### Built‑in partial order (preferred)
+
+```smt2
+(declare-sort A 0)
+
+;; R is a partial order identified by index 0
+(define-fun R ((x A) (y A)) Bool
+  ((_ partial-order 0) x y))
+```
+
+The index `0` just distinguishes this partial order from other partial orders you might define. If you need another independent partial order on `A`, you might use:
+
+```smt2
+(define-fun S ((x A) (y A)) Bool
+  ((_ partial-order 1) x y))
+```
+
+---
+
+## Linear order
+
+A **linear order** (also called **total order**) is a partial order where any two elements are comparable:
+
+- for any `x` and `y`, either `x R y` or `y R x` holds.
+
+### Axiomatized (slow) style
+
+```smt2
+(declare-sort A 0)
+(declare-fun R (A A) Bool)
+
+;; reflexive
+(assert (forall ((x A)) (R x x)))
+
+;; antisymmetric
+(assert (forall ((x A) (y A))
+  (=> (and (R x y) (R y x)) (= x y))))
+
+;; transitive
+(assert (forall ((x A) (y A) (z A))
+  (=> (and (R x y) (R y z)) (R x z))))
+
+;; total: any two elements are comparable
+(assert (forall ((x A) (y A))
+  (or (R x y) (R y x))))
+```
+
+### Built‑in linear order (preferred)
+
+```smt2
+(declare-sort A 0)
+(define-fun R ((x A) (y A)) Bool
+  ((_ linear-order 0) x y))
+
+(declare-const a A)
+(declare-const b A)
+(declare-const c A)
+(declare-const d A)
+
+;; some constraints
+(assert (R a b))
+(assert (R a c))
+
+(check-sat)
+(get-model)
+
+;; at least one of these must be true in a linear order:
+(eval (R b c))
+(eval (R c b))
+
+;; try to forbid comparability between c and d
+(assert (not (R c d)))
+(assert (not (R d c)))
+(check-sat)
+```
+
+Because `R` is a linear order, the last two assertions usually make the problem unsatisfiable: every pair must be comparable.
+
+---
+
+## Tree order
+
+A **tree order** is a partial order where the elements below any given element are linearly ordered (intuitively: each node’s ancestors form a chain).
+
+Axiomatized, it’s:
+
+- reflexive  
+- antisymmetric  
+- transitive  
+- and with an extra condition: if `y` and `z` are both below `x` (`R y x` and `R z x`), then `y` and `z` are comparable (`R y z` or `R z y`).
+
+### Axiomatized (slow) style
+
+```smt2
+(declare-sort A 0)
+(declare-fun R (A A) Bool)
+
+;; reflexive
+(assert (forall ((x A)) (R x x)))
+
+;; antisymmetric
+(assert (forall ((x A) (y A))
+  (=> (and (R x y) (R y x)) (= x y))))
+
+;; transitive
+(assert (forall ((x A) (y A) (z A))
+  (=> (and (R x y) (R y z)) (R x z))))
+
+;; tree condition: elements below x are linearly ordered
+(assert (forall ((x A) (y A) (z A))
+  (=> (and (R y x) (R z x)) (or (R y z) (R z y)))))
+```
+
+### Built‑in tree order (preferred)
+
+```smt2
+(declare-sort A 0)
+(define-fun R ((x A) (y A)) Bool
+  ((_ tree-order 0) x y))
+
+(declare-const a A)
+(declare-const b A)
+(declare-const c A)
+(declare-const d A)
+
+;; some ordering constraints
+(assert (R a b))
+(assert (R b d))
+(assert (R a c))
+(assert (R c d))
+
+(check-sat)
+(get-model)
+
+;; b and c must be comparable in a tree order
+(assert (not (R b c)))
+(assert (not (R c b)))
+(check-sat)
+```
+
+The last `check-sat` will typically be unsatisfiable, reflecting that `b` and `c` cannot both be incomparable if they share ancestors as specified.
+
+---
+
+## Piece‑wise linear order
+
+A **piece‑wise linear order** is a partial order where:
+
+- any two elements that have a common upper bound are comparable, and  
+- any two elements that have a common lower bound are comparable.
+
+It’s like having a partial order made out of “linear pieces” glued together.
+
+### Axiomatized (slow) style
+
+```smt2
+(declare-sort A 0)
+(declare-fun R (A A) Bool)
+
+;; reflexive
+(assert (forall ((x A)) (R x x)))
+
+;; antisymmetric
+(assert (forall ((x A) (y A))
+  (=> (and (R x y) (R y x)) (= x y))))
+
+;; transitive
+(assert (forall ((x A) (y A) (z A))
+  (=> (and (R x y) (R y z)) (R x z))))
+
+;; if y and z are both above x, they are comparable
+(assert (forall ((x A) (y A) (z A))
+  (=> (and (R x y) (R x z)) (or (R y z) (R z y)))))
+
+;; if y and z are both below x, they are comparable
+(assert (forall ((x A) (y A) (z A))
+  (=> (and (R y x) (R z x)) (or (R y z) (R z y)))))
+```
+
+### Built‑in piece‑wise linear order (preferred)
+
+```smt2
+(declare-sort A 0)
+(define-fun R ((x A) (y A)) Bool
+  ((_ piecewise-linear-order 0) x y))
+```
+
+Again, the index `0` just distinguishes this relation from others.
+
+---
+
+## Transitive closure
+
+The **transitive closure** of a binary relation `R` is a new relation `R*` such that:
+
+- `R*(x, y)` holds if there is a (possibly empty) path from `x` to `y` using `R`.  
+  (In many settings, you only care about non‑empty paths; the exact convention depends on the formalization.)
+
+Transitive closure is **not** expressible as a finite first‑order axiomatization in general. However, for **ground** formulas (no quantifiers) over a **finite domain**, reasoning about transitive closure is decidable, because you can think of it as reachability in a finite graph.
+
+Z3 provides a built‑in operator for transitive closure: `(_ transitive-closure R)`.
+
+### Example
+
+```smt2
+(declare-sort A 0)
+(declare-fun R (A A) Bool)
+(declare-fun a () A)
+(declare-fun b () A)
+(declare-fun c () A)
+
+(assert (R a b))
+(assert (R b c))
+
+;; claim incorrectly that there is no path from a to c
+(assert (not ((_ transitive-closure R) a c)))
+(check-sat)
+```
+
+Given `R(a, b)` and `R(b, c)`, the transitive closure `_ transitive-closure R` should relate `a` to `c`. So the `not` assertion usually makes the problem unsatisfiable.

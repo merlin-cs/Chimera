@@ -1,0 +1,121 @@
+# Theory Reference: Separation Logic (cvc5)
+
+cvc5 extends the SMT-LIB 2.6 language with native support for separation logic (SL). The notes below
+summarize the pieces you need in plain text so you can read or adapt them without digging through the
+HTML documentation.
+
+## TL;DR
+- Use the `QF_ALL` logic any time you mix cvc5 with separation logic operators.
+- Declare the heap types exactly once with `(declare-heap (Loc Data))` before asserting SL formulas.
+- Core building blocks: `sep.emp`, `(pto t u)`, `(sep φ₁ … φₙ)` (separating conjunction), and `(wand φ ψ)` (magic wand).
+- Every SL predicate must use the same `Loc` and `Data` sorts chosen in `declare-heap`.
+
+## Signature
+Given any decidable background theory \(T\) (integers, arrays, datatypes, …), cvc5 decides
+quantifier-free formulas of \(SL(T)_{Loc,Data}\). Here `Loc` and `Data` are sorts that already exist in \(T\).
+
+A formula `F` in \(SL(T)_{Loc,Data}\) follows this grammar:
+```
+F ::= L
+    | sep.emp
+    | (pto t u)
+    | (sep F₁ … Fₙ)
+    | (wand F₁ F₂)
+    | ¬F₁
+    | F₁ op … op Fₙ    (where op is any Boolean connective)
+```
+- `L` is any literal from the background theory \(T\).
+- `t` has sort `Loc`, `u` has sort `Data`.
+- `sep` is variadic, so `(sep φ ψ χ)` is valid.
+
+## Semantics
+For an interpretation `I` and a heap `h`:
+- `I, h ⊨ L` whenever `L` is a true literal in \(T\) under `I`.
+- `I, h ⊨ sep.emp` iff the heap is empty (`h = ∅`).
+- `I, h ⊨ (pto t u)` iff `h` contains exactly the single cell `(tᴵ, uᴵ)` and `tᴵ ≠ nilᴵ`.
+- `I, h ⊨ (sep φ₁ … φₙ)` iff `h` can be split into pairwise-disjoint heaps `h₁ ⊎ … ⊎ hₙ` with
+  `I, hᵢ ⊨ φᵢ` for each `i`.
+- `I, h ⊨ (wand φ ψ)` iff for every heap `h'` that is disjoint from `h`, whenever `I, h' ⊨ φ`, we also
+  have `I, h' ⊎ h ⊨ ψ`.
+
+Here `⊎` denotes disjoint union and `nil` is the distinguished element of the location sort.
+All classical Boolean connectives behave as usual.
+
+## Syntax Rules in cvc5
+1. Set the logic once:
+   ```
+   (set-logic QF_ALL)
+   ```
+2. Declare the heap types while the solver is in *Start* mode:
+   ```
+   (declare-heap (LocSort DataSort))
+   ```
+   This command may only appear once per solver context (reset the solver to change it).
+3. Build formulas with the SL operators. Equivalent C++ API calls are listed for convenience:
+
+| Concept           | SMT-LIB snippet              | C++ API example                              |
+|-------------------|------------------------------|----------------------------------------------|
+| Empty heap        | `sep.emp`                    | `solver.mkSepEmp()`                          |
+| Points-to         | `(pto x y)`                  | `solver.mkTerm(Kind::SEP_PTO, {x, y});`      |
+| Separating star   | `(sep c1 ... cn)`            | `solver.mkTerm(Kind::SEP_STAR, {c1, ..., cn});` |
+| Magic wand        | `(wand φ ψ)`                 | `solver.mkTerm(Kind::SEP_WAND, {phi, psi});` |
+| Nil element       | `(as sep.nil LocSort)`       | `solver.mkSepNil(locSort);`                  |
+
+## Examples
+### 1. Unsatisfiable heap over `Int → Int`
+```
+(set-logic QF_ALL)
+(declare-heap (Int Int))
+(set-info :status unsat)
+(declare-const x Int)
+(declare-const a Int)
+(declare-const b Int)
+(assert (and (pto x a) (pto x b)))
+(assert (not (= a b)))
+(check-sat)
+```
+Two cells cannot occupy the same location with different data, so the solver returns `unsat`.
+
+### 2. Satisfiable heap over `U → Int`
+```
+(set-logic QF_ALL)
+(set-info :status sat)
+(declare-sort U 0)
+(declare-heap (U Int))
+(declare-const x U)
+(declare-const a Int)
+(assert (and (not sep.emp) (pto x a)))
+(check-sat)
+```
+`(not sep.emp)` merely states that the heap is non-empty; the points-to fact provides such a heap.
+
+### 3. Heap storing a datatype value
+```
+(set-logic QF_ALL)
+(set-info :status sat)
+(declare-const x Int)
+(declare-const y Int)
+(declare-const z Int)
+(declare-datatype Node ((node (data Int) (left Int) (right Int))))
+(declare-heap (Int Node))
+(assert (pto x (node 0 y z)))
+(check-sat)
+```
+Because the heap maps integers to the `Node` datatype, storing a constructed node at location `x`
+is allowed and the instance is satisfiable.
+
+## Gotchas
+- Every SL predicate you assert must use the exact same `Loc` and `Data` sorts chosen in `declare-heap`.
+  For example, the following is rejected because the second `pto` uses `Int` for both location and data
+  even though the heap was declared over `U → Int`:
+  ```
+  (set-logic QF_ALL)
+  (declare-sort U 0)
+  (declare-heap (U Int))
+  (declare-const x U)
+  (assert (and (pto x 0) (pto 1 2)))  ; invalid: location sort mismatch
+  (check-sat)
+  ```
+- To change the heap sorts mid-session, issue `(reset)` and redeclare the solver state.
+
+Use this text as a quick reference or as a more approachable alternative to the original HTML doc.
