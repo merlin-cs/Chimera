@@ -23,6 +23,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Union
 
 
@@ -47,16 +48,13 @@ TYPES = [
 
 def sort2type(sort: str) -> Union[str, "BITVECTOR_TYPE", "FP_TYPE"]:
     """Convert a sort string to its corresponding type representation."""
-    if "FloatingPoint" in sort:
-        parts = sort.split(" ")
-        eb = int(parts[2])
-        sb = int(parts[3][:-1])
-        return FP_TYPE(eb, sb)
+    floating_point = re.fullmatch(r"\(_ FloatingPoint (\d+) (\d+)\)", sort.strip())
+    if floating_point:
+        return FP_TYPE(int(floating_point.group(1)), int(floating_point.group(2)))
 
-    if "BitVec" in sort:
-        parts = sort.split(" ")
-        bitwidth = int(parts[2][:-1])
-        return BITVECTOR_TYPE(bitwidth)
+    bitvector = re.fullmatch(r"\(_ BitVec (\d+)\)", sort.strip())
+    if bitvector:
+        return BITVECTOR_TYPE(int(bitvector.group(1)))
     return sort
 
 

@@ -14,8 +14,10 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 from chimera.engines.base import (
+    GeneratedCase,
     FuzzStats,
     FuzzingStrategy,
+    Skipped,
 )
 from chimera.core.solver_manager import SolverConfig, SolverOutcome, SolverResult
 
@@ -167,7 +169,41 @@ class TestFuzzingStrategy:
         bugs = strategy.run_iteration(0)
 
         assert bugs == []
-        assert strategy.stats.parse_failures == 1
+        assert strategy.stats.skipped == 1
+
+    def test_legacy_generate_is_adapted_to_a_structured_case(self, solver1, solver2, temp_dirs):
+        output_dir, temp_dir = temp_dirs
+        strategy = ConcreteStrategy(
+            solver1=solver1,
+            solver2=solver2,
+            output_dir=output_dir,
+            temp_dir=temp_dir,
+        )
+
+        result = strategy.generate_case()
+
+        assert isinstance(result, GeneratedCase)
+        assert result.provenance == "test-strategy"
+
+    def test_empty_legacy_generation_is_a_skip_not_a_parse_failure(self, solver1, solver2, temp_dirs):
+        output_dir, temp_dir = temp_dirs
+
+        class NoFormulaStrategy(FuzzingStrategy):
+            @property
+            def name(self):
+                return "no-formula"
+
+            def generate(self):
+                return None
+
+        strategy = NoFormulaStrategy(
+            solver1=solver1,
+            solver2=solver2,
+            output_dir=output_dir,
+            temp_dir=temp_dir,
+        )
+
+        assert isinstance(strategy.generate_case(), Skipped)
 
     def test_run_iteration_with_mocked_solvers(self, solver1, solver2, temp_dirs):
         """Test run_iteration with mocked solver results."""

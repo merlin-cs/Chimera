@@ -34,10 +34,6 @@ from chimera.core import (
     compare,
 )
 
-# Expose config and utils subpackages
-import chimera.config
-import chimera.utils
-
 __all__ = [
     # Core
     "parse_file",
@@ -48,7 +44,4 @@ __all__ = [
     "BugKind",
     "BugReport",
     "compare",
-    # Subpackages
-    "config",
-    "utils",
 ]

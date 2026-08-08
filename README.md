@@ -68,7 +68,7 @@ Chimera can be run via the installed command or as a Python module:
 chimera --mode histfuzz --solver1-bin /path/to/z3 --solver2-bin /path/to/cvc5 ...
 
 # Or run directly
-python -m chimera.chimera_cli --mode histfuzz --solver1-bin /path/to/z3 --solver2-bin /path/to/cvc5 ...
+python -m chimera --mode histfuzz --solver1-bin /path/to/z3 --solver2-bin /path/to/cvc5 ...
 ```
 
 ### LLM-based Fuzzing (Once4All Mode)
@@ -81,8 +81,10 @@ python -m chimera.chimera_cli \
   --solver1-name z3 \
   --solver2-name cvc5 \
   --solver1-bin /path/to/z3 \
-  --solver2-bin /path/to/cvc5 \
-  --seed-dir ./seeds
+  --solver2-bin /path/to/cvc5
+
+# Generators are packaged and loaded by default. To use a local directory:
+#   --generator-dir ./generators
 ```
 
 

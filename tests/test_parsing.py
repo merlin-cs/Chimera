@@ -13,7 +13,11 @@ Note: The canonical parser is chimera.core.smt_parser.
 import pytest
 from pathlib import Path
 
-from chimera.core.smt_parser import parse_string, parse_file as parse_file_canonical
+from chimera.core.smt_parser import (
+    parse_file as parse_file_canonical,
+    parse_string,
+    parse_string_detailed,
+)
 from chimera.core.smt_ast import (
     Term,
     Expr,
@@ -51,6 +55,45 @@ class TestParseStr:
         script, _ = parse_str("(declare-fun x () Int)")
         assert script is not None
         assert len(script.commands) == 1
+        assert isinstance(script.commands[0], DeclareFun)
+        assert script.commands[0].symbol == "x"
+        assert script.commands[0].input_sort == ""
+        assert script.commands[0].output_sort == "Int"
+
+    def test_declarations_and_sorts_have_typed_ast_nodes(self):
+        """Sort syntax must not leak a term node into declarations."""
+        script, globals_ = parse_str(
+            "(declare-const enabled Bool) "
+            "(declare-fun lookup (Int (_ BitVec 8)) (Array Int String))"
+        )
+
+        const_decl, fun_decl = script.commands
+        assert isinstance(const_decl, DeclareConst)
+        assert const_decl.symbol == "enabled"
+        assert const_decl.sort == "Bool"
+        assert globals_["enabled"] == "Bool"
+        assert isinstance(fun_decl, DeclareFun)
+        assert fun_decl.input_sort == "Int (_ BitVec 8)"
+        assert fun_decl.output_sort == "(Array Int String)"
+
+    def test_application_operators_are_strings(self):
+        """Structural transforms rely on application operators being strings."""
+        script, _ = parse_str("(assert (and true false))")
+        term = script.assert_cmd[0].term
+
+        assert isinstance(term.op, str)
+        assert term.op == "and"
+        assert str(term) == "(and true false)"
+
+    def test_skeleton_extractor_retains_boolean_connectives(self):
+        """A conjunction remains structural instead of becoming one hole."""
+        from chimera.core.smt_ast import SkeletonExtractor
+
+        script, _ = parse_str("(assert (and true false))")
+        skeleton = SkeletonExtractor().transform(script.assert_cmd[0].term)
+
+        assert skeleton.op == "and"
+        assert [str(child) for child in skeleton.subterms] == ["hole 0", "hole 1"]
 
     def test_parse_check_sat(self):
         """Test parsing check-sat command."""
@@ -158,9 +201,14 @@ class TestParseStr:
 
     def test_parse_invalid_syntax(self):
         """Test handling of invalid syntax."""
-        # Invalid syntax should return None or handle gracefully
-        script, _ = parse_str("(assert", silent=True)
-        # Parser should handle gracefully (may return None or partial result)
+        assert parse_str("(assert", silent=True) is None
+
+    def test_detailed_parse_retains_syntax_diagnostics(self):
+        """Callers that need an error can opt into the detailed API."""
+        result = parse_string_detailed("(assert", timeout=1)
+
+        assert result.script is None
+        assert result.diagnostics
 
 
 class TestParseFile:

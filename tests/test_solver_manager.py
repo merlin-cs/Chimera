@@ -290,6 +290,20 @@ class TestRunSolver:
             assert result.outcome == SolverOutcome.UNSAT
             assert result.answer == "unsat"
 
+    def test_nonzero_exit_is_not_trusted_as_a_sat_answer(self, mock_smt_file):
+        """A solver error must not be hidden by a misleading stdout line."""
+        config = SolverConfig(name="mock-solver", binary="/usr/bin/true")
+
+        with patch("subprocess.Popen") as mock_popen:
+            mock_proc = MagicMock()
+            mock_proc.returncode = 1
+            mock_proc.communicate.return_value = ("sat\n", "")
+            mock_popen.return_value = mock_proc
+
+            result = run_solver(config, mock_smt_file, timeout=5.0)
+
+        assert result.outcome == SolverOutcome.ERROR
+
     def test_timeout_result(self, mock_smt_file):
         """Test timeout handling."""
         config = SolverConfig(name="mock-solver", binary="/usr/bin/true")

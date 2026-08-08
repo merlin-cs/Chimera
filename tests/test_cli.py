@@ -223,6 +223,11 @@ class TestMakeSolver:
         assert config1.name == "Z3" or config1.name.lower() == "z3"
         assert config2.name == "CVC5" or config2.name.lower() == "cvc5"
 
+    def test_solver_internal_timeout_matches_cli_timeout(self):
+        config = _make_solver("cvc5", "/usr/bin/cvc5", timeout=2.5)
+
+        assert "--tlimit=2500" in config.base_args
+
 
 class TestConfigureLogging:
     """Tests for logging configuration."""

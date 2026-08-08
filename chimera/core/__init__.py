@@ -20,7 +20,14 @@ formula_builder
     SMT-LIB formula construction utilities.
 """
 
-from chimera.core.smt_parser import parse_file, parse_string
+from chimera.core.smt_parser import (
+    ParseResult,
+    ParserDiagnostic,
+    parse_file,
+    parse_file_detailed,
+    parse_string,
+    parse_string_detailed,
+)
 from chimera.core.solver_manager import SolverConfig, SolverResult, run_solver
 from chimera.core.differential_oracle import BugKind, BugReport, compare
 from chimera.core.types import (
@@ -59,7 +66,11 @@ from chimera.core.formula_builder import (
 __all__ = [
     # Parser
     "parse_file",
+    "parse_file_detailed",
     "parse_string",
+    "parse_string_detailed",
+    "ParseResult",
+    "ParserDiagnostic",
     # Solver
     "SolverConfig",
     "SolverResult",

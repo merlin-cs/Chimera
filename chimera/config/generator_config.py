@@ -12,20 +12,28 @@ SPDX-License-Identifier: MIT
 from __future__ import annotations
 
 import os
+from importlib.util import find_spec
 from pathlib import Path
+from typing import Iterable, Optional, Tuple
 
 # Configuration flag - set this to switch between generator versions
 USE_NEW_GENERATORS = os.environ.get('USE_NEW_GENERATORS', 'true').lower() == 'true'
 
 # Path to new generators (adjust this path as needed)
-if os.environ.get("NEW_GENERATORS_PATH"):
-    NEW_GENERATORS_PATH = os.environ.get("NEW_GENERATORS_PATH")
+_generator_path_override = os.environ.get("NEW_GENERATORS_PATH")
+if _generator_path_override:
+    NEW_GENERATORS_PATH: str = _generator_path_override
 else:
-    # Default to generators/ at project root relative to this file's location
-    # Go up from chimera/config to project root, then into generators/
-    NEW_GENERATORS_PATH = str(
-        Path(__file__).parent.parent.parent.joinpath("generators").resolve()
-    )
+    # ``generators`` is distributed as a regular package.  Resolving the
+    # package location keeps the default working after wheel installation as
+    # well as in a source checkout.
+    _generator_spec = find_spec("generators")
+    if _generator_spec and _generator_spec.origin:
+        NEW_GENERATORS_PATH = str(Path(_generator_spec.origin).parent)
+    else:
+        NEW_GENERATORS_PATH = str(
+            Path(__file__).parent.parent.parent.joinpath("generators").resolve()
+        )
 
 
 def get_generator_version() -> str:
@@ -59,6 +67,27 @@ GENERATOR_NAME_MAP = {
     "z3characters": ("z3characters", "z3characters"),
     "z3relation": ("z3relation", "z3relation"),
 }
+
+# Public theory names accepted by the CLI and the canonical module basenames
+# used by generator discovery.  Keeping this mapping in one place prevents
+# the historical short-name/filename split from silently producing no output.
+THEORY_ALIASES = {
+    original: module_name
+    for original, (module_name, _short_name) in GENERATOR_NAME_MAP.items()
+}
+
+
+def canonical_theory_id(theory: str) -> str:
+    """Return the discovery key for a CLI or legacy theory identifier."""
+    normalized = theory.strip().lower()
+    return THEORY_ALIASES.get(normalized, normalized)
+
+
+def canonical_theory_ids(theories: Optional[Iterable[str]]) -> Optional[list[str]]:
+    """Normalize an optional collection of user-selected theory names."""
+    if theories is None:
+        return None
+    return list(dict.fromkeys(canonical_theory_id(theory) for theory in theories))
 
 
 def get_new_generator_info(original_name: str) -> Tuple[str, str]:

@@ -91,9 +91,17 @@ def build_parser() -> argparse.ArgumentParser:
 
     # -- Once4All options ----------------------------------------------------
     o4a = p.add_argument_group("Once4All options")
-    o4a.add_argument("--generator-dir", default=None, help="Directory with *_generator.py modules.")
+    o4a.add_argument(
+        "--generator-dir",
+        default=None,
+        help="Directory with *_generator.py modules (defaults to packaged generators).",
+    )
     o4a.add_argument("--theories", nargs="*", default=None, help="Restrict to these theory keys.")
-    o4a.add_argument("--merge-skeletons", action="store_true", help="Amplify diversity via skeleton extraction.")
+    o4a.add_argument(
+        "--merge-skeletons",
+        action="store_true",
+        help="Reserved; disabled until skeleton hole filling is complete.",
+    )
 
     # -- Aries options -------------------------------------------------------
     ar = p.add_argument_group("Aries options")
@@ -104,8 +112,6 @@ def build_parser() -> argparse.ArgumentParser:
 
     # -- update-resources options ---------------------------------------------
     ur = p.add_argument_group("Resource update options (mode=update-resources)")
-    ur.add_argument("--github-token", default=None,
-                    help="GitHub personal access token for collecting bug formulas from issue trackers.")
     ur.add_argument("--formula-store", default="./bug_triggering_formulas",
                     help="Directory for collected bug formulas (default: ./bug_triggering_formulas).")
     ur.add_argument("--resource-output", default="./chimera/resources",
@@ -145,12 +151,22 @@ def build_parser() -> argparse.ArgumentParser:
 # Solver construction helpers
 # ---------------------------------------------------------------------------
 
-def _make_solver(name: str, binary: str) -> SolverConfig:
+def _make_solver(name: str, binary: str, timeout: float = 10.0) -> SolverConfig:
+    """Build a solver configuration whose internal timeout matches the CLI."""
+    timeout_ms = max(1, int(timeout * 1000))
     n = name.strip().lower()
     if n in ("z3",):
-        return SolverConfig(name=name, binary=binary, base_args=default_z3_args())
+        return SolverConfig(
+            name=name,
+            binary=binary,
+            base_args=default_z3_args(timeout_ms=timeout_ms),
+        )
     if n in ("cvc5",):
-        return SolverConfig(name=name, binary=binary, base_args=default_cvc5_args())
+        return SolverConfig(
+            name=name,
+            binary=binary,
+            base_args=default_cvc5_args(timeout_ms=timeout_ms),
+        )
     # Generic — no special args
     return SolverConfig(name=name, binary=binary)
 
@@ -160,8 +176,8 @@ def _make_solver(name: str, binary: str) -> SolverConfig:
 # ---------------------------------------------------------------------------
 
 def _build_strategy(args: argparse.Namespace) -> FuzzingStrategy:
-    solver1 = _make_solver(args.solver1_name, args.solver1_bin)
-    solver2 = _make_solver(args.solver2_name, args.solver2_bin)
+    solver1 = _make_solver(args.solver1_name, args.solver1_bin, args.solver_timeout)
+    solver2 = _make_solver(args.solver2_name, args.solver2_bin, args.solver_timeout)
 
     oracle_cfg = OracleConfig(
         detect_crashes=not args.no_crash_detection,
@@ -236,7 +252,7 @@ def _run_update_resources(args: argparse.Namespace) -> int:
     """Execute the resource update pipeline."""
     try:
         result = _update_resources(
-            github_token=args.github_token,
+            github_token=None,
             formula_store=args.formula_store,
             resource_output=args.resource_output,
             solvers=args.collect_solvers,
@@ -273,6 +289,8 @@ def main(argv: Optional[List[str]] = None) -> int:
             missing.append("--solver2-bin")
         if missing:
             parser.error(f"--mode {args.mode} requires: {', '.join(missing)}")
+        if args.merge_skeletons:
+            parser.error("--merge-skeletons is currently disabled: hole filling is incomplete")
 
     logger.info("Chimera starting — mode=%s", args.mode)
 
@@ -289,6 +307,11 @@ def main(argv: Optional[List[str]] = None) -> int:
     )
 
     strategy = _build_strategy(args)
+    issues = strategy.preflight()
+    if issues:
+        parser.error("campaign preflight failed:\n  - " + "\n  - ".join(
+            issue.reason for issue in issues
+        ))
     # --iterations 0 or unspecified = unlimited campaign (run until interrupted)
     max_iters = args.iterations if args.iterations is not None and args.iterations > 0 else None
 

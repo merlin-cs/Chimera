@@ -285,6 +285,21 @@ def run_solver(
             smt_path=smt_path,
         )
 
+    # A process that reports ``sat`` but exits unsuccessfully is not a valid
+    # solver answer.  Classify explicit diagnostics first, then retain a
+    # generic error/crash instead of letting the oracle trust stdout alone.
+    if exit_code not in (None, 0):
+        pattern_match = _classify_output(stdout, stderr)
+        return SolverResult(
+            outcome=pattern_match or SolverOutcome.ERROR,
+            stdout=stdout,
+            stderr=stderr,
+            exit_code=exit_code,
+            wall_seconds=elapsed,
+            command=cmd_str,
+            smt_path=smt_path,
+        )
+
     # Check output text for known error patterns
     pattern_match = _classify_output(stdout, stderr)
     if pattern_match is not None:

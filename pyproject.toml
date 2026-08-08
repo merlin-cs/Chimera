@@ -8,7 +8,7 @@ version = "2.0.0"
 description = "Production-grade SMT solver fuzzing framework"
 readme = "README.md"
 license = {text = "MIT"}
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 authors = [
     {name = "Chimera Authors"}
 ]
@@ -33,6 +33,16 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+history = [
+    "requests>=2.28",
+]
+aries = [
+    "snake-egg>=0.1",
+]
+generator-authoring = [
+    "openai>=1.0",
+    "anthropic>=0.20",
+]
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
@@ -50,10 +60,11 @@ Repository = "https://github.com/user/chimera"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["chimera*"]
+include = ["chimera*", "generators*"]
 
 [tool.setuptools.package-data]
 chimera = ["py.typed", "resources/*.csv", "resources/rewrite_config/*.txt"]
+generators = ["**/*.txt"]
 
 # =============================================================================
 # Mypy Configuration
@@ -72,6 +83,7 @@ warn_unused_ignores = true
 warn_no_return = true
 strict_equality = true
 strict_concatenate = true
+explicit_package_bases = true
 
 # Per-module overrides for gradual typing
 [[tool.mypy.overrides]]
@@ -112,6 +124,12 @@ ignore_errors = true
 [tool.ruff]
 target-version = "py39"
 line-length = 100
+exclude = [
+    "chimera/parsing/SMTLIBv2Lexer.py",
+    "chimera/parsing/SMTLIBv2Parser.py",
+    "chimera/parsing/SMTLIBv2Visitor.py",
+    "chimera/parsing/SMTLIBv2Listener.py",
+]
 
 [tool.ruff.lint]
 select = [
@@ -147,6 +165,11 @@ addopts = [
     "-v",
     "--tb=short",
     "--strict-markers",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m not slow')",
+    "integration: marks tests that require external solvers",
+    "unit: marks fast unit tests",
 ]
 filterwarnings = [
     # Ignore deprecation warnings in our own code during tests

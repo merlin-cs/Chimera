@@ -40,8 +40,12 @@ from chimera.core.smt_ast import (
 from chimera.core.smt_parser import parse_string
 from chimera.core.solver_manager import SolverConfig
 from chimera.core.differential_oracle import OracleConfig
-from chimera.engines.base import FuzzingStrategy
-from chimera.config.generator_config import BACKEND_DIRS
+from chimera.engines.base import FuzzingStrategy, Misconfigured
+from chimera.config.generator_config import (
+    BACKEND_DIRS,
+    NEW_GENERATORS_PATH,
+    canonical_theory_ids,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -287,17 +291,17 @@ class Once4AllStrategy(FuzzingStrategy):
             timeout=timeout,
             oracle_config=oracle_config,
         )
-        self._theories = compatible_theories
+        self._theories = canonical_theory_ids(compatible_theories)
         self._merge_skeletons = merge_skeletons
         self._registry = GeneratorRegistry()
 
         # Populate the registry — directory loading now searches subdirs
         if legacy_generators:
             self._registry.load_from_existing_loader(legacy_generators)
-        if generator_dir:
-            self._registry.load_from_directory(
-                generator_dir, theory_keys=compatible_theories
-            )
+        self._generator_dir = generator_dir or NEW_GENERATORS_PATH
+        self._registry.load_from_directory(
+            self._generator_dir, theory_keys=self._theories
+        )
 
         # Remove generators incompatible with this solver pair
         blocked = self._incompatible_theories_for(solver1, solver2)
@@ -305,13 +309,25 @@ class Once4AllStrategy(FuzzingStrategy):
             self._registry._registry.pop(tlk, None)
 
         logger.info(
-            "Once4All initialised: %d generators (blocked %d for %s vs %s), theories=%s",
+            "Once4All initialised: %d generators from %s (blocked %d for %s vs %s), theories=%s",
             len(self._registry.theory_keys),
+            self._generator_dir,
             len(blocked),
             solver1.name,
             solver2.name,
             self._registry.theory_keys,
         )
+
+    def preflight(self) -> List[Misconfigured]:
+        """Validate that the configured/default generator source is usable."""
+        issues = super().preflight()
+        if not self._registry.theory_keys:
+            issues.append(
+                Misconfigured(
+                    f"no compatible generators found in {self._generator_dir}"
+                )
+            )
+        return issues
 
     # -- generation ----------------------------------------------------------
 

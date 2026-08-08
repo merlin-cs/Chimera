@@ -354,6 +354,11 @@ class EqualitySaturationRewriter:
             logger.warning("Could not import ALL_RULES — equality saturation disabled")
             return []
 
+    @property
+    def available(self) -> bool:
+        """Whether equality saturation has both its dependency and rules."""
+        return bool(self._rules)
+
     def rewrite_term(self, term: Term, script: Script) -> Optional[str]:
         """Rewrite *term* via equality saturation.
 
@@ -595,7 +600,11 @@ class AriesStrategy(FuzzingStrategy):
         # Equality-saturation rewriter
         self._egraph: Optional[EqualitySaturationRewriter] = None
         if use_egraph:
-            self._egraph = EqualitySaturationRewriter()
+            candidate = EqualitySaturationRewriter()
+            if candidate.available:
+                self._egraph = candidate
+            else:
+                logger.warning("Aries equality saturation unavailable; continuing with mimetic mutation")
 
         logger.info(
             "Aries initialised: %d seeds, mimetic=%s, egraph=%s",

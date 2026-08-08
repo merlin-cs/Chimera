@@ -42,7 +42,7 @@ from chimera.core.smt_ast import (
 )
 from chimera.core.smt_parser import parse_file, parse_string
 from chimera.core.solver_manager import SolverConfig
-from chimera.engines.base import FuzzingStrategy
+from chimera.engines.base import FuzzingStrategy, Misconfigured
 
 logger = logging.getLogger(__name__)
 
@@ -672,11 +672,24 @@ class HistFuzzStrategy(FuzzingStrategy):
             if seed_paths:
                 self._skeletons.add_from_files(seed_paths)
 
-            logger.info(
-                "HistFuzz initialised (legacy mode): %d skeletons, %d building blocks",
-                self._skeletons.total,
-                self._pool.total,
+        logger.info(
+            "HistFuzz initialised (legacy mode): %d skeletons, %d building blocks",
+            self._skeletons.total,
+            self._pool.total,
+        )
+
+    def preflight(self) -> List[Misconfigured]:
+        """Require a usable corpus before starting an unlimited campaign."""
+        issues = super().preflight()
+        has_new_corpus = bool(self._corpus and self._corpus.skeletons)
+        has_legacy_corpus = bool(self._skeletons.total and self._pool.total)
+        if not has_new_corpus and not has_legacy_corpus:
+            issues.append(
+                Misconfigured(
+                    "HistFuzz needs a non-empty JSON corpus, skeleton resource, or seed directory"
+                )
             )
+        return issues
 
     # -- generation ----------------------------------------------------------
 

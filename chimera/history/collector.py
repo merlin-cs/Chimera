@@ -8,8 +8,7 @@ Provides importable functions for:
 
 Usage from CLI::
 
-    python -m chimera.chimera_cli --mode update-resources \\
-        --github-token $GITHUB_TOKEN \\
+    GITHUB_TOKEN=... python -m chimera --mode update-resources \\
         --formula-store ./bug_triggering_formulas \\
         --resource-output ./chimera/resources
 
@@ -585,7 +584,7 @@ def update_resources(
             github_token = os.environ.get("GITHUB_TOKEN", "")
         if not github_token:
             logger.warning(
-                "No GitHub token provided. Set --github-token or GITHUB_TOKEN env var, "
+                "No GitHub token provided. Set GITHUB_TOKEN in the environment, "
                 "or use --skip-collection to only extract from existing files."
             )
         else:

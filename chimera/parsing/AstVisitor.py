@@ -133,10 +133,11 @@ class AstVisitor(SMTLIBv2Visitor):
             return Eval(self.visitTerm(ctx.term()[0], {}))
         if ctx.cmd_declareConst():
             var = self.visitSymbol(ctx.symbol()[0])
-            self.global_vars[var] = self.visitSort(ctx.sort()[0])
+            sort = self.visitSort(ctx.sort()[0])
+            self.global_vars[var] = sort2type(sort)
             decl = DeclareConst(
-                self.visitSymbol(ctx.symbol()[0]),
-                sort2type(self.visitSort(ctx.sort()[0]))
+                var,
+                sort2type(sort),
             )
             return decl
         if ctx.cmd_declareFun():
@@ -260,22 +261,17 @@ class AstVisitor(SMTLIBv2Visitor):
         return ctx.start.getInputStream().getText(start, stop)
 
     def visitCommand(self, ctx: SMTLIBv2Parser.CommandContext):
-        if not self.strict:
-            try:
-                cmd = self.handleCommand(ctx)
-                if not cmd:
-                    return SMTLIBCommand(self.getString(ctx))
-                else:
-                    return cmd
-            except Exception:
-                return SMTLIBCommand(self.getString(ctx))
-        else:
-            cmd = self.handleCommand(ctx)
-            if not cmd:
+        """Build a typed command or preserve an intentionally raw command.
 
-                return SMTLIBCommand(self.getString(ctx))
-            else:
-                return cmd
+        ``SMTLIBCommand`` is for commands that Chimera does not model yet
+        (for example ``set-logic``), not for visitor implementation failures.
+        Silently converting the latter loses declarations and corrupts the
+        parser-to-AST contract.
+        """
+        cmd = self.handleCommand(ctx)
+        if cmd is None:
+            return SMTLIBCommand(self.getString(ctx))
+        return cmd
 
     def visitAttribute(self, ctx: SMTLIBv2Parser.AttributeContext):
         return (ctx.keyword().getText(), ctx.attribute_value().getText())
@@ -429,7 +425,7 @@ class AstVisitor(SMTLIBv2Visitor):
             and len(ctx.term()) >= 1
             and ctx.ParClose()
         ):
-            op = self.visitQual_identifier(ctx.qual_identifier(), local_vars)
+            op = self.visitQual_identifier_text(ctx.qual_identifier())
             subterms = []
             for term in ctx.term():
                 subterms.append(self.visitTerm(term, local_vars))
@@ -467,6 +463,17 @@ class AstVisitor(SMTLIBv2Visitor):
         ;
         """
 
+        name = self.visitQual_identifier_text(ctx)
+        if name in local_vars:
+            return Var(name=name, type=local_vars[name])
+        if name in self.global_vars:
+            return Var(name=name, type=self.global_vars[name])
+        return Var(name=name, type="Unknown")
+
+    def visitQual_identifier_text(self, ctx: SMTLIBv2Parser.Qual_identifierContext):
+        """Return an SMT-LIB qualified identifier as syntax, never a term."""
+        if ctx.identifier() and not ctx.GRW_As():
+            return self.visitIdentifier_text(ctx.identifier())
         if (
             ctx.ParOpen()
             and ctx.GRW_As()
@@ -474,12 +481,8 @@ class AstVisitor(SMTLIBv2Visitor):
             and ctx.sort()
             and ctx.ParClose()
         ):
-            raise AstException("ParOpen GRW_As identifier sort ParClose")
-
-        if ctx.identifier():
-            return self.visitIdentifier(ctx.identifier(), local_vars)
-
-        raise AstException("No match for qual_identifier: ... |... |... ")
+            return "(as " + self.visitIdentifier_text(ctx.identifier()) + " " + self.visitSort(ctx.sort()) + ")"
+        raise AstException("No match for qual_identifier")
 
     def visitSimpleSymbol(self, ctx: SMTLIBv2Parser.SimpleSymbolContext):
         return ctx.getText()
@@ -512,6 +515,16 @@ class AstVisitor(SMTLIBv2Visitor):
         ;
         """
 
+        name = self.visitIdentifier_text(ctx)
+        indexed = bool(ctx.GRW_Underscore())
+        if name in local_vars:
+            return Var(name=name, type=local_vars[name], is_indexed_id=indexed)
+        if name in self.global_vars:
+            return Var(name=name, type=self.global_vars[name], is_indexed_id=indexed)
+        return Var(name=name, type="Unknown", is_indexed_id=indexed)
+
+    def visitIdentifier_text(self, ctx: SMTLIBv2Parser.IdentifierContext):
+        """Return an identifier's source representation for sorts/operators."""
         if (
             ctx.ParOpen()
             and ctx.GRW_Underscore()
@@ -519,37 +532,19 @@ class AstVisitor(SMTLIBv2Visitor):
             and len(ctx.index()) >= 1
             and ctx.ParClose()
         ):
-            symbol = self.visitSymbol(ctx.symbol())
-            index = ctx.index()[0].getText()
-            for ind in ctx.index()[1:]:
-                index += " " + ind.getText()
-            name = "(_ " + symbol + " " + index + ")"
-            if name in local_vars:
-                return Var(name=name, type=local_vars[name],
-                           is_indexed_id=True)
-            elif name in self.global_vars:
-                return Var(name=name, type=self.global_vars[name],
-                           is_indexed_id=True)
-            else:
-                return Var(name=name, type="Unknown", is_indexed_id=True)
-
+            indices = " ".join(ind.getText() for ind in ctx.index())
+            return "(_ " + self.visitSymbol(ctx.symbol()) + " " + indices + ")"
         if ctx.symbol():
-            name = self.visitSymbol(ctx.symbol())
-            if name in local_vars:
-                return Var(name=name, type=local_vars[name])
-            elif name in self.global_vars:
-                return Var(name=name, type=self.global_vars[name])
-            else:
-                return Var(name=name, type="Unknown")
-        raise AstException("No match for identifier: ... |... |... ")
+            return self.visitSymbol(ctx.symbol())
+        raise AstException("No match for identifier")
 
     def visitTerminal(self, ctx):
         return ctx.getText()
 
     def visitSort(self, ctx: SMTLIBv2Parser.SortContext):
         if len(ctx.sort()) >= 1:
-            s = "(" + self.visitIdentifier(ctx.identifier(), {})
+            s = "(" + self.visitIdentifier_text(ctx.identifier())
             for sort in ctx.sort():
                 s += " " + self.visitSort(sort)
             return s + ")"
-        return self.visitIdentifier(ctx.identifier(), {})
+        return self.visitIdentifier_text(ctx.identifier())
