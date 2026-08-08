@@ -716,6 +716,27 @@ class AriesStrategy(FuzzingStrategy):
         return result
 
     @staticmethod
+    def ensure_incremental_solver(cfg: SolverConfig) -> SolverConfig:
+        """Return *cfg* with cvc5 incremental mode when it is required."""
+        basename = os.path.basename(cfg.binary).lower()
+        if "cvc5" in basename or basename.startswith("cvc"):
+            existing_args = list(cfg.base_args)
+            if "-i" not in existing_args and "--incremental" not in existing_args:
+                existing_args.append("-i")
+            return SolverConfig(
+                name=cfg.name,
+                binary=cfg.binary,
+                base_args=existing_args,
+                extra_args=list(cfg.extra_args),
+            )
+        return cfg
+
+    @staticmethod
+    def ensure_incremental_solvers(solvers: Sequence[SolverConfig]) -> Tuple[SolverConfig, ...]:
+        """Normalize every solver in an N-solver Aries campaign."""
+        return tuple(AriesStrategy.ensure_incremental_solver(solver) for solver in solvers)
+
+    @staticmethod
     def _ensure_incremental(
         s1: SolverConfig, s2: SolverConfig
     ) -> Tuple[SolverConfig, SolverConfig]:
@@ -726,24 +747,10 @@ class AriesStrategy(FuzzingStrategy):
                 (``-in`` would read from stdin, conflicting with file input.)
         """
 
-        def with_incremental(cfg: SolverConfig) -> SolverConfig:
-            basename = os.path.basename(cfg.binary).lower()
-            if "cvc5" in basename or basename.startswith("cvc"):
-                # Preserve any caller-supplied base_args and extra_args.
-                # Only add -i if the existing args don't already contain it.
-                existing_args = list(cfg.base_args)
-                if "-i" not in existing_args and "--incremental" not in existing_args:
-                    existing_args.append("-i")
-                return SolverConfig(
-                    name=cfg.name,
-                    binary=cfg.binary,
-                    base_args=existing_args,
-                    extra_args=list(cfg.extra_args),
-                )
-            # z3 doesn't need an incremental flag for file-based push/pop
-            return cfg
-
-        return with_incremental(s1), with_incremental(s2)
+        return (
+            AriesStrategy.ensure_incremental_solver(s1),
+            AriesStrategy.ensure_incremental_solver(s2),
+        )
 
     @staticmethod
     def _sanitize_output(formula_str: str, globs: dict) -> str:

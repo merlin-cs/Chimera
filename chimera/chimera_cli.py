@@ -26,7 +26,8 @@ import argparse
 import json
 import logging
 import sys
-from dataclasses import asdict
+from dataclasses import asdict, replace
+from typing import Any
 
 from chimera import __version__
 from chimera.core.campaign import CampaignConfig, CampaignRunner, StrategyCaseProducer, replay_artifact
@@ -308,23 +309,26 @@ def _build_strategy_from_config(config: CampaignConfig) -> FuzzingStrategy:
     """Build an engine from a self-contained campaign configuration."""
     if len(config.solvers) < 2:
         raise ValueError("campaign config requires at least two solvers")
-    settings = dict(config.engine_settings)
-    common = {
+    settings: dict[str, Any] = dict(config.engine_settings)
+    common: dict[str, Any] = {
         "output_dir": config.output_dir,
         "temp_dir": config.temp_dir,
         "timeout": config.timeout,
         "oracle_config": config.oracle,
     }
     if config.engine == "histfuzz":
-        return HistFuzzStrategy(config.solvers[0], config.solvers[1], **settings, **common)  # type: ignore[arg-type]
+        return HistFuzzStrategy(config.solvers[0], config.solvers[1], **settings, **common)
     if config.engine == "once4all":
         if settings.get("merge_skeletons"):
             raise ValueError(
                 "merge_skeletons is currently disabled; use a plain generator output"
             )
-        return Once4AllStrategy(config.solvers[0], config.solvers[1], **settings, **common)  # type: ignore[arg-type]
+        return Once4AllStrategy(
+            config.solvers[0], config.solvers[1], solver_configs=config.solvers,
+            **settings, **common,
+        )
     if config.engine == "aries":
-        return AriesStrategy(config.solvers[0], config.solvers[1], **settings, **common)  # type: ignore[arg-type]
+        return AriesStrategy(config.solvers[0], config.solvers[1], **settings, **common)
     raise ValueError(f"unknown campaign engine: {config.engine}")
 
 
@@ -424,12 +428,16 @@ def _print_campaign_result(
 
 def _run_corpus_command(args: argparse.Namespace) -> int:
     if args.target == "extract":
-        manifest = export_corpus(
-            args.formula_store,
-            args.resource_output,
-            source_revision="working-tree",
-            replace=True,
-        )
+        try:
+            manifest = export_corpus(
+                args.formula_store,
+                args.resource_output,
+                source_revision="working-tree",
+                replace=True,
+            )
+        except (FileNotFoundError, ValueError) as exc:
+            logger.error("corpus extraction aborted: %s", exc)
+            return 1
         print(json.dumps(manifest, indent=2, sort_keys=True))
         return 0
     if args.target == "refresh":
@@ -544,6 +552,14 @@ def main(argv: list[str] | None = None) -> int:
         if "--iterations" in explicit:
             config = CampaignConfig.from_dict(
                 {**config.to_dict(), "iterations": None if args.iterations == 0 else args.iterations}
+            )
+        # CampaignRunner executes config.solvers, not the strategy's private
+        # copies.  Normalize the stored configuration before building Aries so
+        # every cvc5 invocation receives incremental mode.
+        if config.engine == "aries":
+            config = replace(
+                config,
+                solvers=AriesStrategy.ensure_incremental_solvers(config.solvers),
             )
         strategy = _build_strategy_from_config(config)
         runner = CampaignRunner(StrategyCaseProducer(strategy), config)

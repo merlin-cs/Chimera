@@ -7,9 +7,11 @@ Tests cover:
 - Logging configuration
 """
 
-import pytest
 import argparse
+import json
 from unittest.mock import patch, MagicMock
+
+import pytest
 
 from chimera.chimera_cli import (
     build_parser,
@@ -356,6 +358,45 @@ def test_config_rejects_disabled_skeleton_merge(tmp_path):
     )
     with pytest.raises(ValueError, match="merge_skeletons"):
         main(["run", "once4all", "--config", str(config)])
+
+
+def test_corpus_extract_rejects_empty_source_without_replacing_target(tmp_path):
+    source = tmp_path / "empty"
+    source.mkdir()
+    target = tmp_path / "corpus"
+    target.mkdir()
+    sentinel = target / "sentinel"
+    sentinel.write_text("keep", encoding="utf-8")
+
+    assert main([
+        "corpus", "extract", "--formula-store", str(source),
+        "--resource-output", str(target),
+    ]) == 1
+    assert sentinel.read_text(encoding="utf-8") == "keep"
+
+
+def test_configured_aries_campaign_runs_normalized_solver_configs(tmp_path, capsys):
+    cvc5 = tmp_path / "cvc5"
+    cvc5.symlink_to("/usr/bin/true")
+    config = tmp_path / "campaign.json"
+    config.write_text(
+        json.dumps({
+            "version": 1,
+            "engine": "aries",
+            "solvers": [
+                {"name": "cvc5", "binary": str(cvc5), "base_args": [], "extra_args": []},
+                {"name": "z3", "binary": "/usr/bin/true", "base_args": [], "extra_args": []},
+            ],
+            "engine_settings": {"seed_dir": "", "use_egraph": False},
+            "output_dir": str(tmp_path / "out"),
+            "temp_dir": str(tmp_path / "temp"),
+            "iterations": 1,
+        }),
+        encoding="utf-8",
+    )
+    assert main(["run", "aries", "--config", str(config), "--dry-run"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert "-i" in payload["config"]["solvers"][0]["base_args"]
 
 
 if __name__ == "__main__":

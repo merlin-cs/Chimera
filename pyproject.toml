@@ -53,6 +53,14 @@ dev = [
 [project.scripts]
 chimera = "chimera.chimera_cli:main"
 
+[project.entry-points."chimera.case_producers"]
+histfuzz = "chimera.engines.histfuzz_engine:HistFuzzStrategy"
+once4all = "chimera.engines.once4all_engine:Once4AllStrategy"
+aries = "chimera.engines.aries_engine:AriesStrategy"
+
+[project.entry-points."chimera.generator_providers"]
+packaged = "chimera.engines.once4all_engine:GeneratorRegistry"
+
 [project.urls]
 Homepage = "https://github.com/user/chimera"
 Documentation = "https://github.com/user/chimera#readme"
@@ -63,7 +71,14 @@ where = ["."]
 include = ["chimera*", "generators*"]
 
 [tool.setuptools.package-data]
-chimera = ["py.typed", "resources/*.csv", "resources/rewrite_config/*.txt"]
+chimera = [
+    "py.typed",
+    "resources/*.csv",
+    "resources/rewrite_config/*.txt",
+    "resources/histfuzz/manifest.json",
+    "resources/histfuzz/blocks/*.jsonl",
+    "resources/histfuzz/skeletons/*.jsonl",
+]
 generators = ["**/*.txt"]
 
 # =============================================================================

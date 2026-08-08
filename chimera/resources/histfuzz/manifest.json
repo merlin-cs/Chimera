@@ -1,0 +1,818 @@
+{
+  "extraction_stats": {
+    "blocks_extracted": 21695,
+    "files_failed": 91,
+    "files_processed": 3609,
+    "files_seen": 3700,
+    "files_with_quantifiers": 1066,
+    "isolated_failures": 6,
+    "isolated_files": 14,
+    "skeletons_extracted": 9320
+  },
+  "format_version": 1,
+  "shards": {
+    "blocks": {
+      "A": {
+        "count": 33,
+        "path": "blocks/A.jsonl",
+        "sha256": "53b9e44ec772f7f022db055c481a78c6efba490807a4b260f0e3ad586e757269"
+      },
+      "ABV": {
+        "count": 7,
+        "path": "blocks/ABV.jsonl",
+        "sha256": "124b52a31e5a0bfc4c4834a6419b717ee054c12935aa948e3954818d24c50a7e"
+      },
+      "ALIA": {
+        "count": 111,
+        "path": "blocks/ALIA.jsonl",
+        "sha256": "eac8f38c02e322070ee95022dd6ad0461dd88f7917a734f5d780278d3c2d68fb"
+      },
+      "ALIRA": {
+        "count": 28,
+        "path": "blocks/ALIRA.jsonl",
+        "sha256": "5cb0af994507a31b7174e803c9f597ae9253fa1f096bea50909f45f821221c4c"
+      },
+      "ALIRABV": {
+        "count": 99,
+        "path": "blocks/ALIRABV.jsonl",
+        "sha256": "572867857865340a4ead0061abdc829c36bf2e320feeeb226e6226151d3df6f4"
+      },
+      "ALRA": {
+        "count": 6,
+        "path": "blocks/ALRA.jsonl",
+        "sha256": "1f0a533bee4b003ad0e2d72b5552f6db0b9b79b975df5ee5e4a9044bda2eba00"
+      },
+      "ALRABV": {
+        "count": 3,
+        "path": "blocks/ALRABV.jsonl",
+        "sha256": "cede1deec852107d83992234a08b2f5bc9d026a8eb1ca733f5675878690ae404"
+      },
+      "AUF": {
+        "count": 11,
+        "path": "blocks/AUF.jsonl",
+        "sha256": "8857e1c8229b9f4b621a0cf1a3b957b32aca2df236b48446582414baf4bbf26f"
+      },
+      "AUFLIA": {
+        "count": 154,
+        "path": "blocks/AUFLIA.jsonl",
+        "sha256": "72f7f3bced36a7a66333569e6bd9b49fd3665848dae1c6e9613312f7c197b0ca"
+      },
+      "AUFLIABV": {
+        "count": 9,
+        "path": "blocks/AUFLIABV.jsonl",
+        "sha256": "1b826d7819ec8042a90d60fd91553069c6d09ebb943520d315945672438b3721"
+      },
+      "AUFLIABVFP": {
+        "count": 2,
+        "path": "blocks/AUFLIABVFP.jsonl",
+        "sha256": "264540417fc4ac0738b5d6eb4d224366c5b0dfdac5c273901a35ca95b9f92abe"
+      },
+      "AUFLIRA": {
+        "count": 202,
+        "path": "blocks/AUFLIRA.jsonl",
+        "sha256": "36db9d8e36b535165609e46f9405af1b13b105eb420564e22203f069f322774f"
+      },
+      "AUFLRA": {
+        "count": 2,
+        "path": "blocks/AUFLRA.jsonl",
+        "sha256": "da0dd5cf5d156f1cc5119d9805c740e9d044ed7b9f03d4c88046841d5fbd1634"
+      },
+      "AUFNIA": {
+        "count": 1,
+        "path": "blocks/AUFNIA.jsonl",
+        "sha256": "3caee50fa68d2ef20d156cfbd8686f6cea9473912f439f2b8bda222f1853480e"
+      },
+      "AUFNIRA": {
+        "count": 4,
+        "path": "blocks/AUFNIRA.jsonl",
+        "sha256": "c1616f4b2cf3670691b494a025c886ca8ba3175321de2b90ebdeb2e114a55174"
+      },
+      "BV": {
+        "count": 910,
+        "path": "blocks/BV.jsonl",
+        "sha256": "de0aa32a9fd725eb305a04f55997c3ea3ad774a438d09d88b8178953795b7f13"
+      },
+      "BVFP": {
+        "count": 103,
+        "path": "blocks/BVFP.jsonl",
+        "sha256": "c23bc9beded41b8833b88e504a0730b3f8d7d10785f9e5d5227afb6c646cf4e7"
+      },
+      "FP": {
+        "count": 13,
+        "path": "blocks/FP.jsonl",
+        "sha256": "b66b21cafbf19729e1f82d1530a6fe7eb70b6b083f8a59f86709cda824d021dd"
+      },
+      "GENERAL": {
+        "count": 23,
+        "path": "blocks/GENERAL.jsonl",
+        "sha256": "bb0f5a9cdc7a2358992d9e79a4707d6736ff49950fbd14e35dde95b86af3cadd"
+      },
+      "LIA": {
+        "count": 690,
+        "path": "blocks/LIA.jsonl",
+        "sha256": "25f1fcefec2b42363ba48d3ae3cb37aaefb297ba7ec63c027c3b504fdfbed359"
+      },
+      "LIABV": {
+        "count": 15,
+        "path": "blocks/LIABV.jsonl",
+        "sha256": "656d6c09d356b42cdcd812034ef758c4386a507a81abb2f20f5fc6032c6d998b"
+      },
+      "LIRA": {
+        "count": 48,
+        "path": "blocks/LIRA.jsonl",
+        "sha256": "28d38c65588dadc52a0b0744127046de59537c36ca8793488965c29be5acc211"
+      },
+      "LIRABV": {
+        "count": 57,
+        "path": "blocks/LIRABV.jsonl",
+        "sha256": "a814fe26a049ba604d9bdc8e16c58b0ebee2b76fb4db5a0aa45994bcd11d8f24"
+      },
+      "LRA": {
+        "count": 469,
+        "path": "blocks/LRA.jsonl",
+        "sha256": "fa81eb2e42384a238f2ca7c9652c90ca4ece68858c84839a5cc5ca217298fca1"
+      },
+      "LRABV": {
+        "count": 4,
+        "path": "blocks/LRABV.jsonl",
+        "sha256": "9b79bcc1617bf79d00159561c3bf9afebb94b927cff0e1e2fa38432fe809ae32"
+      },
+      "NIA": {
+        "count": 171,
+        "path": "blocks/NIA.jsonl",
+        "sha256": "82e50b3e3f85e4e0fb7df0f4212d7bf3b5b27220ca66889b8d47f44d5ab09e60"
+      },
+      "NIRA": {
+        "count": 94,
+        "path": "blocks/NIRA.jsonl",
+        "sha256": "1690549e233109e8395b34f0dfb49a6da0601ef7eaf082a86883dfb4aea0ea59"
+      },
+      "NIRABV": {
+        "count": 22,
+        "path": "blocks/NIRABV.jsonl",
+        "sha256": "f0e0d27d487b160e7d10408d449496b7d768007c7f1d4a776a1dbf98bf99dfd2"
+      },
+      "NRA": {
+        "count": 1425,
+        "path": "blocks/NRA.jsonl",
+        "sha256": "4ef58e11264861c92b4b8af30f40fc367e55e71313586a0ac423c0bf4f009cc6"
+      },
+      "QF": {
+        "count": 2139,
+        "path": "blocks/QF.jsonl",
+        "sha256": "096438c0e0c26ea4ecb23ddd8aade5900398b38c083d9ec7408ca5fea237d43d"
+      },
+      "QFABV": {
+        "count": 51,
+        "path": "blocks/QFABV.jsonl",
+        "sha256": "b0b35accb860fdc116256a51505b1dc3c16ab1bdc2ba06b51dbbd3203d4ee15d"
+      },
+      "QFABVFP": {
+        "count": 1,
+        "path": "blocks/QFABVFP.jsonl",
+        "sha256": "8020878c370a041c1cc9a577045b84cb837144c031fde56862ff8cd3c4361321"
+      },
+      "QFALIA": {
+        "count": 149,
+        "path": "blocks/QFALIA.jsonl",
+        "sha256": "9be9bf1bc7ea6c83cf4e4e326833d55d29fe2cdf3eb41a6c40a4f723b801b8e0"
+      },
+      "QFALIABV": {
+        "count": 3,
+        "path": "blocks/QFALIABV.jsonl",
+        "sha256": "940838caa9a2429d64d93ad60534dc532de29fa59b57665bf7017559ff7006da"
+      },
+      "QFALIABVFP": {
+        "count": 1,
+        "path": "blocks/QFALIABVFP.jsonl",
+        "sha256": "ee9c616952ea094df4cf45c884fbd67e553db800ccd3dc7ed9d1b09445f9d4ce"
+      },
+      "QFALIRA": {
+        "count": 17,
+        "path": "blocks/QFALIRA.jsonl",
+        "sha256": "93c584e6f0d5dd37aa1a5141f90a1f2a670f9c10333ec9df7711808d4356714f"
+      },
+      "QFALRA": {
+        "count": 14,
+        "path": "blocks/QFALRA.jsonl",
+        "sha256": "e534afbf211129bf2476b24c43f35cf7ece3bbcf2ced05c988b8d39e234950c9"
+      },
+      "QFANIA": {
+        "count": 13,
+        "path": "blocks/QFANIA.jsonl",
+        "sha256": "b3ad97d25f1d7b6e940a8256429163ac9badd7eb31452e7eb90d41107b393bc0"
+      },
+      "QFANIRA": {
+        "count": 4,
+        "path": "blocks/QFANIRA.jsonl",
+        "sha256": "6c34262e0d4e831bfeab2d5f6c1ac315610c1709a72a5262503d5f3b64cca716"
+      },
+      "QFANRA": {
+        "count": 7,
+        "path": "blocks/QFANRA.jsonl",
+        "sha256": "0c29e638eb6d8a4dff1e87aca6e66230114d6bfb6b8733f44c5734ff51505a4a"
+      },
+      "QFAUFLIA": {
+        "count": 188,
+        "path": "blocks/QFAUFLIA.jsonl",
+        "sha256": "0ea2a5b2f61fb709a6eba13583648755769a943e9d4e65e2c53c49d769a5368b"
+      },
+      "QFAUFLRA": {
+        "count": 13,
+        "path": "blocks/QFAUFLRA.jsonl",
+        "sha256": "1c07cb6e0114e8c5eb9984753bcce62ccd8da14a166feed971293ad400532f03"
+      },
+      "QFAUFNIA": {
+        "count": 3,
+        "path": "blocks/QFAUFNIA.jsonl",
+        "sha256": "d28ac78f79c36321a9a33c7220d52de6e56847b06f3fab821f0e2caf53df28ea"
+      },
+      "QFBVFP": {
+        "count": 92,
+        "path": "blocks/QFBVFP.jsonl",
+        "sha256": "5a64862c7a9bddbbc381d8151537eea368423cc7313a36f20d09388c7dbe758f"
+      },
+      "QFLIABV": {
+        "count": 51,
+        "path": "blocks/QFLIABV.jsonl",
+        "sha256": "241a0bb02e5bc7981672a7896aaafd3cd70b40ef88e2b41b8ddb9176b4d1a9c1"
+      },
+      "QFLIABVFP": {
+        "count": 3,
+        "path": "blocks/QFLIABVFP.jsonl",
+        "sha256": "4812e952b4f31804244bb815aabfefacdbd23da5f7eb9cfb2edc5f1277e131f0"
+      },
+      "QFLIAFP": {
+        "count": 19,
+        "path": "blocks/QFLIAFP.jsonl",
+        "sha256": "08ff7157314824e3fb494758ddbc140e75a511bc96ca068a64d906353181a553"
+      },
+      "QFLIRABV": {
+        "count": 5,
+        "path": "blocks/QFLIRABV.jsonl",
+        "sha256": "8cd689e82f856da83ef7d19a435ddab1d37b5238d8efb1c0626be0046fad7d56"
+      },
+      "QFLIRAFP": {
+        "count": 1,
+        "path": "blocks/QFLIRAFP.jsonl",
+        "sha256": "04e3c3eb34d0046eb4c568191a80c38e6de86a9c3f0ace51e2d3182eba771014"
+      },
+      "QFLRABV": {
+        "count": 6,
+        "path": "blocks/QFLRABV.jsonl",
+        "sha256": "62de4f3bc46e7d4237b5db0797dc3e636359a906daa6e69c4a94aea7197c3d0d"
+      },
+      "QFLRABVFP": {
+        "count": 34,
+        "path": "blocks/QFLRABVFP.jsonl",
+        "sha256": "1c5912fb8e457777d7a1d7dd9489bb1e255170644f69e202478121bc3150fab1"
+      },
+      "QFLRAFP": {
+        "count": 99,
+        "path": "blocks/QFLRAFP.jsonl",
+        "sha256": "21d6892f6c7ac5479a653ee34abb6205953e0b17da32e24e3efc828d68b6ac90"
+      },
+      "QFNIRABVFP": {
+        "count": 61,
+        "path": "blocks/QFNIRABVFP.jsonl",
+        "sha256": "8111741a66b77f1d688cc3a3dcf63aaa42ae8dc71e30ceb7f3fa5e1a02298c0d"
+      },
+      "QFUF": {
+        "count": 176,
+        "path": "blocks/QFUF.jsonl",
+        "sha256": "d940536f4e48341e3952aa37f47e805e37c850822e0e37831f4560fa569cca7f"
+      },
+      "QFUFA": {
+        "count": 46,
+        "path": "blocks/QFUFA.jsonl",
+        "sha256": "be835660fe31abcef7500b0265f7be7ef65895d4ed411e8bdba5f661bd7e1d84"
+      },
+      "QFUFBV": {
+        "count": 2047,
+        "path": "blocks/QFUFBV.jsonl",
+        "sha256": "89b91e84d3d8bfb0ac386de72dfbbc92c2e6196aa65952bc3e39e1e275df1ba9"
+      },
+      "QFUFFP": {
+        "count": 207,
+        "path": "blocks/QFUFFP.jsonl",
+        "sha256": "1ab705530a1c1f682f8a374bfec86a6113b2edf5dbb156a9337f28148440b999"
+      },
+      "QFUFLIA": {
+        "count": 2388,
+        "path": "blocks/QFUFLIA.jsonl",
+        "sha256": "831083aff16f4e79dc3bfc6b9a7835ac62c50a5c584cbfa0276201e07be62323"
+      },
+      "QFUFLIABV": {
+        "count": 3,
+        "path": "blocks/QFUFLIABV.jsonl",
+        "sha256": "9f5cb18793ef0cfa6c0ce226115cca1106f9bebef2a17be0aec17f59487427f1"
+      },
+      "QFUFLIABVFP": {
+        "count": 13,
+        "path": "blocks/QFUFLIABVFP.jsonl",
+        "sha256": "dec4a8bc28216d3e14e6d39d75ca6169692276bb73b7d67f97be8a9b705ab23f"
+      },
+      "QFUFLIAFP": {
+        "count": 9,
+        "path": "blocks/QFUFLIAFP.jsonl",
+        "sha256": "ea09d3b6ae493c83c5f1370244ea7c1f8657fd24d61e63b0a43c4f7483c7556b"
+      },
+      "QFUFLIRA": {
+        "count": 61,
+        "path": "blocks/QFUFLIRA.jsonl",
+        "sha256": "5f647cfc7e69c936f5f6f3f0d918ecf9d02e47e3462bd5cbd22950e710537827"
+      },
+      "QFUFLRA": {
+        "count": 1622,
+        "path": "blocks/QFUFLRA.jsonl",
+        "sha256": "2f66a945efd31949499d044a183958c839e7c6f54a74947c4a227f2ea7478202"
+      },
+      "QFUFNIA": {
+        "count": 2636,
+        "path": "blocks/QFUFNIA.jsonl",
+        "sha256": "3ef0d60c04b19659c50f35ee8bfe3940b7147bd9349b82a560a58a0eb06af86b"
+      },
+      "QFUFNIRA": {
+        "count": 178,
+        "path": "blocks/QFUFNIRA.jsonl",
+        "sha256": "342c14497df2dbbd7296179e5003dc4fdc8c70e25eeb561fafce6f8512946f94"
+      },
+      "QFUFNRA": {
+        "count": 1744,
+        "path": "blocks/QFUFNRA.jsonl",
+        "sha256": "47a36303ebed0d52d64d071c39dba04cab25eabb1404ebaf08fcfb877fca96d8"
+      },
+      "QF_BV": {
+        "count": 45,
+        "path": "blocks/QF_BV.jsonl",
+        "sha256": "927c4d4c0bf90ad392eda804c3b2b24f408748117bb08bcb2c42fb3fe7ea53e9"
+      },
+      "QF_FP": {
+        "count": 4,
+        "path": "blocks/QF_FP.jsonl",
+        "sha256": "3d8dd8be4a2b6201b06c3d77ca5323a90c389f158bf839837f16d9cbf0ed7b25"
+      },
+      "QF_LIA": {
+        "count": 482,
+        "path": "blocks/QF_LIA.jsonl",
+        "sha256": "c50069761d6a2a467ea0d45a69396ab1f535acf2ba17cdc40061108e016bdec4"
+      },
+      "QF_LIRA": {
+        "count": 36,
+        "path": "blocks/QF_LIRA.jsonl",
+        "sha256": "60aedfd23bda4ccd8ccd831cf89e89bf78d9d2dfd0fc0e770e95f44009d90b1e"
+      },
+      "QF_LRA": {
+        "count": 90,
+        "path": "blocks/QF_LRA.jsonl",
+        "sha256": "80d664bc2b4ad8babbedee4108b0b4888d2602061a0286ead06e15c28cb14400"
+      },
+      "QF_NIA": {
+        "count": 3,
+        "path": "blocks/QF_NIA.jsonl",
+        "sha256": "9dc61deb68079bce3ea110f068d3f833469dc9046d80c1a2cbeee9991efcfa09"
+      },
+      "QF_NIRA": {
+        "count": 2,
+        "path": "blocks/QF_NIRA.jsonl",
+        "sha256": "d39082ed1252d0c5b1e7e2ccb7d465dacdec5528b811669fddf4e9acc7a38876"
+      },
+      "QF_NRA": {
+        "count": 13,
+        "path": "blocks/QF_NRA.jsonl",
+        "sha256": "e18ff763381a828a72d069b530bee6e6a67016042d909ecbd68c2116845d2a7b"
+      },
+      "QF_S": {
+        "count": 37,
+        "path": "blocks/QF_S.jsonl",
+        "sha256": "8cf4ffce80655c329aff93bc09523bb70583c416134578b62394ae6d39c12a85"
+      },
+      "QF_UF": {
+        "count": 937,
+        "path": "blocks/QF_UF.jsonl",
+        "sha256": "642f2572ba48133d7fa31f3c3b4a31f39236052a4f17cc47c320f777e7987753"
+      },
+      "UF": {
+        "count": 374,
+        "path": "blocks/UF.jsonl",
+        "sha256": "d03eead12374f93c65a88bcb1c32679b8e9c092ff91b711ac7bfa0820ac5c933"
+      },
+      "UFBV": {
+        "count": 9,
+        "path": "blocks/UFBV.jsonl",
+        "sha256": "f488aef5fb59a9fd8b0df4b1e7d820565f4ce45b52206bc888f36937c1b6067b"
+      },
+      "UFBVFP": {
+        "count": 6,
+        "path": "blocks/UFBVFP.jsonl",
+        "sha256": "b7e2495b91e5ee9c3fbfbec4900c9092dd4b0e6a08fcdcb5b94ab8c15b656c9b"
+      },
+      "UFLIA": {
+        "count": 515,
+        "path": "blocks/UFLIA.jsonl",
+        "sha256": "386ecd6a82798c2f6ea0af620641e79fb82117637c9c830279086c8b97792e75"
+      },
+      "UFLIRA": {
+        "count": 140,
+        "path": "blocks/UFLIRA.jsonl",
+        "sha256": "0a18c411a82612b65afb34d6f1a74c0502e59df3ffb38f40100f50927f3f6889"
+      },
+      "UFLRA": {
+        "count": 55,
+        "path": "blocks/UFLRA.jsonl",
+        "sha256": "99b000dbf2a491c93c45a2281af0cbdb4bcf7afbf3c160d5feffcbca7b19f85e"
+      },
+      "UFNIA": {
+        "count": 109,
+        "path": "blocks/UFNIA.jsonl",
+        "sha256": "f7b90f65d9fa0c5c0b97d9527eaf5d412e038a6cc6f917c8cc9d3614f22f4a0a"
+      },
+      "UFNIRA": {
+        "count": 9,
+        "path": "blocks/UFNIRA.jsonl",
+        "sha256": "8d4a33458d8b02394991978b9bf0d3ea5ff0be0302c02ddb58512631b964075b"
+      },
+      "UFNRA": {
+        "count": 9,
+        "path": "blocks/UFNRA.jsonl",
+        "sha256": "59742d73dc7e2d28368e4d4f3d8eba059d52d34cc81934c7d46b81f9da341383"
+      }
+    },
+    "skeletons": {
+      "A": {
+        "count": 17,
+        "path": "skeletons/A.jsonl",
+        "sha256": "453cb4013b45d85bb03e9aef267eac5c0a7995c2224c1010cc4f32cd68392473"
+      },
+      "ABV": {
+        "count": 7,
+        "path": "skeletons/ABV.jsonl",
+        "sha256": "c7f73791a4eb788a20b98c60c709a54c89e6eb2c4a51e56499a6f819dab495bd"
+      },
+      "ALIA": {
+        "count": 39,
+        "path": "skeletons/ALIA.jsonl",
+        "sha256": "872e0e83b26ad23673e06009d83499693dd45ab52e2abe65f6c4ebc200661aaf"
+      },
+      "ALIRA": {
+        "count": 17,
+        "path": "skeletons/ALIRA.jsonl",
+        "sha256": "ddbde2d402f0376ae16a17c3c04f452b2459f443a27ab7e06e529b1272350ba7"
+      },
+      "ALIRABV": {
+        "count": 28,
+        "path": "skeletons/ALIRABV.jsonl",
+        "sha256": "a7a35cf934cc1823a198c06be99a027a9d24c96cd33289e2f1220863da16c681"
+      },
+      "ALRA": {
+        "count": 3,
+        "path": "skeletons/ALRA.jsonl",
+        "sha256": "3ebfd19c45753234055ca102ac73c47d0e52c991c62c7e2c8363315fe7bfc7c1"
+      },
+      "ALRABV": {
+        "count": 2,
+        "path": "skeletons/ALRABV.jsonl",
+        "sha256": "d40874e5b56d33c7f8ad3e03c220d4eddf1157c2bf78f864b6e39e905d6b7bc4"
+      },
+      "AUF": {
+        "count": 9,
+        "path": "skeletons/AUF.jsonl",
+        "sha256": "004fb34ec8231717c1a2012624f5ae2bd71e3e71fc325087cbf671dfcc99a413"
+      },
+      "AUFLIA": {
+        "count": 86,
+        "path": "skeletons/AUFLIA.jsonl",
+        "sha256": "8226fedf9ea0badcf38576c54b1c40628ace5a495c7b86f6d6941e0a0b63f4e4"
+      },
+      "AUFLIABV": {
+        "count": 7,
+        "path": "skeletons/AUFLIABV.jsonl",
+        "sha256": "bc65ccbf8b82758891d2028373637925605188f697e8377a85b9e3dd82cc0754"
+      },
+      "AUFLIABVFP": {
+        "count": 1,
+        "path": "skeletons/AUFLIABVFP.jsonl",
+        "sha256": "ad27d5398b1a99bb9542e97a9de0016f24a3b4b5bffe5220a6582d4b09811acb"
+      },
+      "AUFLIRA": {
+        "count": 99,
+        "path": "skeletons/AUFLIRA.jsonl",
+        "sha256": "59c46f49995d56feee7acd3fd6340f53032c5583e3af7fe448b4f7cb9296fa79"
+      },
+      "AUFLRA": {
+        "count": 1,
+        "path": "skeletons/AUFLRA.jsonl",
+        "sha256": "ebde00142e9efde4b09dad3167ab3a56a99f58e63b3b9bd860c3a134adef60ca"
+      },
+      "AUFNIA": {
+        "count": 1,
+        "path": "skeletons/AUFNIA.jsonl",
+        "sha256": "681c29b48f639280180eeb1d6caeb151cada75c6fdfd3db896456b935624cfda"
+      },
+      "AUFNIRA": {
+        "count": 2,
+        "path": "skeletons/AUFNIRA.jsonl",
+        "sha256": "c3e0d73bb73d95973b0e4a18c0fa79100ea15aa482237f3d97110fc2088ffc45"
+      },
+      "BV": {
+        "count": 283,
+        "path": "skeletons/BV.jsonl",
+        "sha256": "5de2f8479873b785dde383ff929baff43ee52188ae7564cc078e728e08dde906"
+      },
+      "BVFP": {
+        "count": 10,
+        "path": "skeletons/BVFP.jsonl",
+        "sha256": "99a49333b41ec3446cfdce009d384349b145054b215881497fedbab3fd893a93"
+      },
+      "FP": {
+        "count": 12,
+        "path": "skeletons/FP.jsonl",
+        "sha256": "2cd4803ac9e867a00cfa2932c82048563fcbffc6374f000e72911dbe2ff64d4a"
+      },
+      "LIA": {
+        "count": 308,
+        "path": "skeletons/LIA.jsonl",
+        "sha256": "a67ef2bdcd1ec65062fdce894ebc8c542b95af5f76685abe063995c7cdd86da2"
+      },
+      "LIABV": {
+        "count": 11,
+        "path": "skeletons/LIABV.jsonl",
+        "sha256": "240e3631b95dc84b816b91ff7864a56685deba3a85a8948b087fee1dc5b8ec08"
+      },
+      "LIRA": {
+        "count": 29,
+        "path": "skeletons/LIRA.jsonl",
+        "sha256": "efaeffaef095e199ef0939c42c4726d5ccbbe9a7794df7f40ccbcb77b8ca45e3"
+      },
+      "LIRABV": {
+        "count": 19,
+        "path": "skeletons/LIRABV.jsonl",
+        "sha256": "50f802ef464a9d9d6ca2d60f00ed2b23406151304198565bd120db4c6d4015b2"
+      },
+      "LRA": {
+        "count": 217,
+        "path": "skeletons/LRA.jsonl",
+        "sha256": "29fecf5a2a994def7a381b6e19d04df52f9001da9bf3fae409b713326f58efa4"
+      },
+      "LRABV": {
+        "count": 2,
+        "path": "skeletons/LRABV.jsonl",
+        "sha256": "4b599713cd849a57ed2f6a738ec6523da4698c39fd23cae4d271c9c523a102e2"
+      },
+      "NIA": {
+        "count": 86,
+        "path": "skeletons/NIA.jsonl",
+        "sha256": "2924e109fe1e31126db5c1f8077d612a7e5883a5a6e7af0e947e8ae8f261c744"
+      },
+      "NIRA": {
+        "count": 41,
+        "path": "skeletons/NIRA.jsonl",
+        "sha256": "fc418d11e5bd7a912fd47680dcdfb093e2c15afc9a063efa71364f9d508792d4"
+      },
+      "NIRABV": {
+        "count": 3,
+        "path": "skeletons/NIRABV.jsonl",
+        "sha256": "bb32f165efdda2de318b019e19619ad99806f6240053ad416f6ef6c8bb97d367"
+      },
+      "NRA": {
+        "count": 409,
+        "path": "skeletons/NRA.jsonl",
+        "sha256": "68f27e2b10b021335b799cceec9f06aa9c9b14604a25aeaa01536ab618534e8b"
+      },
+      "QF": {
+        "count": 1526,
+        "path": "skeletons/QF.jsonl",
+        "sha256": "53d2bfcd254e3d48132fc4d5b3b29be134a64041288aadd0755943debb58f74b"
+      },
+      "QFABV": {
+        "count": 61,
+        "path": "skeletons/QFABV.jsonl",
+        "sha256": "0893bfe00be31c0bb0b7f4454cf07f5c4e09c48719fb25705c06ebe8f4c39e4d"
+      },
+      "QFABVFP": {
+        "count": 1,
+        "path": "skeletons/QFABVFP.jsonl",
+        "sha256": "e7f4b2ca987fa85943f46bda5848340796899d3422c5fd52eb23eb3a13ee7fc8"
+      },
+      "QFALIA": {
+        "count": 89,
+        "path": "skeletons/QFALIA.jsonl",
+        "sha256": "6ea45e24488ad5560d68d533695af49a0d24b364ede3c3bf3b660330d36b91c1"
+      },
+      "QFALIABV": {
+        "count": 1,
+        "path": "skeletons/QFALIABV.jsonl",
+        "sha256": "9d7a86b775ae43012e01e94bb09a36bdced63ec79bd6fc50de4a6fce9c795c9c"
+      },
+      "QFALIABVFP": {
+        "count": 1,
+        "path": "skeletons/QFALIABVFP.jsonl",
+        "sha256": "23ce2682acbd455b7db920cca2dc0c767b1126ff3044ac0e08a40af044ff3d2e"
+      },
+      "QFALIRA": {
+        "count": 10,
+        "path": "skeletons/QFALIRA.jsonl",
+        "sha256": "d9138052f0d9cf5f393176f1c5b0caf38d0c20a9a1282d55560e28805359b7b3"
+      },
+      "QFALRA": {
+        "count": 13,
+        "path": "skeletons/QFALRA.jsonl",
+        "sha256": "6dd655a6a38152a950be321b8ff06114e36610b7c96089e5fce60807d4215d1b"
+      },
+      "QFANIA": {
+        "count": 4,
+        "path": "skeletons/QFANIA.jsonl",
+        "sha256": "e4f7e2d21dfa3f41e030b6e0662d1084f5bcc98b7395d5962f3c9395a2bbe936"
+      },
+      "QFANIRA": {
+        "count": 1,
+        "path": "skeletons/QFANIRA.jsonl",
+        "sha256": "1298c12e9d3a0944d5b76fae78af132b447d1bca615b987aa44b901aa7a36b8d"
+      },
+      "QFANRA": {
+        "count": 7,
+        "path": "skeletons/QFANRA.jsonl",
+        "sha256": "0fa03f6540a07c84fa77801e1361049fed54c9b5b196a412716051b5dca5ffff"
+      },
+      "QFAUFLIA": {
+        "count": 187,
+        "path": "skeletons/QFAUFLIA.jsonl",
+        "sha256": "b2bfd276e35c59f51388e53c621cae37c7d562f099c3516c429e98d3b410ffd9"
+      },
+      "QFAUFLRA": {
+        "count": 7,
+        "path": "skeletons/QFAUFLRA.jsonl",
+        "sha256": "309ce6d7dfaf9a53e34857784e7f40776d8543aaafa054069897e6d9a8c78213"
+      },
+      "QFAUFNIA": {
+        "count": 2,
+        "path": "skeletons/QFAUFNIA.jsonl",
+        "sha256": "4663c53f848d33324f40a18ca101b652ec13f3552c5364a10665aa74e71e721d"
+      },
+      "QFBVFP": {
+        "count": 90,
+        "path": "skeletons/QFBVFP.jsonl",
+        "sha256": "5c8811d7aaadf4eef4d3a0e927d21bfb64a0bc4fe96b35c34391f7c0548bfbdb"
+      },
+      "QFLIABV": {
+        "count": 36,
+        "path": "skeletons/QFLIABV.jsonl",
+        "sha256": "cdc04b8b77ba68f89cff99d67f286c5fc69085261b80f2abe4ea193f3ddf93e9"
+      },
+      "QFLIABVFP": {
+        "count": 3,
+        "path": "skeletons/QFLIABVFP.jsonl",
+        "sha256": "327e728a6b6641fe545f4e61f9901adeeeb07eb9b361a3b09d1f73eb8db940f5"
+      },
+      "QFLIAFP": {
+        "count": 15,
+        "path": "skeletons/QFLIAFP.jsonl",
+        "sha256": "1612bd079fd4fb876cab631ba517bcdc2572cc9288e0841a5a56dcdff30a49a6"
+      },
+      "QFLIRABV": {
+        "count": 5,
+        "path": "skeletons/QFLIRABV.jsonl",
+        "sha256": "c3ee8e85f5adc521641dfd952ec575579a9d0e36b2472e57599197ae9652ee37"
+      },
+      "QFLIRAFP": {
+        "count": 1,
+        "path": "skeletons/QFLIRAFP.jsonl",
+        "sha256": "02618e95420789970e140759a2ff33e162a3e6df4ac5ddef2f714e2f1bfa3dff"
+      },
+      "QFLRABV": {
+        "count": 2,
+        "path": "skeletons/QFLRABV.jsonl",
+        "sha256": "8648af16f396572993ea1411503b0ad99bde85247d124dae2c4ecff173385674"
+      },
+      "QFLRABVFP": {
+        "count": 6,
+        "path": "skeletons/QFLRABVFP.jsonl",
+        "sha256": "2f652fc72139343b3a35fbdd49c1fa49af976eea4a29168896df536893cfadab"
+      },
+      "QFLRAFP": {
+        "count": 22,
+        "path": "skeletons/QFLRAFP.jsonl",
+        "sha256": "01b36a0dcaf2e6d76b5aa9c8ba414b7e8d421564de36b1d6c2c3764d3c37b75a"
+      },
+      "QFNIRABVFP": {
+        "count": 2,
+        "path": "skeletons/QFNIRABVFP.jsonl",
+        "sha256": "48af387a826f92caace0aca3a001f22a240be443ce887c9aaf373ac118596ba1"
+      },
+      "QFUF": {
+        "count": 116,
+        "path": "skeletons/QFUF.jsonl",
+        "sha256": "bbdacb3887ac3c4987fed7a58fce15bff0ddca45ca01a0ce0073652b410bd31a"
+      },
+      "QFUFA": {
+        "count": 42,
+        "path": "skeletons/QFUFA.jsonl",
+        "sha256": "68bb890e8318c4a46c084c5e2abafe525116343c64ef287a66dae44755e08d8b"
+      },
+      "QFUFBV": {
+        "count": 663,
+        "path": "skeletons/QFUFBV.jsonl",
+        "sha256": "cace0af669878b2e653a6ca058e5ebf47a2d08bbd6d12225f73045d0b8e7bcf6"
+      },
+      "QFUFFP": {
+        "count": 171,
+        "path": "skeletons/QFUFFP.jsonl",
+        "sha256": "27a332d0b18a1c0f59d9af1ded75cb068ac5b461183b6caac5c8a9f839c50db2"
+      },
+      "QFUFLIA": {
+        "count": 1471,
+        "path": "skeletons/QFUFLIA.jsonl",
+        "sha256": "6b94e4b37dd45379492b0656265520abaa75abf0a92687fd9c98c88dd30a66d1"
+      },
+      "QFUFLIABV": {
+        "count": 3,
+        "path": "skeletons/QFUFLIABV.jsonl",
+        "sha256": "d335fd52a313ddf9abfbd1b6a3a1483ee0295d68e0889bb14897660272fe26ac"
+      },
+      "QFUFLIABVFP": {
+        "count": 3,
+        "path": "skeletons/QFUFLIABVFP.jsonl",
+        "sha256": "3e238e3d5732f2af2df742f3fe16897399dd01d59056a984b58403c7ed9b571f"
+      },
+      "QFUFLIAFP": {
+        "count": 3,
+        "path": "skeletons/QFUFLIAFP.jsonl",
+        "sha256": "ccc9a205498cca50ab0b99a5397e3a257416b9851fd6df024c04450baf1150ec"
+      },
+      "QFUFLIRA": {
+        "count": 59,
+        "path": "skeletons/QFUFLIRA.jsonl",
+        "sha256": "a0af2b4a946cfda17879b10da5120812b6554972e31874e5ff1d83548073e092"
+      },
+      "QFUFLRA": {
+        "count": 511,
+        "path": "skeletons/QFUFLRA.jsonl",
+        "sha256": "21b8b1eb79a5425330f97e01768c053b72218dafad517bb7b9d0fc6b1a137811"
+      },
+      "QFUFNIA": {
+        "count": 980,
+        "path": "skeletons/QFUFNIA.jsonl",
+        "sha256": "799f90c7433e29c086a5cc21683f7a2e63fa67bfe2de7f41b9e6184b78892add"
+      },
+      "QFUFNIRA": {
+        "count": 117,
+        "path": "skeletons/QFUFNIRA.jsonl",
+        "sha256": "1ecec120da99b13f9f5aa2454133d9f26ea39124a94c7eafc59e310a1f4aea61"
+      },
+      "QFUFNRA": {
+        "count": 572,
+        "path": "skeletons/QFUFNRA.jsonl",
+        "sha256": "40bd41522394c6ce0dc9c288d76f0db2f83512c773dfb7243a815b37274c5e73"
+      },
+      "UF": {
+        "count": 237,
+        "path": "skeletons/UF.jsonl",
+        "sha256": "2e007479343fc7be0bf1dafa29d4b9991daf713b180779469b0fc66ced3df380"
+      },
+      "UFBV": {
+        "count": 8,
+        "path": "skeletons/UFBV.jsonl",
+        "sha256": "5624d94e80e13d8386e6a338c5803b3a602fd2214a35f14132b9a58d1a5148b5"
+      },
+      "UFBVFP": {
+        "count": 2,
+        "path": "skeletons/UFBVFP.jsonl",
+        "sha256": "4ee2fd981c52461fa1d0d1a5a975a3331fd22465a5feda33f1ae28321ce2a645"
+      },
+      "UFLIA": {
+        "count": 309,
+        "path": "skeletons/UFLIA.jsonl",
+        "sha256": "4a1a2bae80b9e9a2863437b80a847388a7eb6b704bdab2511376cbdef81d6841"
+      },
+      "UFLIRA": {
+        "count": 122,
+        "path": "skeletons/UFLIRA.jsonl",
+        "sha256": "52ab650166aff3df659bb7afd9dbd1c171f9a8d14695f68c89e00a5aeac2ae8b"
+      },
+      "UFLRA": {
+        "count": 40,
+        "path": "skeletons/UFLRA.jsonl",
+        "sha256": "5416b827f8c555e0a5816afd2085a0d3c180bd504ae21b2f59aeb66267256659"
+      },
+      "UFNIA": {
+        "count": 35,
+        "path": "skeletons/UFNIA.jsonl",
+        "sha256": "482b3d9610d3a8704fffdc52befc201040c05a067ec6a310980e3237ef94b8b0"
+      },
+      "UFNIRA": {
+        "count": 6,
+        "path": "skeletons/UFNIRA.jsonl",
+        "sha256": "fee56bfa85770e1c2353c4580b093b6aa987e35ecc915ba682980e75b9e70d2b"
+      },
+      "UFNRA": {
+        "count": 9,
+        "path": "skeletons/UFNRA.jsonl",
+        "sha256": "84f2012f60ec1bcba92008d813f82cc3cc436bc62771e9297ba93effc881d87e"
+      }
+    }
+  },
+  "source": {
+    "file_count": 3700
+  },
+  "source_revision": "95d264a72d3e8a7da507c6250da5d3a60eadec92"
+}

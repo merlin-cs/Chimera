@@ -307,9 +307,16 @@ def export_corpus(
     """Stream *input_dir* into a validated, atomically published corpus."""
     input_root = Path(input_dir)
     target = Path(output_dir)
+    if not input_root.is_dir():
+        raise FileNotFoundError(f"corpus source directory does not exist: {input_root}")
     file_paths = _source_files(input_root)
+    if not file_paths:
+        raise ValueError(f"corpus source contains no .smt2 files: {input_root}")
+    # ``mkdtemp`` does not create its parent.  Create it before staging so a
+    # valid extraction can target a brand-new nested directory.
+    target.parent.mkdir(parents=True, exist_ok=True)
     extractor = LogicAwareExtractor(logic_mapping=logic_mapping)
-    staging = Path(tempfile.mkdtemp(prefix=f".{target.name}.staging-", dir=target.parent or Path(".")))
+    staging = Path(tempfile.mkdtemp(prefix=f".{target.name}.staging-", dir=target.parent))
     try:
         if batch_size <= 0:
             raise ValueError("batch_size must be positive")

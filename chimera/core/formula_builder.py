@@ -818,9 +818,20 @@ def is_builtin_symbol(name: str) -> bool:
     """
     if not name:
         return False
+    name = name.strip()
     if name in _BUILTIN_SYMBOLS:
         return True
-    # Check for indexed symbols like (_ BitVec 32)
+    # Qualified identifiers are retained as syntax by the AST visitor.  They
+    # are operators, not declarations: ``(_ extract 3 0)`` and
+    # ``(as const (Array Int Int))`` must not be reported as user symbols.
+    indexed = re.match(r"^\(\s*_\s+([^\s()]+)", name)
+    if indexed:
+        return indexed.group(1) in _BUILTIN_SYMBOLS
+    qualified = re.match(r"^\(\s*as\s+([^\s()]+)", name)
+    if qualified:
+        return qualified.group(1) in _BUILTIN_SYMBOLS
+    # Also accept the compact, unparenthesized form used by a few older AST
+    # clients.
     if name.startswith("_"):
         parts = name.split()
         if parts and parts[0] == "_" and len(parts) > 1:

@@ -26,7 +26,7 @@ import os
 import random
 import re
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Set, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Set, Tuple
 
 from chimera.core.differential_oracle import OracleConfig
 from chimera.core.formula_builder import FormulaValidator, build_smt_script
@@ -601,13 +601,19 @@ class HistFuzzStrategy(FuzzingStrategy):
             }
 
         # Fill holes with logic-aware block selection
-        filled_term = self._fill_holes_with_corpus(skeleton, provenance)
-        if filled_term is None:
+        filled = self._fill_holes_with_corpus(skeleton, provenance)
+        if filled is None:
             return None
+        filled_term, sampled_blocks = filled
 
-        # Build script
+        # A parsed replacement term intentionally does not retain declaration
+        # commands.  Carry both skeleton and block metadata into the rebuilt
+        # script instead of trying to infer declarations from Unknown leaves.
         script = self._build_script_from_filled(
-            filled_term, skeleton.var_decls, skeleton.func_decls
+            filled_term,
+            skeleton.var_decls,
+            skeleton.func_decls,
+            sampled_blocks,
         )
 
         # Validate
@@ -625,7 +631,7 @@ class HistFuzzStrategy(FuzzingStrategy):
         self,
         skeleton: Skeleton,
         provenance: dict[str, object] | None = None,
-    ) -> Optional[Term]:
+    ) -> Optional[Tuple[Term, List[BuildingBlock]]]:
         """Fill skeleton holes using corpus blocks with type matching."""
         from chimera.core.smt_ast import HoleCollector
 
@@ -634,6 +640,7 @@ class HistFuzzStrategy(FuzzingStrategy):
             return None
 
         filled = skeleton.term_obj.clone()
+        sampled_blocks: List[BuildingBlock] = []
         collector = HoleCollector()
         collector.visit(filled)
 
@@ -653,6 +660,7 @@ class HistFuzzStrategy(FuzzingStrategy):
 
             repl_term = replacement.term_obj.clone()
             hole.replace_with(repl_term)
+            sampled_blocks.append(replacement)
             if provenance is not None:
                 blocks = provenance.setdefault("blocks", [])
                 if isinstance(blocks, list):
@@ -664,16 +672,43 @@ class HistFuzzStrategy(FuzzingStrategy):
                         }
                     )
 
-        return filled
+        return filled, sampled_blocks
 
     def _build_script_from_filled(
         self,
         filled_term: Term,
         var_decls: Dict[str, str],
-        func_decls: Dict,
+        func_decls: Mapping[str, Any],
+        sampled_blocks: Sequence[BuildingBlock] = (),
     ) -> str:
         """Build complete SMT-LIB script from filled term."""
         declarations: List[str] = []
+
+        # Metadata is the source of truth for declarations.  It survives
+        # standalone parsing (where leaves deliberately have Unknown types),
+        # and supports both declare-const and zero-arity declare-fun records.
+        all_var_decls: List[Mapping[str, str]] = [var_decls]
+        all_func_decls: List[Mapping[str, Any]] = [func_decls]
+        for block in sampled_blocks:
+            all_var_decls.append(block.var_decls)
+            all_func_decls.append(block.func_decls)
+        for declaration_map in all_var_decls:
+            for name, sort in declaration_map.items():
+                declarations.append(f"(declare-const {name} {sort})")
+        for declaration_map in all_func_decls:
+            for name, info in declaration_map.items():
+                args = getattr(info, "arg_sorts", None)
+                ret = getattr(info, "ret_sort", None)
+                declared_name = getattr(info, "name", name)
+                if isinstance(info, Mapping):
+                    args = info.get("arg_sorts", args)
+                    ret = info.get("ret_sort", ret)
+                    declared_name = info.get("name", declared_name)
+                if args is None or not ret:
+                    continue
+                declarations.append(
+                    f"(declare-fun {declared_name} ({' '.join(str(arg) for arg in args)}) {ret})"
+                )
 
         # Collect variable declarations from the filled term
         self._collect_declarations(filled_term, declarations)
@@ -685,12 +720,6 @@ class HistFuzzStrategy(FuzzingStrategy):
             if d not in seen:
                 seen.add(d)
                 unique_decls.append(d)
-
-        # Also include original declarations from skeleton
-        for name, sort in var_decls.items():
-            decl = f"(declare-const {name} {sort})"
-            if decl not in unique_decls:
-                unique_decls.append(decl)
 
         asserts = [f"(assert {filled_term})"]
 

@@ -3,7 +3,14 @@
 import json
 from pathlib import Path
 
-from chimera.history.streaming import export_corpus, load_corpus, validate_corpus
+import pytest
+
+from chimera.history.streaming import (
+    export_corpus,
+    load_corpus,
+    packaged_corpus_path,
+    validate_corpus,
+)
 
 
 def test_streaming_export_is_valid_and_loadable(tmp_path: Path) -> None:
@@ -53,3 +60,30 @@ def test_streaming_export_is_deterministic(tmp_path: Path) -> None:
     first = export_corpus(source, tmp_path / "first", source_revision="fixed")
     second = export_corpus(source, tmp_path / "second", source_revision="fixed")
     assert json.dumps(first, sort_keys=True) == json.dumps(second, sort_keys=True)
+
+
+def test_export_rejects_empty_source_without_replacing_existing_corpus(tmp_path: Path) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    destination = tmp_path / "existing"
+    destination.mkdir()
+    sentinel = destination / "keep.txt"
+    sentinel.write_text("do not replace", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="no .smt2 files"):
+        export_corpus(source, destination, replace=True)
+
+    assert sentinel.read_text(encoding="utf-8") == "do not replace"
+
+
+def test_export_creates_missing_output_parent(tmp_path: Path) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "one.smt2").write_text("(assert true)\n", encoding="utf-8")
+    destination = tmp_path / "new" / "nested" / "corpus"
+    export_corpus(source, destination)
+    assert validate_corpus(destination)["format_version"] == 1
+
+
+def test_packaged_corpus_is_present_and_valid() -> None:
+    assert validate_corpus(packaged_corpus_path())["format_version"] == 1

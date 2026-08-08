@@ -93,7 +93,11 @@ def generate_bv_term(ctx, width, allow_let=True):
         choices.append('let')
     
     if ctx.depth < ctx.max_depth - 1:
-        choices.extend(['concat', 'extract', 'bvnot', 'bvneg', 'bvand', 'bvor',
+        # Concatenation must split the requested result width into two
+        # non-empty bit-vectors. A one-bit term has no such split.
+        if width > 1:
+            choices.append('concat')
+        choices.extend(['extract', 'bvnot', 'bvneg', 'bvand', 'bvor',
                        'bvadd', 'bvmul', 'bvudiv', 'bvurem', 'bvshl', 'bvlshr',
                        'ite'])
     

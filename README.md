@@ -45,9 +45,9 @@ Chimera unifies these lines of work into a single framework for  Discovering bug
 
 ### Prerequisites
 
-- Python 3.8+
-- [ANTLR4 Python3 Runtime](https://pypi.org/project/antlr4-python3-runtime/) (Recommended version: 4.7.2 or compatible with generated parsers)
-- Snake-egg for equality saturation
+- Python 3.9+
+- [ANTLR4 Python3 Runtime](https://pypi.org/project/antlr4-python3-runtime/) (the package pins 4.9.2)
+- Optional: Snake-egg for Aries equality saturation (`pip install -e ".[aries]"`)
 - SMT solvers to test (e.g., [Z3](https://github.com/Z3Prover/z3), [cvc5](https://github.com/cvc5/cvc5))
 
 ### Setup
@@ -55,7 +55,9 @@ Chimera unifies these lines of work into a single framework for  Discovering bug
 ```bash
 git clone https://github.com/merlin-cs/Chimera.git
 cd Chimera
-pip install -r requirements.txt 
+python -m pip install -e ".[dev]"
+# Optional capabilities:
+# python -m pip install -e ".[history,aries,generator-authoring]"
 ```
 ---
 
@@ -65,10 +67,10 @@ Chimera can be run via the installed command or as a Python module:
 
 ```bash
 # After installation (pip install -e .)
-chimera --mode histfuzz --solver1-bin /path/to/z3 --solver2-bin /path/to/cvc5 ...
+chimera run histfuzz --solver1-bin /path/to/z3 --solver2-bin /path/to/cvc5
 
 # Or run directly
-python -m chimera --mode histfuzz --solver1-bin /path/to/z3 --solver2-bin /path/to/cvc5 ...
+python -m chimera run histfuzz --solver1-bin /path/to/z3 --solver2-bin /path/to/cvc5
 ```
 
 ### LLM-based Fuzzing (Once4All Mode)
@@ -76,8 +78,7 @@ python -m chimera --mode histfuzz --solver1-bin /path/to/z3 --solver2-bin /path/
 This mode uses LLM-synthesized generators to produce formulas.
 
 ```bash
-python -m chimera.chimera_cli \
-  --mode once4all \
+chimera run once4all \
   --solver1-name z3 \
   --solver2-name cvc5 \
   --solver1-bin /path/to/z3 \
@@ -93,13 +94,21 @@ python -m chimera.chimera_cli \
 Use historical bug-triggering cases to guide the synthesis of new formulas.
 
 ```bash
-python -m chimera.chimera_cli \
-  --mode histfuzz \
+chimera run histfuzz \
   --solver1-name z3 \
   --solver2-name cvc5 \
   --solver1-bin /path/to/z3 \
-  --solver2-bin /path/to/cvc5 \
-  --seed-dir ./bug_triggering_formulas
+  --solver2-bin /path/to/cvc5
+```
+
+The installed package includes the versioned JSONL historical corpus. Use
+`--corpus-dir PATH` to select a validated export. Legacy `--seed-dir`,
+`--skeleton-files`, and `--use-new-corpus` HistFuzz options now report a
+migration error; refresh a corpus explicitly with:
+
+```bash
+chimera corpus extract --formula-store ./bug_triggering_formulas/cases \
+  --resource-output ./chimera/resources/histfuzz
 ```
 
 
@@ -108,8 +117,7 @@ python -m chimera.chimera_cli \
 Mimetic mutation combined with equality saturation for rewrite rule exploration.
 
 ```bash
-python -m chimera.chimera_cli \
-  --mode aries \
+chimera run aries \
   --solver1-name z3 \
   --solver2-name cvc5 \
   --solver1-bin /path/to/z3 \
@@ -117,6 +125,41 @@ python -m chimera.chimera_cli \
   --seed-dir ./seeds \
   --rules-csv ./RewriteRule.csv
 ```
+
+Campaigns can be replayed from a versioned JSON configuration and artifact:
+
+```bash
+chimera run once4all --config campaign.json
+chimera replay ./chimera_bugs/cases/<case-id>/manifest.json
+chimera doctor --solver1-bin /path/to/z3 --solver2-bin /path/to/cvc5
+```
+
+A campaign configuration is self-contained. For example:
+
+```json
+{
+  "version": 1,
+  "engine": "histfuzz",
+  "solvers": [
+    {"name": "z3", "binary": "/path/to/z3"},
+    {"name": "cvc5", "binary": "/path/to/cvc5"}
+  ],
+  "engine_settings": {"corpus_dir": "./chimera/resources/histfuzz"},
+  "iterations": 1000,
+  "seed": 1234,
+  "output_dir": "./chimera_bugs",
+  "temp_dir": "./chimera_temp"
+}
+```
+
+`chimera doctor` checks solver executability, corpus checksums, generator
+discovery, Aries rule/dependency availability, and artifact-directory access.
+Use `chimera corpus extract` after adding new historical inputs; extraction is
+staged and published atomically only after all shard checksums validate.
+
+External `--generator-dir` modules run in short-lived worker processes. This
+limits campaign impact but is not a security sandbox; only use generators you
+trust.
 
 
 ---

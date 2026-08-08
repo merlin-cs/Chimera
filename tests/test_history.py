@@ -46,6 +46,17 @@ def test_compact_historical_logic_labels_are_normalized() -> None:
     assert corpus.sample_skeleton(logic="QF_LIA", quantified=False) is not None
 
 
+def test_bare_qf_records_are_classified_before_compatibility_filtering() -> None:
+    corpus = Corpus()
+    corpus.add_block(BuildingBlock('(str.contains "a" "a")', "QF"))
+    corpus.add_skeleton(Skeleton('(= hole 0 hole 1)', "QF", hole_types=["String", "String"]))
+
+    assert "S" in corpus.blocks
+    assert "QF_S" in corpus.skeletons
+    assert corpus.sample_block(logic="QF_BV") is None
+    assert corpus.sample_skeleton(logic="QF_S", quantified=False) is not None
+
+
 def test_streamed_extraction_can_be_loaded_by_histfuzz(tmp_path: Path) -> None:
     source = tmp_path / "seeds"
     source.mkdir()

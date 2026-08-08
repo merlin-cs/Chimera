@@ -37,6 +37,23 @@ CAMPAIGN_CONFIG_VERSION = 1
 ARTIFACT_FORMAT_VERSION = 1
 
 
+def _semantic_config_payload(config: CampaignConfig) -> Dict[str, Any]:
+    """Return configuration fields that affect generated/compared semantics.
+
+    Output paths, temporary paths, and the iteration bound are operational
+    controls and are intentionally allowed to change for a resumed campaign.
+    Everything else must stay identical to avoid mixing incomparable results.
+    """
+    payload = config.to_dict()
+    for key in ("output_dir", "temp_dir", "iterations"):
+        payload.pop(key, None)
+    return payload
+
+
+def _semantic_config_sha256(config: CampaignConfig) -> str:
+    return _sha256_json(_semantic_config_payload(config))
+
+
 def _solver_to_dict(config: SolverConfig) -> Dict[str, Any]:
     return {
         "name": config.name,
@@ -288,13 +305,15 @@ class ArtifactStore:
         return dict(self._solver_metadata_cache[key])
 
     @staticmethod
-    def case_id(case: GeneratedCase) -> str:
+    def case_id(case: GeneratedCase, config: Optional[CampaignConfig] = None) -> str:
+        """Return an ID that is stable per case *and* campaign semantics."""
         payload = json.dumps(
             {
                 "text": case.text,
                 "logic": case.logic,
                 "provenance": _json_safe(case.provenance),
                 "rng_seed": case.rng_seed,
+                "campaign": _semantic_config_payload(config) if config else None,
             },
             sort_keys=True,
             separators=(",", ":"),
@@ -310,7 +329,7 @@ class ArtifactStore:
         comparisons: Optional[Sequence[Mapping[str, Any]]] = None,
     ) -> Path:
         self.cases.mkdir(parents=True, exist_ok=True)
-        case_id = self.case_id(case)
+        case_id = self.case_id(case, config)
         destination = self.cases / case_id
         if destination.exists():
             existing = destination / "manifest.json"
@@ -343,6 +362,7 @@ class ArtifactStore:
             "checksums": {
                 "formula_sha256": hashlib.sha256(case.text.encode("utf-8")).hexdigest(),
                 "config_sha256": _sha256_json(config_payload),
+                "semantic_config_sha256": _semantic_config_sha256(config),
                 "solver_outputs_sha256": {
                     name: _sha256_json(result) for name, result in solver_payload.items()
                 },
@@ -419,11 +439,17 @@ class CampaignRunner:
             raise ValueError(f"cannot resume: missing campaign summary {summary_path}")
         with summary_path.open(encoding="utf-8") as stream:
             summary = json.load(stream)
-        if summary.get("config", {}).get("engine") != self.config.engine:
-            raise ValueError("cannot resume: campaign engine does not match summary")
         saved_config = summary.get("config", {})
-        if saved_config.get("seed") != self.config.seed:
-            raise ValueError("cannot resume: campaign seed does not match summary")
+        try:
+            previous = CampaignConfig.from_dict(saved_config)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError("cannot resume: summary has an invalid campaign config") from exc
+        saved_identity = summary.get("semantic_config_sha256")
+        expected_identity = _semantic_config_sha256(previous)
+        if saved_identity is not None and saved_identity != expected_identity:
+            raise ValueError("cannot resume: summary configuration checksum is invalid")
+        if _semantic_config_sha256(self.config) != expected_identity:
+            raise ValueError("cannot resume: semantic campaign configuration does not match summary")
         stats_payload = summary.get("stats", {})
         stat_names = {item.name for item in fields(FuzzStats)}
         for name in stat_names:
@@ -490,6 +516,7 @@ class CampaignRunner:
             self.artifacts.write_summary(
                 {
                     "config": self.config.to_dict(),
+                    "semantic_config_sha256": _semantic_config_sha256(self.config),
                     "stats": asdict(self.stats),
                     "interrupted": interrupted,
                     "resume": {
@@ -504,7 +531,7 @@ class CampaignRunner:
         self.stats.formulas_generated += 1
         temp = Path(self.config.temp_dir)
         temp.mkdir(parents=True, exist_ok=True)
-        formula_path = temp / f"case-{iteration}-{self.artifacts.case_id(case)}.smt2"
+        formula_path = temp / f"case-{iteration}-{self.artifacts.case_id(case, self.config)}.smt2"
         formula_path.write_text(case.text, encoding="utf-8")
         results = {
             solver.name: run_solver(solver, str(formula_path), timeout=self.config.timeout)

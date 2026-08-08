@@ -27,6 +27,7 @@ from chimera.core.formula_builder import (
     variable_translocation,
     extract_function_name,
     build_smt_script,
+    FormulaValidator,
 )
 
 
@@ -109,6 +110,18 @@ class TestValidateSmtFormula:
         """Test valid formula passes validation."""
         formula = "(set-logic QF_LIA)\n(assert (> x 0))\n(check-sat)"
         assert validate_smt_formula(formula) is True
+
+    @pytest.mark.parametrize("formula", [
+        "(set-logic QF_BV)\n"
+        "(declare-const x (_ BitVec 8))\n"
+        "(assert (= ((_ extract 3 0) x) (_ bv0 4)))\n(check-sat)",
+        "(set-logic QF_AUFLIA)\n"
+        "(declare-const a (Array Int Int))\n"
+        "(assert (= ((as const (Array Int Int)) 0) a))\n(check-sat)",
+    ])
+    def test_qualified_builtin_identifiers_are_not_undeclared_symbols(self, formula):
+        result = FormulaValidator.validate(formula)
+        assert result.ok, result.errors
 
     def test_unbalanced_parens_fails(self):
         """Test unbalanced parentheses fails."""

@@ -16,11 +16,11 @@ import random
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
 from chimera.core.smt_ast import Term, Hole, is_hole
 from chimera.core.smt_parser import parse_string
-from chimera.core.logic_analyzer import parse_logic, is_logic_compatible
+from chimera.core.logic_analyzer import detect_script_logic, parse_logic, is_logic_compatible
 from chimera.core.types import UNKNOWN
 
 _HOLE_TEXT = re.compile(r"(?<![\w(])hole\s+(\d+)")
@@ -37,6 +37,44 @@ def _canonical_logic(logic: str) -> str:
 def _canonicalize_holes(text: str) -> str:
     """Make the human-readable ``hole N`` sentinel parseable as an app."""
     return _HOLE_TEXT.sub(r"(hole \1)", text)
+
+
+def _classify_bare_qf_logic(
+    logic: str,
+    text: str,
+    hole_types: Sequence[str] = (),
+) -> str:
+    """Classify old ``QF`` records before logic compatibility filtering.
+
+    Early corpus exports used ``QF`` as a catch-all shard name.  Treating it
+    as ``QF_QF`` makes it compatible with every theory, so string records can
+    leak into a bit-vector campaign.  Infer the real theory from the record;
+    an unparsable legacy record conservatively falls back to QF_UF.
+    """
+    normalized = _canonical_logic(logic)
+    if normalized != "QF":
+        return normalized
+    parsed = parse_string(f"(assert {_canonicalize_holes(text)})", silent=True)
+    if parsed is not None:
+        script, _ = parsed
+        detected = detect_script_logic(script)
+        if detected != "QF_UF":
+            return detected
+    normalized_hints = " ".join(hole_types).lower()
+    if "string" in normalized_hints:
+        return "QF_S"
+    if "bitvec" in normalized_hints:
+        return "QF_BV"
+    if "array" in normalized_hints:
+        return "QF_A"
+    return "QF_UF"
+
+
+def _block_source_logic(key: str) -> str:
+    """Return a complete QF logic for a block-map key."""
+    if key == "QF":
+        return "QF_UF"
+    return key if key.startswith("QF_") else "QF_" + key
 
 
 @dataclass
@@ -109,13 +147,13 @@ class BuildingBlock:
         """Ensure sort_deps contains only non-built-in sorts."""
         from chimera.core.logic_analyzer import is_builtin_sort
 
-        self.logic = _canonical_logic(self.logic)
+        self.term_smt2 = _canonicalize_holes(self.term_smt2)
+        self.logic = _classify_bare_qf_logic(self.logic, self.term_smt2)
         # Filter to only non-builtin sorts that need declaration
         self.sort_deps = {
             s for s in self.sort_deps
             if not is_builtin_sort(s) and s.strip()
         }
-        self.term_smt2 = _canonicalize_holes(self.term_smt2)
 
     @property
     def term_obj(self) -> Optional[Term]:
@@ -221,14 +259,14 @@ class Skeleton:
         """Ensure sort_deps contains only non-built-in sorts."""
         from chimera.core.logic_analyzer import is_builtin_sort
 
-        self.logic = _canonical_logic(self.logic)
+        self.term_smt2 = _canonicalize_holes(self.term_smt2)
+        self.logic = _classify_bare_qf_logic(self.logic, self.term_smt2, self.hole_types)
         if not self.is_quantified and self.logic != "QF" and not self.logic.startswith("QF_"):
             self.logic = "QF_" + self.logic
         self.sort_deps = {
             s for s in self.sort_deps
             if not is_builtin_sort(s) and s.strip()
         }
-        self.term_smt2 = _canonicalize_holes(self.term_smt2)
 
     @property
     def term_obj(self) -> Optional[Term]:
@@ -377,9 +415,7 @@ class Corpus:
         """
         compatible = set()
         for logic in list(self.blocks.keys()) + list(self.skeletons.keys()):
-            source_logic = logic
-            if logic in self.blocks and not logic.startswith("QF_"):
-                source_logic = "QF_" + logic
+            source_logic = _block_source_logic(logic) if logic in self.blocks else logic
             if is_logic_compatible(source_logic, target_logic):
                 compatible.add(logic)
         return compatible
@@ -395,7 +431,7 @@ class Corpus:
             # Find all compatible logics (blocks are stored without QF_ prefix)
             compatible = set()
             for key in self.blocks:
-                source_logic = key if key.startswith("QF_") else "QF_" + key
+                source_logic = _block_source_logic(key)
                 if is_logic_compatible(source_logic, logic):
                     compatible.add(key)
             candidates = self.get_blocks(logics=compatible)

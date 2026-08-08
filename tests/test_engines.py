@@ -20,6 +20,10 @@ from chimera.engines.base import (
     Skipped,
 )
 from chimera.core.solver_manager import SolverConfig, SolverOutcome, SolverResult
+from chimera.core.smt_parser import parse_string
+from chimera.core.formula_builder import FormulaValidator
+from chimera.engines.histfuzz_engine import HistFuzzStrategy
+from chimera.history.corpus import BuildingBlock, FuncInfo
 
 
 @pytest.fixture
@@ -462,6 +466,31 @@ class TestStrategyTimeout:
         finally:
             shutil.rmtree(output_dir, ignore_errors=True)
             shutil.rmtree(temp_dir, ignore_errors=True)
+
+def test_histfuzz_rebuild_keeps_skeleton_and_block_declarations(tmp_path: Path) -> None:
+    strategy = HistFuzzStrategy(
+        SolverConfig("a", "/usr/bin/true"), SolverConfig("b", "/usr/bin/true"),
+        corpus_dir=str(tmp_path / "missing"),
+        output_dir=str(tmp_path / "out"), temp_dir=str(tmp_path / "temp"),
+    )
+    parsed = parse_string("(assert (= (f x) y))", silent=True)
+    assert parsed is not None
+    term = parsed[0].assert_cmd[0].term
+    block = BuildingBlock(
+        "y", "QF_LIA", var_decls={"y": "Int"},
+        func_decls={"g": FuncInfo("g", [], "Int")},
+    )
+    script = strategy._build_script_from_filled(
+        term,
+        {"x": "Int"},
+        {"f": FuncInfo("f", ["Int"], "Int")},
+        [block],
+    )
+    assert "(declare-fun f (Int) Int)" in script
+    assert "(declare-const x Int)" in script
+    assert "(declare-const y Int)" in script
+    assert "(declare-fun g () Int)" in script
+    assert FormulaValidator.validate(script).ok
 
 
 if __name__ == "__main__":

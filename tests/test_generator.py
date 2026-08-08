@@ -7,8 +7,10 @@ Tests cover:
 - Theory-specific generators
 """
 
-import pytest
 from pathlib import Path
+import random
+
+import pytest
 
 
 class TestGeneratorLoader:
@@ -76,6 +78,15 @@ class TestBVGenerator:
             assert result is not None
             assert isinstance(result, tuple)
             assert len(result) == 2
+
+    def test_bv_generator_handles_one_bit_subterms_for_many_seeds(self):
+        from chimera.config.generator_loader import GENERATORS
+
+        if "bv" in GENERATORS:
+            for seed in range(25):
+                random.seed(seed)
+                result = GENERATORS["bv"]()
+                assert result is not None
 
 
 class TestArrayGenerator:

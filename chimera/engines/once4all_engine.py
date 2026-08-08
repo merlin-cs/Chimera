@@ -64,7 +64,7 @@ logger = logging.getLogger(__name__)
 # Generator registry
 # ---------------------------------------------------------------------------
 
-GeneratorFn = Callable[[], Tuple[str, str]]  # () -> (declarations, body)
+GeneratorFn = Callable[[], Any]
 
 
 class GeneratorRegistry:
@@ -179,8 +179,14 @@ def _load_generator_function(
 ) -> Optional[GeneratorFn]:
     """Load a single generator function from *path*."""
     if isolated:
-        def invoke_external() -> Tuple[str, str]:
-            request = {"path": str(path), "module_base": module_base}
+        def invoke_external() -> Any:
+            # FuzzingStrategy temporarily bridges module-level random to the
+            # campaign RNG, so this child seed is stable across replay/resume.
+            request = {
+                "path": str(path),
+                "module_base": module_base,
+                "seed": random.getrandbits(64),
+            }
             try:
                 result = subprocess.run(
                     [sys.executable, "-m", "chimera.engines.generator_worker"],
@@ -203,7 +209,12 @@ def _load_generator_function(
             payload = json.loads(result.stdout)
             if not payload.get("ok"):
                 raise RuntimeError(payload.get("error", "generator worker failed"))
-            return str(payload["declarations"]), str(payload["body"])
+            generated = payload.get("result")
+            if isinstance(generated, str):
+                return generated
+            if isinstance(generated, list) and len(generated) >= 2:
+                return str(generated[0]), str(generated[1])
+            raise RuntimeError("generator worker returned an invalid result")
 
         return invoke_external
 
@@ -298,6 +309,17 @@ class Once4AllStrategy(FuzzingStrategy):
 
         return frozenset(blocked)
 
+    @staticmethod
+    def _incompatible_theories_for_solvers(solvers: Sequence[SolverConfig]) -> frozenset[str]:
+        """Block a provider unless every configured solver supports it."""
+        names = [solver.name.lower() for solver in solvers]
+        blocked: set[str] = set()
+        if not all(name.startswith("cvc5") for name in names):
+            blocked |= Once4AllStrategy._CVC5_ONLY_THEORIES
+        if not all(name.startswith("z3") for name in names):
+            blocked |= Once4AllStrategy._Z3_ONLY_THEORIES
+        return frozenset(blocked)
+
     @property
     def name(self) -> str:
         return "once4all"
@@ -315,6 +337,7 @@ class Once4AllStrategy(FuzzingStrategy):
         timeout: float = 10.0,
         oracle_config: Optional[OracleConfig] = None,
         generator_timeout: float = 10.0,
+        solver_configs: Optional[Sequence[SolverConfig]] = None,
     ) -> None:
         super().__init__(
             solver1,
@@ -341,18 +364,20 @@ class Once4AllStrategy(FuzzingStrategy):
             timeout=self._generator_timeout,
         )
 
-        # Remove generators incompatible with this solver pair
-        blocked = self._incompatible_theories_for(solver1, solver2)
+        # Remove generators incompatible with any solver in an N-solver
+        # campaign.  The legacy public constructor still naturally passes
+        # only its two solvers.
+        compatible_solvers = tuple(solver_configs or (solver1, solver2))
+        blocked = self._incompatible_theories_for_solvers(compatible_solvers)
         for tlk in blocked:
             self._registry._registry.pop(tlk, None)
 
         logger.info(
-            "Once4All initialised: %d generators from %s (blocked %d for %s vs %s), theories=%s",
+            "Once4All initialised: %d generators from %s (blocked %d for %s), theories=%s",
             len(self._registry.theory_keys),
             self._generator_dir,
             len(blocked),
-            solver1.name,
-            solver2.name,
+            ", ".join(solver.name for solver in compatible_solvers),
             self._registry.theory_keys,
         )
 
