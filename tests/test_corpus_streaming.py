@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from chimera.history.streaming import (
+    CorpusIntegrityError,
     export_corpus,
     load_corpus,
     packaged_corpus_path,
@@ -48,6 +49,23 @@ def test_manifest_checksum_detects_tampering(tmp_path: Path) -> None:
         assert "checksum" in str(exc)
     else:
         raise AssertionError("tampered corpus unexpectedly validated")
+
+
+def test_manifest_missing_shard_metadata_is_a_corpus_integrity_error(tmp_path: Path) -> None:
+    destination = tmp_path / "corpus"
+    destination.mkdir()
+    (destination / "manifest.json").write_text(
+        json.dumps(
+            {
+                "format_version": 1,
+                "shards": {"blocks": {"QF_UF": {"count": 0, "sha256": "unused"}}},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(CorpusIntegrityError, match="missing path"):
+        validate_corpus(destination)
 
 
 def test_streaming_export_is_deterministic(tmp_path: Path) -> None:

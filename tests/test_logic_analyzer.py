@@ -97,6 +97,16 @@ class TestLogicInfo:
         assert str(info) == "QF_BV"
 
 
+def test_sequence_inference_and_parsing_preserve_sequence_capability() -> None:
+    inferred = detect_script_logic("(assert (= seq.empty seq.empty))")
+    info = parse_logic(inferred)
+
+    assert inferred == "QF_SEQ"
+    assert info.supports(LogicCapability.SEQUENCES)
+    assert not info.supports(LogicCapability.STRINGS)
+    assert not is_logic_compatible("QF_SEQ", "QF_S")
+
+
 class TestParseLogic:
     """Tests for parse_logic function."""
 

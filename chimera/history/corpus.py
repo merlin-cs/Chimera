@@ -39,10 +39,36 @@ def _canonicalize_holes(text: str) -> str:
     return _HOLE_TEXT.sub(r"(hole \1)", text)
 
 
+def _referenced_symbols(text: str) -> set[str]:
+    """Return symbols used by one corpus term for declaration filtering."""
+    parsed = parse_string(f"(assert {_canonicalize_holes(text)})", silent=True)
+    if parsed is None:
+        return set()
+    script, _ = parsed
+    if not script.assert_cmd:
+        return set()
+
+    symbols: set[str] = set()
+
+    def walk(term: Term) -> None:
+        if term.is_var and term.name:
+            symbols.add(term.name)
+        if isinstance(term.op, str) and term.op and not term.op.startswith("hole"):
+            symbols.add(term.op)
+        for child in [*(term.let_terms or []), *(term.subterms or [])]:
+            if isinstance(child, Term):
+                walk(child)
+
+    walk(script.assert_cmd[0].term)
+    return symbols
+
+
 def _classify_bare_qf_logic(
     logic: str,
     text: str,
     hole_types: Sequence[str] = (),
+    var_decls: Optional[Dict[str, str]] = None,  # noqa: UP006, UP045 - Python 3.9
+    func_decls: Optional[Dict[str, Any]] = None,  # noqa: UP006, UP045 - Python 3.9
 ) -> str:
     """Classify old ``QF`` records before logic compatibility filtering.
 
@@ -51,10 +77,40 @@ def _classify_bare_qf_logic(
     leak into a bit-vector campaign.  Infer the real theory from the record;
     an unparsable legacy record conservatively falls back to QF_UF.
     """
+    raw_logic = logic.upper().strip()
     normalized = _canonical_logic(logic)
-    if normalized != "QF":
+    # Compact labels (for example, ``QFUF``) are another legacy catch-all:
+    # historical exporters used the shard name even when an individual record
+    # required a different theory.  Only inspect compact labels and bare QF;
+    # explicit modern labels remain authoritative.
+    needs_content_classification = normalized == "QF" or (
+        raw_logic.startswith("QF")
+        and raw_logic != "QF"
+        and not raw_logic.startswith("QF_")
+    )
+    if not needs_content_classification:
         return normalized
-    parsed = parse_string(f"(assert {_canonicalize_holes(text)})", silent=True)
+    # A compact shard label is not reliable enough to classify an individual
+    # legacy record.  Include its declaration metadata in the inference input:
+    # an assertion such as ``(= i0 0)`` does not itself reveal that ``i0`` is
+    # an Int, Array, or BitVec value.
+    referenced = _referenced_symbols(text)
+    declarations = [
+        f"(declare-const {name} {sort})"
+        for name, sort in (var_decls or {}).items()
+        if name in referenced
+    ]
+    for name, signature in (func_decls or {}).items():
+        if name not in referenced:
+            continue
+        arg_sorts = " ".join(signature.arg_sorts)
+        declarations.append(
+            f"(declare-fun {name} ({arg_sorts}) {signature.ret_sort})"
+        )
+    inference_text = "\n".join(
+        [*declarations, f"(assert {_canonicalize_holes(text)})"]
+    )
+    parsed = parse_string(inference_text, silent=True)
     if parsed is not None:
         script, _ = parsed
         detected = detect_script_logic(script)
@@ -148,7 +204,12 @@ class BuildingBlock:
         from chimera.core.logic_analyzer import is_builtin_sort
 
         self.term_smt2 = _canonicalize_holes(self.term_smt2)
-        self.logic = _classify_bare_qf_logic(self.logic, self.term_smt2)
+        self.logic = _classify_bare_qf_logic(
+            self.logic,
+            self.term_smt2,
+            var_decls=self.var_decls,
+            func_decls=self.func_decls,
+        )
         # Filter to only non-builtin sorts that need declaration
         self.sort_deps = {
             s for s in self.sort_deps
@@ -260,7 +321,13 @@ class Skeleton:
         from chimera.core.logic_analyzer import is_builtin_sort
 
         self.term_smt2 = _canonicalize_holes(self.term_smt2)
-        self.logic = _classify_bare_qf_logic(self.logic, self.term_smt2, self.hole_types)
+        self.logic = _classify_bare_qf_logic(
+            self.logic,
+            self.term_smt2,
+            self.hole_types,
+            self.var_decls,
+            self.func_decls,
+        )
         if not self.is_quantified and self.logic != "QF" and not self.logic.startswith("QF_"):
             self.logic = "QF_" + self.logic
         self.sort_deps = {

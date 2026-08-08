@@ -232,6 +232,65 @@ def _freshen_block_symbols(block: BuildingBlock, suffix: object) -> BuildingBloc
     )
 
 
+def _freshen_skeleton_symbols(skeleton: Skeleton, suffix: object) -> Skeleton:
+    """Clone a skeleton with private declaration names for composition.
+
+    Multi-assert campaigns combine independently sampled skeletons.  Their
+    source declarations can use the same name with different signatures, so
+    skeleton-owned symbols need the same deterministic isolation already
+    applied to sampled building blocks.
+    """
+    term = skeleton.term_obj
+    if term is None:
+        return skeleton
+    renamed_term = term.clone()
+    names = set(skeleton.var_decls) | set(skeleton.func_decls)
+    rename_map = {name: _suffixed_symbol(name, suffix) for name in names}
+
+    def walk(node: Term, bound: set[str]) -> None:
+        if node.quantifier is not None:
+            nested_bound = set(bound)
+            if node.quantified_vars and len(node.quantified_vars) >= 2:
+                nested_bound.update(str(name) for name in node.quantified_vars[0])
+            for subterm in node.subterms or []:
+                if isinstance(subterm, Term):
+                    walk(subterm, nested_bound)
+            return
+        if node.is_var and node.name in rename_map and node.name not in bound:
+            node.name = rename_map[node.name]
+        if isinstance(node.op, str) and node.op in rename_map:
+            node.op = rename_map[node.op]
+        let_bound = set(bound)
+        if node.var_binders:
+            for let_term in node.let_terms or []:
+                if isinstance(let_term, Term):
+                    walk(let_term, bound)
+            let_bound.update(str(name) for name in node.var_binders)
+        for subterm in node.subterms or []:
+            if isinstance(subterm, Term):
+                walk(subterm, let_bound)
+
+    walk(renamed_term, set())
+    return Skeleton(
+        term_smt2=str(renamed_term),
+        logic=skeleton.logic,
+        is_quantified=skeleton.is_quantified,
+        hole_types=list(skeleton.hole_types),
+        sort_deps=set(skeleton.sort_deps),
+        func_deps=set(skeleton.func_deps),
+        var_decls={rename_map[name]: sort for name, sort in skeleton.var_decls.items()},
+        func_decls={
+            rename_map[name]: FuncInfo(
+                rename_map.get(info.name, rename_map[name]),
+                list(info.arg_sorts),
+                info.ret_sort,
+            )
+            for name, info in skeleton.func_decls.items()
+        },
+        term=renamed_term,
+    )
+
+
 def _infer_term_types(term: Term, variables: Dict[str, SmtSort]) -> Optional[SmtSort]:
     """Infer enough SMT sorts for HistFuzz type-compatible hole filling.
 
@@ -704,6 +763,7 @@ class HistFuzzStrategy(FuzzingStrategy):
             if skeleton is None:
                 logger.warning("HistFuzz: no skeleton found for logic %s", target_logic)
                 return None
+            skeleton = _freshen_skeleton_symbols(skeleton, assertion_index)
             skeleton_info = {
                 "id": self._corpus_record_id(skeleton),
                 "logic": skeleton.logic,

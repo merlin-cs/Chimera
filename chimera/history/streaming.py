@@ -272,12 +272,37 @@ def validate_corpus(directory: str | Path) -> Dict[str, Any]:
             f"unsupported corpus format: {manifest.get('format_version')}"
         )
 
-    for kind, shards in manifest.get("shards", {}).items():
+    shards_by_kind = manifest.get("shards", {})
+    if not isinstance(shards_by_kind, Mapping):
+        raise CorpusIntegrityError("corpus manifest shards must be an object")
+
+    for kind, shards in shards_by_kind.items():
+        if not isinstance(shards, Mapping):
+            raise CorpusIntegrityError(f"corpus manifest shards for {kind!r} must be an object")
         for logic, metadata in shards.items():
-            path = root / metadata["path"]
+            if not isinstance(metadata, Mapping):
+                raise CorpusIntegrityError(
+                    f"invalid metadata for {kind}/{logic}: expected an object"
+                )
+            required = ("path", "sha256", "count")
+            missing = [field for field in required if field not in metadata]
+            if missing:
+                raise CorpusIntegrityError(
+                    f"invalid metadata for {kind}/{logic}: missing {', '.join(missing)}"
+                )
+            relative_path = metadata["path"]
+            checksum = metadata["sha256"]
+            expected_count = metadata["count"]
+            if not isinstance(relative_path, str) or not relative_path:
+                raise CorpusIntegrityError(f"invalid metadata for {kind}/{logic}: invalid path")
+            if not isinstance(checksum, str) or not checksum:
+                raise CorpusIntegrityError(f"invalid metadata for {kind}/{logic}: invalid sha256")
+            if not isinstance(expected_count, int) or isinstance(expected_count, bool):
+                raise CorpusIntegrityError(f"invalid metadata for {kind}/{logic}: invalid count")
+            path = root / relative_path
             if not path.is_file():
                 raise CorpusIntegrityError(f"missing {kind}/{logic} shard: {path}")
-            if _sha256(path) != metadata["sha256"]:
+            if _sha256(path) != checksum:
                 raise CorpusIntegrityError(f"checksum mismatch: {path}")
             records = 0
             with path.open(encoding="utf-8") as stream:
@@ -286,9 +311,9 @@ def validate_corpus(directory: str | Path) -> Dict[str, Any]:
                         continue
                     json.loads(line)
                     records += 1
-            if records != metadata["count"]:
+            if records != expected_count:
                 raise CorpusIntegrityError(
-                    f"record count mismatch for {path}: {records} != {metadata['count']}"
+                    f"record count mismatch for {path}: {records} != {expected_count}"
                 )
     return cast(Dict[str, Any], manifest)
 

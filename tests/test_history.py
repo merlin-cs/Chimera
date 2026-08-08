@@ -3,7 +3,7 @@
 from pathlib import Path
 
 from chimera.core.smt_parser import parse_string
-from chimera.history.corpus import BuildingBlock, Corpus, Skeleton
+from chimera.history.corpus import BuildingBlock, Corpus, FuncInfo, Skeleton
 from chimera.history.extractor import LogicAwareExtractor
 from chimera.history.streaming import export_corpus, load_corpus, validate_corpus
 
@@ -55,6 +55,48 @@ def test_bare_qf_records_are_classified_before_compatibility_filtering() -> None
     assert "QF_S" in corpus.skeletons
     assert corpus.sample_block(logic="QF_BV") is None
     assert corpus.sample_skeleton(logic="QF_S", quantified=False) is not None
+
+
+def test_compact_qf_records_are_classified_before_compatibility_filtering() -> None:
+    corpus = Corpus()
+    corpus.add_block(BuildingBlock('(str.contains "a" "a")', "QFUF"))
+    corpus.add_skeleton(Skeleton('(str.contains "a" "a")', "QFUF"))
+
+    assert "S" in corpus.blocks
+    assert "QF_S" in corpus.skeletons
+    assert corpus.sample_block(logic="QF_UF") is None
+    assert corpus.sample_skeleton(logic="QF_UF", quantified=False) is None
+
+
+def test_compact_qf_classification_preserves_declaration_theories() -> None:
+    corpus = Corpus()
+    corpus.add_block(
+        BuildingBlock(
+            "(= i0 0)",
+            "QFUFLIA",
+            var_decls={"i0": "Int", "unrelated": "String"},
+        )
+    )
+    corpus.add_skeleton(
+        Skeleton(
+            "(p i0)",
+            "QFUFLIA",
+            var_decls={"i0": "Int", "unrelated": "String"},
+            func_decls={
+                "p": FuncInfo("p", ["Int"], "Bool"),
+                "unrelated_fp": FuncInfo(
+                    "unrelated_fp", [], "(_ FloatingPoint 8 24)"
+                ),
+            },
+        )
+    )
+
+    assert "LIA" in corpus.blocks
+    assert "QF_UFLIA" in corpus.skeletons
+    assert corpus.sample_block(logic="QF_UF") is None
+    assert corpus.sample_block(logic="QF_LIA") is not None
+    assert corpus.sample_skeleton(logic="QF_UF", quantified=False) is None
+    assert corpus.sample_skeleton(logic="QF_UFLIA", quantified=False) is not None
 
 
 def test_streamed_extraction_can_be_loaded_by_histfuzz(tmp_path: Path) -> None:

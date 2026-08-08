@@ -130,8 +130,8 @@ _BITVECTOR_PATTERN = re.compile(r"BV")
 _ARRAY_PATTERN = re.compile(r"(?:^|[^LR])A(?:[^LR]|$)")  # A not preceded/followed by I/R
 _FP_PATTERN = re.compile(r"FP")
 _UF_PATTERN = re.compile(r"UF")
-_STRING_PATTERN = re.compile(r"S(?!eq)")  # S not followed by eq (sequences)
-_SEQ_PATTERN = re.compile(r"Seq")
+_STRING_PATTERN = re.compile(r"S(?!EQ)")  # S not followed by EQ (sequences)
+_SEQ_PATTERN = re.compile(r"SEQ")
 
 
 def parse_logic(logic_name: str) -> LogicInfo:

@@ -530,5 +530,49 @@ def test_histfuzz_num_asserts_is_an_effective_maximum(tmp_path: Path, monkeypatc
     assert formula.count("(assert ") == 2
 
 
+def test_histfuzz_namespaces_skeleton_declarations_per_assertion(
+    tmp_path: Path, monkeypatch
+) -> None:
+    strategy = HistFuzzStrategy(
+        SolverConfig("a", "/usr/bin/true"),
+        SolverConfig("b", "/usr/bin/true"),
+        corpus_dir=str(tmp_path / "missing"),
+        logic="QF_UF",
+        num_asserts=2,
+        output_dir=str(tmp_path / "out"),
+        temp_dir=str(tmp_path / "temp"),
+    )
+    from chimera.history.corpus import Corpus, Skeleton
+
+    corpus = Corpus()
+    first = Skeleton(
+        "(p x)",
+        "QF_UF",
+        var_decls={"x": "Int"},
+        func_decls={"p": FuncInfo("p", ["Int"], "Bool")},
+    )
+    second = Skeleton(
+        "(p x)",
+        "QF_UF",
+        var_decls={"x": "Bool"},
+        func_decls={"p": FuncInfo("p", ["Bool"], "Bool")},
+    )
+    corpus.add_skeleton(first)
+    corpus.add_skeleton(second)
+    strategy._corpus = corpus
+    sampled = iter((first, second))
+    monkeypatch.setattr(corpus, "sample_skeleton", lambda **_kwargs: next(sampled))
+    monkeypatch.setattr("chimera.engines.histfuzz_engine.random.randint", lambda _low, _high: 2)
+
+    formula = strategy._generate_with_corpus()
+
+    assert formula is not None
+    assert "(declare-fun p_hf0 (Int) Bool)" in formula
+    assert "(declare-fun p_hf1 (Bool) Bool)" in formula
+    assert "(declare-const x_hf0 Int)" in formula
+    assert "(declare-const x_hf1 Bool)" in formula
+    assert FormulaValidator.validate(formula, target_logic="QF_UF").ok
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
