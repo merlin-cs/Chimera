@@ -18,7 +18,7 @@ Or programmatically::
     update_resources(
         github_token="...",
         formula_store="./bug_triggering_formulas",
-        resource_output="./chimera/resources",
+        resource_output="./chimera/resources/histfuzz",
     )
 
 Copyright (c) 2024-2026 The Chimera authors.
@@ -30,7 +30,7 @@ import logging
 import os
 import re
 import shutil
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional, Set, Tuple
 
@@ -100,11 +100,11 @@ def _clean_smt2_payload(text: str) -> Optional[str]:
     if "(" not in candidate or ")" not in candidate:
         return None
 
-    candidate = _truncate_at_balanced_end(candidate)
-    if candidate is None:
+    truncated = _truncate_at_balanced_end(candidate)
+    if truncated is None:
         return None
 
-    return candidate
+    return truncated
 
 
 def _truncate_at_balanced_end(text: str) -> Optional[str]:
@@ -152,11 +152,7 @@ class CollectionResult:
     formulas_collected: int = 0
     formulas_standardized: int = 0
     formulas_failed: int = 0
-    logics_found: Set[str] = None
-
-    def __post_init__(self):
-        if self.logics_found is None:
-            self.logics_found = set()
+    logics_found: Set[str] = field(default_factory=set)
 
 
 def collect_from_github(
@@ -256,6 +252,8 @@ def collect_from_github(
                 contents = [issue_body]
                 if issue.get("comments", 0) > 0:
                     comments_url = issue.get("comments_url")
+                    if not isinstance(comments_url, str):
+                        continue
                     try:
                         comments = github_api.request(
                             comments_url,
@@ -414,60 +412,13 @@ def standardize_and_classify(file_path: str) -> Tuple[str, str]:
 def _detect_logic_from_file(file_path: str) -> str:
     """Infer SMT-LIB logic from file content."""
     from chimera.core.smt_parser import parse_file
+    from chimera.core.logic_analyzer import detect_script_logic
 
     try:
         result = parse_file(file_path, silent=True)
         if result is not None:
             script, _ = result
-            script_str = str(script)
-
-            has_quantifiers = "forall" in script_str or "exists" in script_str
-            has_bv = "BitVec" in script_str
-            has_fp = "FloatingPoint" in script_str
-            has_arrays = "Array" in script_str or "select" in script_str or "store" in script_str
-            has_uf = False
-            has_int = "Int" in script_str
-            has_real = "Real" in script_str
-            has_nonlinear = "* " in script_str and (has_int or has_real)
-            has_strings = "String" in script_str
-
-            for cmd in script.commands:
-                from chimera.core.smt_ast import DeclareFun
-                if isinstance(cmd, DeclareFun) and cmd.input_sort != "":
-                    has_uf = True
-                    break
-
-            parts = []
-            if not has_quantifiers:
-                parts.append("QF")
-            if has_arrays:
-                parts.append("A")
-            if has_uf:
-                parts.append("UF")
-
-            if has_int and has_real:
-                parts.append("NIRA" if has_nonlinear else "LIRA")
-            elif has_int:
-                parts.append("NIA" if has_nonlinear else "LIA")
-            elif has_real:
-                parts.append("NRA" if has_nonlinear else "LRA")
-
-            if has_bv:
-                parts.append("BV")
-            if has_fp:
-                parts.append("FP")
-            if has_strings:
-                parts.append("S")
-
-            if not parts:
-                return "UF"
-
-            logic = "".join(parts)
-            # Normalize: QF + single theory without UF -> add UF
-            if logic.startswith("QF") and "UF" not in logic and len(parts) == 2:
-                logic = logic[:2] + "UF" + logic[2:]
-
-            return logic
+            return detect_script_logic(script)
 
     except Exception:
         pass
@@ -501,7 +452,7 @@ def extract_corpus(
         Summary of the extraction.
     """
     from chimera.history.extract import collect_smt_files, load_logic_mapping
-    from chimera.history.extractor import LogicAwareExtractor
+    from chimera.history.streaming import export_corpus
 
     smt_files = collect_smt_files(input_dir)
     logger.info("Found %d .smt2 files in %s", len(smt_files), input_dir)
@@ -515,29 +466,26 @@ def extract_corpus(
     if logic_mapping_file:
         logic_mapping = load_logic_mapping(logic_mapping_file)
 
-    extractor = LogicAwareExtractor(logic_mapping=logic_mapping)
-
-    def progress(current: int, total: int, logic: str) -> None:
-        if current % 50 == 0 or current == total:
-            logger.info("Processed %d/%d files (current: %s)", current, total, logic)
-
     logger.info("Starting extraction...")
-    corpus = extractor.extract_all(smt_files, progress_callback=progress)
-
-    # Save corpus
-    corpus.save(output_dir)
+    manifest = export_corpus(
+        input_dir,
+        output_dir,
+        source_revision="working-tree",
+        replace=True,
+        logic_mapping=logic_mapping,
+    )
     logger.info("Corpus saved to %s", output_dir)
 
-    stats = corpus.statistics()
+    stats = manifest["extraction_stats"]
     result = CollectionResult(
-        formulas_standardized=stats["total_blocks"] + stats["total_skeletons"],
-        logics_found=set(stats["logics"]),
+        formulas_standardized=stats["blocks_extracted"] + stats["skeletons_extracted"],
+        logics_found=set(manifest["shards"]["blocks"]),
     )
 
     logger.info("Extraction complete:")
-    logger.info("  Total blocks: %d", stats["total_blocks"])
-    logger.info("  Total skeletons: %d", stats["total_skeletons"])
-    logger.info("  Logics: %s", ", ".join(stats["logics"][:10]))
+    logger.info("  Total blocks: %d", stats["blocks_extracted"])
+    logger.info("  Total skeletons: %d", stats["skeletons_extracted"])
+    logger.info("  Logics: %s", ", ".join(sorted(result.logics_found)[:10]))
 
     return result
 
@@ -549,7 +497,7 @@ def extract_corpus(
 def update_resources(
     github_token: Optional[str] = None,
     formula_store: str = "./bug_triggering_formulas",
-    resource_output: str = "./chimera/resources",
+    resource_output: str = "./chimera/resources/histfuzz",
     solvers: Optional[List[str]] = None,
     skip_collection: bool = False,
     debug: bool = False,
@@ -563,7 +511,7 @@ def update_resources(
     formula_store : str
         Directory for collected/formula files. Default: ``./bug_triggering_formulas``.
     resource_output : str
-        Output directory for HistFuzz corpus. Default: ``./chimera/resources``.
+        Output directory for HistFuzz corpus. Default: ``./chimera/resources/histfuzz``.
     solvers : list[str], optional
         Which solvers to collect from. Default: all.
     skip_collection : bool

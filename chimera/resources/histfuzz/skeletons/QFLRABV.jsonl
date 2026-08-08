@@ -1,0 +1,2 @@
+{"func_decls":{},"func_deps":[],"hole_types":["Bool","Bool","Bool"],"is_quantified":false,"logic":"QFLRABV","sort_deps":["Unknown"],"term_smt2":"(let ((_let0 hole 2)) (let ((_let1 hole 1)) hole 0))","var_decls":{"_x3":"String","_x5":"Real"}}
+{"func_decls":{},"func_deps":[],"hole_types":["Bool","Bool","Bool","Bool","Bool","Bool"],"is_quantified":false,"logic":"QFLRABV","sort_deps":[],"term_smt2":"(xor hole 0 hole 1 hole 2 hole 3 hole 4 hole 5)","var_decls":{"_17-0":"(_ BitVec 17)","r11":"Real","r14":"Real","v0":"Bool","v12":"Bool","v7":"Bool"}}

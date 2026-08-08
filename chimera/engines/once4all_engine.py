@@ -25,8 +25,11 @@ SPDX-License-Identifier: MIT
 from __future__ import annotations
 
 import importlib.util
+import json
 import logging
 import random
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
@@ -40,7 +43,14 @@ from chimera.core.smt_ast import (
 from chimera.core.smt_parser import parse_string
 from chimera.core.solver_manager import SolverConfig
 from chimera.core.differential_oracle import OracleConfig
-from chimera.engines.base import FuzzingStrategy, Misconfigured
+from chimera.core.formula_builder import FormulaValidator
+from chimera.engines.base import (
+    GeneratedCase,
+    FuzzingStrategy,
+    GenerationOutcome,
+    Misconfigured,
+    Skipped,
+)
 from chimera.config.generator_config import (
     BACKEND_DIRS,
     NEW_GENERATORS_PATH,
@@ -77,6 +87,8 @@ class GeneratorRegistry:
         directory: str | Path,
         *,
         theory_keys: Optional[Sequence[str]] = None,
+        isolated: bool = False,
+        timeout: float = 10.0,
     ) -> int:
         """Auto-discover and load generator modules from *directory* and subdirs.
 
@@ -103,7 +115,12 @@ class GeneratorRegistry:
                 if theory_keys and module_base not in theory_keys:
                     continue
                 attempted += 1
-                fn = _load_generator_function(py_file, module_base)
+                fn = _load_generator_function(
+                    py_file,
+                    module_base,
+                    isolated=isolated,
+                    timeout=timeout,
+                )
                 if fn is not None:
                     self._registry[module_base] = fn
                     loaded += 1
@@ -114,20 +131,6 @@ class GeneratorRegistry:
             attempted,
             root,
         )
-        return loaded
-
-    def load_from_existing_loader(self, generators_dict: Dict[str, Any]) -> int:
-        """Import generators from the legacy ``GENERATORS`` dict.
-
-        This bridges the existing ``src.config.generator_loader.GENERATORS``
-        mapping into the new registry without duplicating discovery logic.
-        """
-        loaded = 0
-        for key, fn in generators_dict.items():
-            if callable(fn):
-                self._registry[key] = fn
-                loaded += 1
-        logger.info("Imported %d generators from legacy loader", loaded)
         return loaded
 
     # -- retrieval -----------------------------------------------------------
@@ -170,8 +173,40 @@ def _candidate_function_names(module_base: str) -> List[str]:
 def _load_generator_function(
     path: Path,
     module_base: str,
+    *,
+    isolated: bool = False,
+    timeout: float = 10.0,
 ) -> Optional[GeneratorFn]:
     """Load a single generator function from *path*."""
+    if isolated:
+        def invoke_external() -> Tuple[str, str]:
+            request = {"path": str(path), "module_base": module_base}
+            try:
+                result = subprocess.run(
+                    [sys.executable, "-m", "chimera.engines.generator_worker"],
+                    input=json.dumps(request),
+                    capture_output=True,
+                    check=False,
+                    text=True,
+                    timeout=timeout,
+                )
+            except subprocess.TimeoutExpired as exc:
+                raise RuntimeError(
+                    f"generator worker timed out after {timeout:.2f}s"
+                ) from exc
+            if result.returncode != 0:
+                try:
+                    message = json.loads(result.stdout).get("error", result.stderr)
+                except json.JSONDecodeError:
+                    message = result.stderr
+                raise RuntimeError(message or f"generator worker exited {result.returncode}")
+            payload = json.loads(result.stdout)
+            if not payload.get("ok"):
+                raise RuntimeError(payload.get("error", "generator worker failed"))
+            return str(payload["declarations"]), str(payload["body"])
+
+        return invoke_external
+
     try:
         spec = importlib.util.spec_from_file_location(
             f"{module_base}_generator", str(path)
@@ -209,8 +244,6 @@ class Once4AllStrategy(FuzzingStrategy):
         Path to the directory containing ``*_generator.py`` modules.
     compatible_theories : List[str], optional
         Restrict generation to these theory keys.
-    legacy_generators : dict, optional
-        Pre-loaded ``GENERATORS`` dict from ``src.config.generator_loader``.
     merge_skeletons : bool
         If ``True``, additionally extract a skeleton from the LLM output
         and re-fill holes (diversity amplification).
@@ -276,12 +309,12 @@ class Once4AllStrategy(FuzzingStrategy):
         *,
         generator_dir: Optional[str] = None,
         compatible_theories: Optional[List[str]] = None,
-        legacy_generators: Optional[Dict[str, Any]] = None,
         merge_skeletons: bool = False,
         output_dir: str = "./chimera_bugs",
         temp_dir: str = "./chimera_temp",
         timeout: float = 10.0,
         oracle_config: Optional[OracleConfig] = None,
+        generator_timeout: float = 10.0,
     ) -> None:
         super().__init__(
             solver1,
@@ -295,12 +328,17 @@ class Once4AllStrategy(FuzzingStrategy):
         self._merge_skeletons = merge_skeletons
         self._registry = GeneratorRegistry()
 
-        # Populate the registry — directory loading now searches subdirs
-        if legacy_generators:
-            self._registry.load_from_existing_loader(legacy_generators)
         self._generator_dir = generator_dir or NEW_GENERATORS_PATH
+        self._generator_isolated = (
+            Path(self._generator_dir).resolve() != Path(NEW_GENERATORS_PATH).resolve()
+        )
+        self._generator_timeout = generator_timeout
+        self._last_generation_provenance: dict[str, Any] = {}
         self._registry.load_from_directory(
-            self._generator_dir, theory_keys=self._theories
+            self._generator_dir,
+            theory_keys=self._theories,
+            isolated=self._generator_isolated,
+            timeout=self._generator_timeout,
         )
 
         # Remove generators incompatible with this solver pair
@@ -339,6 +377,16 @@ class Once4AllStrategy(FuzzingStrategy):
                 logger.warning("Once4All: no generators available")
                 return None
 
+            self._last_generation_provenance = {
+                "engine": self.name,
+                "generator": {
+                    "theory": theory_key,
+                    "directory": str(self._generator_dir),
+                    "isolated": self._generator_isolated,
+                    "timeout": self._generator_timeout,
+                },
+            }
+
             gen_fn = self._registry.get(theory_key)
             if gen_fn is None:
                 logger.debug("Once4All: no function for theory key '%s'", theory_key)
@@ -369,27 +417,25 @@ class Once4AllStrategy(FuzzingStrategy):
 
         return None
 
+    def _generate_case_for_campaign(self, seed: int) -> GenerationOutcome:
+        formula = self.generate(max_retries=5)
+        if formula is None:
+            return Skipped("no valid formula produced by an available generator")
+        provenance = dict(self._last_generation_provenance)
+        provenance["rng_seed"] = seed
+        generator = provenance.get("generator")
+        theory = generator.get("theory") if isinstance(generator, dict) else None
+        return GeneratedCase(
+            formula,
+            logic=str(theory).upper() if theory else None,
+            provenance=provenance,
+            rng_seed=seed,
+        )
+
     @staticmethod
     def _validate_formula(formula: str) -> bool:
         """Return True if *formula* has valid SMT-LIB2 syntax."""
-        # Parenthesis balance
-        depth = 0
-        for ch in formula:
-            if ch == '(':
-                depth += 1
-            elif ch == ')':
-                depth -= 1
-            if depth < 0:
-                return False
-        if depth != 0:
-            return False
-
-        # Reject leaked placeholders
-        for bad in ("any_int", "any_bool", "real.pi"):
-            if bad in formula:
-                return False
-
-        return True
+        return FormulaValidator.fast(formula)
 
     # -- helpers -------------------------------------------------------------
 
@@ -443,5 +489,5 @@ class Once4AllStrategy(FuzzingStrategy):
             else:
                 new_commands.append(cmd)
 
-        script.commands = new_commands
+        script.replace_commands(new_commands)
         return str(script)

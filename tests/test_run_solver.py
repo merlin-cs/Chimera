@@ -155,12 +155,5 @@ class TestDefaultArgs:
         assert "--check-models" in args
 
 
-# TODO: Update for new chimera.core.solver_manager API
-# The old src.run_solver functions command_line, read_result, check_crash,
-# check_result, z3_tactic, add_specific_tactic, record_bug have been
-# replaced with SolverConfig, SolverResult, and run_solver().
-# Integration tests should be added to test the full solver execution.
-
-
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

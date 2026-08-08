@@ -16,6 +16,7 @@ from chimera.chimera_cli import (
     _make_solver,
     _configure_logging,
     _build_strategy,
+    main,
 )
 
 
@@ -101,6 +102,16 @@ class TestBuildParser:
         ])
 
         assert args.iterations == 1000
+
+    def test_reproducibility_and_operational_arguments(self):
+        parser = build_parser()
+        args = parser.parse_args([
+            "run", "histfuzz", "--dry-run", "--resume", "--json-summary", "--seed", "17",
+        ])
+        assert args.dry_run is True
+        assert args.resume is True
+        assert args.json_summary is True
+        assert args.seed == 17
 
     def test_histfuzz_options(self):
         """Test HistFuzz-specific options."""
@@ -276,7 +287,7 @@ class TestBuildStrategy:
             "--mode", "histfuzz",
             "--solver1-bin", "/usr/bin/z3",
             "--solver2-bin", "/usr/bin/cvc5",
-            "--seed-dir", "./seeds"
+            "--corpus-dir", "./corpus"
         ])
 
         strategy = _build_strategy(args)
@@ -322,6 +333,29 @@ class TestBuildStrategy:
 
         with pytest.raises(ValueError):
             _build_strategy(args)
+
+
+def test_config_rejects_engine_overrides(tmp_path):
+    config = tmp_path / "campaign.json"
+    config.write_text("{}", encoding="utf-8")
+    with pytest.raises(SystemExit):
+        main([
+            "run", "histfuzz", "--config", str(config),
+            "--solver1-bin", "/usr/bin/true",
+        ])
+
+
+def test_config_rejects_disabled_skeleton_merge(tmp_path):
+    config = tmp_path / "campaign.json"
+    config.write_text(
+        '{"version": 1, "engine": "once4all", '
+        '"solvers": [{"name": "a", "binary": "/usr/bin/true"}, '
+        '{"name": "b", "binary": "/usr/bin/true"}], '
+        '"engine_settings": {"merge_skeletons": true}, "iterations": 1}',
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="merge_skeletons"):
+        main(["run", "once4all", "--config", str(config)])
 
 
 if __name__ == "__main__":

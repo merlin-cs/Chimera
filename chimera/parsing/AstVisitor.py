@@ -328,6 +328,7 @@ class AstVisitor(SMTLIBv2Visitor):
             return ctx.getText().encode("utf-8").decode("utf-8"), BOOLEAN_TYPE
         if ctx.reg_const():
             return ctx.getText().encode("utf-8").decode("utf-8"), REGEXP_TYPE
+        raise AstException(f"Unsupported spec constant: {ctx.getText()}")
 
     def visitTerm(self, ctx: SMTLIBv2Parser.TermContext, local_vars):
         """
@@ -346,9 +347,11 @@ class AstVisitor(SMTLIBv2Visitor):
         ;
         """
         
-        # Handle None or empty context
+        # A missing parse context is an AST construction error.  Returning an
+        # ``Unknown`` constant here used to make malformed terms look valid
+        # and allowed corrupted declarations/operators to escape the parser.
         if not ctx:
-            return Const(name="empty_term", type="Unknown")
+            raise AstException("Cannot construct a term from an empty context")
 
         if (
             ctx.ParOpen()
@@ -368,8 +371,10 @@ class AstVisitor(SMTLIBv2Visitor):
             and ctx.term()
             and len(ctx.match_case()) >= 1
         ):
-            # This construct is complex and often unhandled, return a placeholder
-            return Const(name=self.getString(ctx), type="Unknown")
+            # ``match`` needs a dedicated AST representation.  Do not turn it
+            # into an Unknown constant: callers must receive a diagnostic and
+            # decide whether to skip or explicitly support the construct.
+            raise AstException(f"Unsupported match term: {self.getString(ctx)}")
 
         # Handle bitvector constants - fix the duplicate conditions
         if (len(ctx.ParOpen()) == 1 
@@ -438,19 +443,8 @@ class AstVisitor(SMTLIBv2Visitor):
         if ctx.qual_identifier():
             return self.visitQual_identifier(ctx.qual_identifier(), local_vars)
 
-        # Handle unmatched terms - always return a placeholder instead of throwing
-        try:
-            term_text = self.getString(ctx) if ctx else "null_context"
-            term_text = term_text.strip() if term_text else ""
-            
-            if not term_text:
-                term_text = "empty_term"
-                
-            # Always return a placeholder for unhandled terms to avoid crashes
-            return Const(name=term_text, type="Unknown")
-        except Exception:
-            # If getString fails, return a generic placeholder
-            return Const(name="unknown_term", type="Unknown")
+        term_text = self.getString(ctx).strip()
+        raise AstException(f"Unsupported term syntax: {term_text or '<empty>'}")
 
 
     def visitQual_identifier(
@@ -503,6 +497,8 @@ class AstVisitor(SMTLIBv2Visitor):
 
         if ctx.quotedSymbol():
             return self.visitQuotedSymbol(ctx.quotedSymbol())
+
+        raise AstException("No match for symbol")
 
     def visitIdentifier(
             self,

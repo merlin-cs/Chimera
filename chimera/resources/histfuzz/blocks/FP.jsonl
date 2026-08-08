@@ -1,0 +1,13 @@
+{"func_decls":{},"func_deps":[],"logic":"FP","sort_deps":[],"term_smt2":"(fp.isNaN a)","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"FP","sort_deps":["Unknown"],"term_smt2":"(fp.isNegative (fp.min a (_ +zero 8 24)))","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"FP","sort_deps":["FP","Unknown"],"term_smt2":"(fp.isInfinite (fp.fma RNA x x x))","var_decls":{}}
+{"func_decls":{"e":{"arg_sorts":[],"name":"e","ret_sort":"FP"},"f":{"arg_sorts":[],"name":"f","ret_sort":"FP"}},"func_deps":[],"logic":"FP","sort_deps":["FP"],"term_smt2":"(g e f)","var_decls":{}}
+{"func_decls":{"e":{"arg_sorts":[],"name":"e","ret_sort":"FP"},"f":{"arg_sorts":[],"name":"f","ret_sort":"FP"}},"func_deps":[],"logic":"FP","sort_deps":["FP","Unknown"],"term_smt2":"(fp.isNormal (fp.fma RNA e f x))","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"FP","sort_deps":["Unknown"],"term_smt2":"(fp.isNegative (fp.min a (_ +zero 8 24)))","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"FP","sort_deps":["Unknown"],"term_smt2":"(= X ((_ to_fp 2 2) roundTowardZero (/ 0.0 1.0)))","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"FP","sort_deps":[],"term_smt2":"(fp.eq a a)","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"FP","sort_deps":[],"term_smt2":"(fp.eq a b)","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"FP","sort_deps":[],"term_smt2":"(fp.eq a b)","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"FP","sort_deps":["FP","Unknown"],"term_smt2":"(distinct false (exists ((x FP)) (distinct x (fp.sub RTN x x))))","var_decls":{}}
+{"func_decls":{"b":{"arg_sorts":[],"name":"b","ret_sort":"a"}},"func_deps":[],"logic":"FP","sort_deps":["a"],"term_smt2":"(distinct (forall ((c a)) (distinct (fp.abs c) b)))","var_decls":{}}
+{"func_decls":{"a":{"arg_sorts":[],"name":"a","ret_sort":"Float32"}},"func_deps":[],"logic":"FP","sort_deps":[],"term_smt2":"(fp.isPositive (fp.max a b))","var_decls":{}}

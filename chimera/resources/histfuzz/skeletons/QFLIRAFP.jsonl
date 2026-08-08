@@ -1,0 +1,1 @@
+{"func_decls":{},"func_deps":[],"hole_types":["Bool"],"is_quantified":false,"logic":"QFLIRAFP","sort_deps":["Unknown"],"term_smt2":"hole 0","var_decls":{"a":"Int","b":"Real","c":"(_ FloatingPoint 11 53)"}}

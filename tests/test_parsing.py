@@ -210,6 +210,16 @@ class TestParseStr:
         assert result.script is None
         assert result.diagnostics
 
+    def test_detailed_parse_reports_unsupported_ast_terms(self):
+        """Unsupported grammar terms must not become Unknown AST constants."""
+        result = parse_string_detailed(
+            "(assert (match x ((case true))))",
+            prepare=False,
+        )
+
+        assert result.script is None
+        assert any("Unsupported match term" in item.message for item in result.diagnostics)
+
 
 class TestParseFile:
     """Tests for parse_file function."""
@@ -343,23 +353,19 @@ class TestSubstitution:
 
     def test_term_substitution(self):
         """Test term substitution."""
-        # Parse a simple expression
-        script, _ = parse_str("(assert (= x y))")
-        if script and script.assert_cmd:
-            term = script.assert_cmd[0].term
-            # Get all subterms
-            if hasattr(term, 'subterms') and term.subterms:
-                # Create a new term to substitute
-                new_term = Expr(op="z", subterms=[])
-                # Note: substitution behavior depends on implementation
-                pass  # Implementation-specific test
+        term = Expr(
+            op="+",
+            subterms=[Var(name="x", type="Int"), Const(name="1", type="Int")],
+        )
+        target = term.subterms[0]
+        term.substitute(target, Const(name="2", type="Int"))
+        assert str(term) == "(+ 2 1)"
 
     def test_expr_substitution(self):
         """Test expression substitution."""
-        expr = Expr(op="x", subterms=[])
-        new_expr = Expr(op="y", subterms=[])
-        # Note: substitution behavior depends on implementation
-        pass
+        expr = Expr(op="+", subterms=[Var(name="x", type="Int")])
+        expr.subterms[0].replace_with(Const(name="3", type="Int"))
+        assert str(expr) == "(+ 3)"
 
 
 class TestTypeChecking:

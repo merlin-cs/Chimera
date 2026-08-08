@@ -1,0 +1,37 @@
+{"func_decls":{},"func_deps":[],"logic":"QF_S","sort_deps":[],"term_smt2":"(str.in_re (str.from_code 0) ((_ re.loop 2 1) re.all))","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_S","sort_deps":[],"term_smt2":"(= 0 (ite true 0 (ite true 0 \"\")))","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_S","sort_deps":[],"term_smt2":"(str.< \"\\xe8\" \"\\x19\")","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_S","sort_deps":[],"term_smt2":"(= \"\\x00\" \"\\u{5c}x00\")","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_S","sort_deps":[],"term_smt2":"(= (re.comp (str.to_re \"\")) (str.to_re \"\"))","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_S","sort_deps":[],"term_smt2":"(str.in_re \"\" (re.diff (re.* re.allchar) re.allchar (re.* re.allchar)))","var_decls":{}}
+{"func_decls":{"literal_0":{"arg_sorts":[],"name":"literal_0","ret_sort":"String"}},"func_deps":[],"logic":"QF_S","sort_deps":[],"term_smt2":"(str.<= \"\\u{2f}\\u{71}\\u{75}\\u{65}\\u{73}\\u{74}\\u{69}\\u{6f}\\u{6e}\\u{2f}\\u{74}\\u{79}\\u{70}\\u{65}\\u{2f}\\u{6e}\\u{75}\\u{6d}\\u{65}\\u{72}\\u{69}\\u{63}\\u{61}\\u{6c}\\u{2f}\\u{65}\\u{64}\\u{69}\\u{74}\\u{71}\\u{75}\\u{65}\\u{73}\\u{74}\\u{69}\\u{6f}\\u{6e}\\u{2e}\\u{68}\\u{74}\\u{6d}\\u{6c}\" \"\\u{2f}\\u{65}\\u{76}\\u{69}\\u{6c}\")","var_decls":{}}
+{"func_decls":{"a":{"arg_sorts":[],"name":"a","ret_sort":"String"}},"func_deps":[],"logic":"QF_S","sort_deps":[],"term_smt2":"(str.in_re \"A\" (re.range \"A\" \"\"))","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_S","sort_deps":[],"term_smt2":"(str.in_re \"\" (re.range \"\" \"\"))","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_S","sort_deps":[],"term_smt2":"(str.in_re \"\" (re.* (re.range \"b\" \"a\")))","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_S","sort_deps":[],"term_smt2":"(str.in_re \"\" (re.range \"\" \"\"))","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_S","sort_deps":[],"term_smt2":"(str.in_re \"A\" (ite (= (div 0 0) 0) (str.to_re \"A\") (str.to_re \"B\")))","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_S","sort_deps":[],"term_smt2":"(str.in_re \"\" (re.range \"\" \"\"))","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_S","sort_deps":[],"term_smt2":"(str.prefixof \"/signin\" \"/signin^@\")","var_decls":{}}
+{"func_decls":{"a":{"arg_sorts":[],"name":"a","ret_sort":"Int"}},"func_deps":[],"logic":"QF_S","sort_deps":[],"term_smt2":"(distinct \"Good\" \"Good\")","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_S","sort_deps":[],"term_smt2":"(str.in.re \"\" ((_ re.loop 189 0) (str.to.re \"\")))","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_S","sort_deps":[],"term_smt2":"(str.in.re \"\" (re.loop (re.range \"\" \"\") 0))","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_S","sort_deps":[],"term_smt2":"(= \"\" (str.replace_all \"\" \"\" \"\"))","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_S","sort_deps":[],"term_smt2":"(str.contains \"\" \"\")","var_decls":{"Str0":"String","Str1":"String","Str10":"String","Str11":"String","Str12":"String","Str13":"String","Str14":"String","Str18":"String","Str2":"String","Str3":"String","Str4":"String","Str5":"String","i1":"Int","i10":"Int","i14":"Int","v0":"Bool","v1":"Bool","v10":"Bool","v11":"Bool","v12":"Bool","v2":"Bool","v20":"Bool","v21":"Bool","v23":"Bool","v24":"Bool","v3":"Bool","v33":"Bool","v34":"Bool","v35":"Bool","v37":"Bool","v4":"Bool","v5":"Bool","v6":"Bool","v7":"Bool","v8":"Bool","v9":"Bool"}}
+{"func_decls":{},"func_deps":[],"logic":"QF_S","sort_deps":[],"term_smt2":"(= (str.replace_all \"\" \"\" \"\") \"\")","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_S","sort_deps":[],"term_smt2":"(= (str.replace_all \"\" \"\" \"\") \"\")","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_S","sort_deps":[],"term_smt2":"(str.in_re \"A\" (re.diff (re.* re.allchar) re.allchar (re.* re.allchar)))","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_S","sort_deps":[],"term_smt2":"(distinct (str.replace_all \"B\" \"A\" \"\") \"B\")","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_S","sort_deps":[],"term_smt2":"(str.in_re (str.++ \"b\" \"a\") (re.union (str.to_re \"z\") (str.to_re \"b\")))","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_S","sort_deps":[],"term_smt2":"(= (str.at \"\\u{}\" 0) \"\\u{}\")","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_S","sort_deps":[],"term_smt2":"(<= 0 (str.len \"\\u16a7\\u01cd\\u0125\\u2c7b\\u0155\\u014f\\u020b\\u16c1\\u2c6d\\u0211\\xf6\\u0245\\u0224}w\\xfc\\u16d9\\u0248\\u16b3\") 76)","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_S","sort_deps":[],"term_smt2":"(= (str.len \"\\u{0000}\") 1)","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_S","sort_deps":[],"term_smt2":"(= (str.len \"\\u0000\") 1)","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_S","sort_deps":[],"term_smt2":"(= \"bZAHP6GSLAbZAHP6GSLAbZAHP6GSLAbZAHP6GSLA\" (str.replace_all \"bZAHP6GSLAbZAHP6GSLA\" \"bZAHP6GSLA\" \"bZAHP6GSLAbZAHP6GSLA\"))","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_S","sort_deps":[],"term_smt2":"(str.contains (str.++ \"\\uAA\" \"AA\") \"AAA\")","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_S","sort_deps":[],"term_smt2":"(= (str.to_code \"\\u{0000}\") 0)","var_decls":{}}
+{"func_decls":{"a":{"arg_sorts":[],"name":"a","ret_sort":"String"}},"func_deps":[],"logic":"QF_S","sort_deps":[],"term_smt2":"(= \"\" \"\")","var_decls":{}}
+{"func_decls":{"a":{"arg_sorts":[],"name":"a","ret_sort":"String"}},"func_deps":[],"logic":"QF_S","sort_deps":[],"term_smt2":"(str.in_re \"\" (re.* (str.to_re \"A\")))","var_decls":{}}
+{"func_decls":{"a":{"arg_sorts":[],"name":"a","ret_sort":"String"}},"func_deps":[],"logic":"QF_S","sort_deps":[],"term_smt2":"(str.in_re \"\" (re.comp (re.+ (str.to_re \"A\"))))","var_decls":{}}
+{"func_decls":{"a":{"arg_sorts":[],"name":"a","ret_sort":"String"}},"func_deps":[],"logic":"QF_S","sort_deps":[],"term_smt2":"(str.in_re \"u\" (re.* (re.range \"\" \"A\")))","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_S","sort_deps":[],"term_smt2":"(= re.none (re.range \"z\" \"0\"))","var_decls":{}}
+{"func_decls":{"x":{"arg_sorts":[],"name":"x","ret_sort":"String"},"y":{"arg_sorts":[],"name":"y","ret_sort":"String"},"z":{"arg_sorts":[],"name":"z","ret_sort":"Int"}},"func_deps":[],"logic":"QF_S","sort_deps":[],"term_smt2":"(distinct (re.comp re.all) (re.range \"e\" \"x\"))","var_decls":{}}

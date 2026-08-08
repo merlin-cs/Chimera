@@ -1,0 +1,4 @@
+{"func_decls":{},"func_deps":[],"logic":"QF_FP","sort_deps":["Unknown"],"term_smt2":"(set.subset (set.complement (set.singleton (_ -oo 5 11))) (set.singleton (fp.abs (set.choose (set.complement (set.singleton (_ -oo 5 11)))))))","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_FP","sort_deps":["Unknown"],"term_smt2":"(fp.isNegative (fp.min (_ -oo 8 24) (_ +zero 8 24)))","var_decls":{}}
+{"func_decls":{"my_uf_fb":{"arg_sorts":["Float32"],"name":"my_uf_fb","ret_sort":"Bool"}},"func_deps":["my_uf_fb"],"logic":"QF_FP","sort_deps":["Unknown"],"term_smt2":"(= false (my_uf_fb (_ +oo 8 24)))","var_decls":{}}
+{"func_decls":{"my_uf_fb":{"arg_sorts":["Float32"],"name":"my_uf_fb","ret_sort":"Bool"}},"func_deps":["my_uf_fb"],"logic":"QF_FP","sort_deps":["Unknown"],"term_smt2":"(= true (my_uf_fb (_ -oo 8 24)))","var_decls":{}}

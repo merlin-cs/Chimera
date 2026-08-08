@@ -18,7 +18,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from enum import Flag, auto
-from typing import FrozenSet, Optional, Set
+from typing import Any, FrozenSet, Optional, Set
 
 
 class LogicCapability(Flag):
@@ -66,6 +66,61 @@ class LogicInfo:
 
     def __str__(self) -> str:
         return self.name
+
+
+def detect_script_logic(script: Any) -> str:
+    """Infer a canonical SMT-LIB logic name from a parsed script.
+
+    The history collector and extractor both need a conservative fallback
+    when a script does not declare ``set-logic``.  Keeping that fallback here
+    prevents the two pipelines from drifting into different classifications.
+    Explicit ``set-logic`` commands always win; structural inference is only
+    used when no declaration is present.
+    """
+    text = str(script)
+    explicit = re.search(r"\(set-logic\s+([^\s()]+)\)", text, re.IGNORECASE)
+    if explicit:
+        return explicit.group(1).upper()
+
+    lowered = text.lower()
+    quantified = "forall" in lowered or "exists" in lowered
+    has_bv = "bitvec" in lowered or re.search(r"\bbv[a-z0-9_.-]*\b", lowered) is not None
+    has_fp = "floatingpoint" in lowered or re.search(r"\bfp[.]", lowered) is not None
+    has_arrays = any(token in lowered for token in ("array", "select", "store"))
+    has_strings = "string" in lowered or "str." in lowered
+    has_sequences = "seq." in lowered or "sequence" in lowered
+    has_int = "int" in lowered or "to_int" in lowered
+    has_real = "real" in lowered or "to_real" in lowered
+    has_nonlinear = bool(re.search(r"\(\s*\*\s+", text)) and (has_int or has_real)
+
+    has_uf = False
+    for command in getattr(script, "commands", ()):  # avoid importing AST types
+        if command.__class__.__name__ == "DeclareFun" and getattr(command, "input_sort", ""):
+            has_uf = True
+            break
+
+    parts: list[str] = []
+    if has_arrays:
+        parts.append("A")
+    if has_uf:
+        parts.append("UF")
+    if has_int and has_real:
+        parts.append("NIRA" if has_nonlinear else "LIRA")
+    elif has_int:
+        parts.append("NIA" if has_nonlinear else "LIA")
+    elif has_real:
+        parts.append("NRA" if has_nonlinear else "LRA")
+    if has_bv:
+        parts.append("BV")
+    if has_fp:
+        parts.append("FP")
+    if has_strings:
+        parts.append("S")
+    if has_sequences:
+        parts.append("SEQ")
+
+    body = "".join(parts) or "UF"
+    return body if quantified else f"QF_{body}"
 
 
 # Regular expression patterns for logic parsing

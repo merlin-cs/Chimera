@@ -19,8 +19,9 @@ SPDX-License-Identifier: MIT
 
 from __future__ import annotations
 
-import copy
 import logging
+import hashlib
+import json
 import os
 import random
 import re
@@ -28,7 +29,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Set, Tuple
 
 from chimera.core.differential_oracle import OracleConfig
-from chimera.core.formula_builder import build_smt_script, validate_formula
+from chimera.core.formula_builder import FormulaValidator, build_smt_script
 from chimera.core.smt_ast import (
     Assert,
     DeclareConst,
@@ -42,7 +43,19 @@ from chimera.core.smt_ast import (
 )
 from chimera.core.smt_parser import parse_file, parse_string
 from chimera.core.solver_manager import SolverConfig
-from chimera.engines.base import FuzzingStrategy, Misconfigured
+from chimera.engines.base import (
+    GeneratedCase,
+    FuzzingStrategy,
+    GenerationOutcome,
+    Misconfigured,
+    Skipped,
+)
+from chimera.history.corpus import BuildingBlock, BuildingBlockPool, Corpus, Skeleton
+from chimera.history.streaming import (
+    CorpusIntegrityError,
+    load_corpus,
+    packaged_corpus_path,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -55,22 +68,6 @@ _UNKNOWN_SORT = "Unknown"
 _BOOLEAN_OPS = {"not", "and", "or", "xor", "=>", "implies"}
 _BOOLEAN_RESULT_OPS = _BOOLEAN_OPS | {"=", "distinct", "<", "<=", ">", ">="}
 _ARITHMETIC_OPS = {"+", "-", "*", "/", "div", "mod", "abs"}
-_BUILTIN_APPS = _BOOLEAN_RESULT_OPS | _ARITHMETIC_OPS | {
-    "ite",
-    "store",
-    "select",
-    "str.++",
-    "str.len",
-    "str.contains",
-    "str.prefixof",
-    "str.suffixof",
-    "str.indexof",
-    "str.replace",
-    "str.substr",
-}
-_UNSAFE_LEGACY_BLOCK_OPS = {"store", "select"}
-
-
 def _sort_key(sort: Optional[SmtSort]) -> Optional[str]:
     if sort is None:
         return None
@@ -184,9 +181,10 @@ def _infer_term_types(term: Term, variables: Dict[str, SmtSort]) -> Optional[Smt
         known = [s for s in child_sorts if not _is_unknown_sort(s)]
         if known and term.subterms:
             expected = known[0]
-            for sub in term.subterms:
-                if isinstance(sub, Term):
-                    _force_unknown_sort(sub, expected)
+            if expected is not None:
+                for sub in term.subterms:
+                    if isinstance(sub, Term):
+                        _force_unknown_sort(sub, expected)
         term.type = _BOOL_SORT
         return term.type
 
@@ -295,129 +293,6 @@ def _infer_script_types(script: Script) -> Dict[str, SmtSort]:
     return variables
 
 
-def _is_usable_block(term: Term) -> bool:
-    """Reject fragments that cannot be safely re-declared in generated scripts."""
-    seen_vars: Dict[str, str] = {}
-
-    def _has_conflicting_var_sorts(node: Term) -> bool:
-        if node.is_var and node.name:
-            sort = _sort_key(node.type)
-            previous = seen_vars.get(node.name)
-            if previous is not None and previous != sort:
-                return True
-            if sort is not None:
-                seen_vars[node.name] = sort
-        return any(_has_conflicting_var_sorts(sub) for sub in node.children())
-
-    if _has_conflicting_var_sorts(term):
-        return False
-    if _is_unknown_sort(term.type):
-        return False
-    if term.is_var or term.is_const:
-        return True
-    if term.quantifier is not None:
-        return all(_is_usable_block(sub) for sub in term.children())
-    if term.op is not None:
-        op = _op_name(term.op)
-        if op in _UNSAFE_LEGACY_BLOCK_OPS:
-            return False
-        arity = len(term.subterms or [])
-        if op in {"+", "*"} and arity < 2:
-            return False
-        if op in {"/", "div", "mod"} and arity != 2:
-            return False
-        if op not in _BUILTIN_APPS:
-            return False
-    return all(_is_usable_block(sub) for sub in term.children())
-
-
-# ---------------------------------------------------------------------------
-# Building-block pool
-# ---------------------------------------------------------------------------
-
-class BuildingBlockPool:
-    """Collection of atomic ``Term`` fragments grouped by sort.
-
-    Each block is stored together with the variables it references so
-    that variable renaming can be applied when inserting a block into a
-    skeleton.
-    """
-
-    def __init__(self) -> None:
-        # sort_str → list of (term, {var_name: sort})
-        self._pool: Dict[str, List[Tuple[Term, Dict[str, SmtSort]]]] = {}
-        self._all: List[Tuple[Term, Dict[str, SmtSort]]] = []
-        self._sample_counter = 0
-
-    # -- population ----------------------------------------------------------
-
-    def add(self, term: Term, variables: Dict[str, SmtSort]) -> None:
-        """Add a single building block."""
-        _infer_term_types(term, variables)
-        if not _is_usable_block(term):
-            return
-        sort_key = str(term.type) if term.type else "Bool"
-        entry = (term.clone(), dict(variables))
-        self._pool.setdefault(sort_key, []).append(entry)
-        self._all.append(entry)
-
-    def add_from_script(self, script: Script) -> None:
-        """Extract all atomic sub-terms from *script* and add them."""
-        # Build a variable→sort map from the script declarations and infer
-        # expression sorts before collecting basic fragments.
-        var_map = _infer_script_types(script)
-        basics = collect_all_basic_subformulas(script)
-        for term, _idx in basics:
-            self.add(term, var_map)
-
-    def add_from_files(self, paths: Sequence[str | Path], *, max_seeds: int = 100) -> int:
-        """Load building blocks from up to *max_seeds* ``.smt2`` files.
-
-        Returns the number of successfully parsed files.
-        """
-        count = 0
-        shuffled = list(paths)
-        random.shuffle(shuffled)
-        for p in shuffled[:max_seeds]:
-            result = parse_file(str(p), timeout=5, silent=True)
-            if result is None:
-                continue
-            script, _globs = result
-            self.add_from_script(script)
-            count += 1
-        logger.info("Loaded building blocks from %d/%d seed files", count, len(paths))
-        return count
-
-    # -- retrieval -----------------------------------------------------------
-
-    def sample(self, sort_hint: Optional[str] = None) -> Optional[Term]:
-        """Return a random building block, optionally matching *sort_hint*.
-
-        Returns ``None`` when no block matches the given sort (no fallback).
-        """
-        if sort_hint:
-            candidates = self._pool.get(sort_hint, [])
-            if not candidates:
-                return None
-        else:
-            candidates = self._all
-            if not candidates:
-                return None
-        term, _vars = random.choice(candidates)
-        sampled = term.clone()
-        self._sample_counter += 1
-        _rename_term_symbols(sampled, f"hf{self._sample_counter}")
-        return sampled
-
-    @property
-    def total(self) -> int:
-        return len(self._all)
-
-    @property
-    def sort_keys(self) -> Set[str]:
-        return set(self._pool.keys())
-
-
 # ---------------------------------------------------------------------------
 # Skeleton store
 # ---------------------------------------------------------------------------
@@ -517,10 +392,7 @@ class SkeletonStore:
 # Hole filler — the core generation step
 # ---------------------------------------------------------------------------
 
-def fill_holes(
-    skeleton: Term,
-    pool: BuildingBlockPool,
-) -> Term:
+def fill_holes(skeleton: Term, pool: BuildingBlockPool) -> Term:
     """Replace every ``HOLE`` in *skeleton* with a block from *pool*.
 
     Returns a new ``Term`` (the skeleton is not mutated).
@@ -533,27 +405,12 @@ def fill_holes(
     for hole in collector.holes:
         sort_hint = str(hole.type) if hole.type else None
         replacement = pool.sample(sort_hint=sort_hint)
-        if replacement is None:
+        replacement_term = replacement.term_obj if isinstance(replacement, BuildingBlock) else None
+        if replacement_term is None:
             # If no matching block found, leave the hole as-is
             # (will likely fail parsing but is safe).
             continue
-        hole._initialize(
-            name=copy.deepcopy(replacement.name),
-            type=copy.deepcopy(replacement.type),
-            is_const=copy.deepcopy(replacement.is_const),
-            is_var=copy.deepcopy(replacement.is_var),
-            label=copy.deepcopy(replacement.label),
-            indices=copy.deepcopy(replacement.indices),
-            quantifier=copy.deepcopy(replacement.quantifier),
-            quantified_vars=copy.deepcopy(replacement.quantified_vars),
-            var_binders=copy.deepcopy(replacement.var_binders),
-            let_terms=copy.deepcopy(replacement.let_terms),
-            op=copy.deepcopy(replacement.op),
-            subterms=copy.deepcopy(replacement.subterms),
-            is_indexed_id=copy.deepcopy(replacement.is_indexed_id),
-            parent=hole.parent,
-        )
-        hole._link_parents()
+        hole.replace_with(replacement_term.clone())
 
     return filled
 
@@ -593,6 +450,7 @@ class HistFuzzStrategy(FuzzingStrategy):
         solver1: SolverConfig,
         solver2: SolverConfig,
         *,
+        corpus_dir: Optional[str] = None,
         seed_dir: str = "",
         skeleton_files: Optional[List[str]] = None,
         resource_dir: Optional[str] = None,
@@ -614,107 +472,105 @@ class HistFuzzStrategy(FuzzingStrategy):
         )
         self._num_asserts = num_asserts
         self._logic_filter = logic.upper() if logic else None
-        self._use_new_corpus = use_new_corpus
-
+        deprecated = {
+            "--seed-dir": seed_dir,
+            "--skeleton-files": skeleton_files,
+            "--resource-dir": resource_dir,
+        }
+        used = [name for name, value in deprecated.items() if value]
         if use_new_corpus:
-            # Use new logic-aware corpus system
-            from chimera.history.corpus import BuildingBlockPool as NewPool
-            from chimera.history.corpus import Corpus
+            used.append("--use-new-corpus")
+        if used:
+            raise ValueError(
+                "HistFuzz now uses a versioned JSON corpus; remove "
+                + ", ".join(used)
+                + " and pass --corpus-dir (or run chimera corpus extract)"
+            )
 
-            self._corpus: Optional[Corpus] = None
-            self._pool: Optional[NewPool] = None
-            self._skeletons = SkeletonStore()  # Still use legacy skeleton store for now
-
-            # Load corpus from resource_dir or seed_dir
-            if resource_dir and os.path.isdir(resource_dir):
-                self._corpus = Corpus.load(resource_dir)
-                logger.info(
-                    "Loaded new corpus from %s: %d blocks, %d skeletons",
-                    resource_dir,
-                    sum(len(b) for b in self._corpus.blocks.values()),
-                    sum(len(s) for s in self._corpus.skeletons.values()),
-                )
-            elif seed_dir and os.path.isdir(seed_dir):
-                # Extract corpus from seed files
-                from chimera.history.extractor import extract_corpus
-                logger.info("Extracting corpus from seed directory: %s", seed_dir)
-                self._corpus = extract_corpus(seed_dir, seed_dir + "_corpus")
-                self._pool = NewPool(self._corpus)
-                logger.info(
-                    "Extracted corpus: %d blocks, %d skeletons",
-                    self._corpus.statistics()["total_blocks"],
-                    self._corpus.statistics()["total_skeletons"],
-                )
-        else:
-            # Legacy loading (backward compatible)
-            self._corpus = None
-            self._pool = BuildingBlockPool()
-            self._skeletons = SkeletonStore()
-
-            # Load seeds for building blocks
-            seed_paths = self._discover_smt_files(seed_dir) if seed_dir else []
-            if seed_paths:
-                self._pool.add_from_files(seed_paths)
-
-            # Load skeletons
-            if skeleton_files:
-                for sf in skeleton_files:
-                    self._skeletons.add_from_skeleton_file(sf)
-            elif resource_dir:
-                default_skel = os.path.join(resource_dir, "skeleton.smt2")
-                if os.path.isfile(default_skel):
-                    self._skeletons.add_from_skeleton_file(default_skel)
-                quant_skel = os.path.join(resource_dir, "skeleton_quant.smt2")
-                if os.path.isfile(quant_skel):
-                    self._skeletons.add_from_skeleton_file(quant_skel)
-
-            # Also extract skeletons from seed files
-            if seed_paths:
-                self._skeletons.add_from_files(seed_paths)
-
+        self._corpus_dir = Path(corpus_dir) if corpus_dir else packaged_corpus_path()
+        self._corpus: Optional[Corpus] = None
+        self._corpus_error: Optional[str] = None
+        if self._corpus_dir.is_dir():
+            try:
+                self._corpus = load_corpus(self._corpus_dir)
+            except (OSError, ValueError, CorpusIntegrityError) as exc:
+                self._corpus_error = str(exc)
         logger.info(
-            "HistFuzz initialised (legacy mode): %d skeletons, %d building blocks",
-            self._skeletons.total,
-            self._pool.total,
+            "HistFuzz initialised from JSON corpus %s (%s)",
+            self._corpus_dir,
+            self._corpus.statistics() if self._corpus else "unavailable",
         )
 
     def preflight(self) -> List[Misconfigured]:
         """Require a usable corpus before starting an unlimited campaign."""
         issues = super().preflight()
-        has_new_corpus = bool(self._corpus and self._corpus.skeletons)
-        has_legacy_corpus = bool(self._skeletons.total and self._pool.total)
-        if not has_new_corpus and not has_legacy_corpus:
+        if self._corpus_error:
+            issues.append(Misconfigured(f"invalid HistFuzz corpus: {self._corpus_error}"))
+        if not self._corpus or not self._corpus.skeletons or not self._corpus.blocks:
             issues.append(
                 Misconfigured(
-                    "HistFuzz needs a non-empty JSON corpus, skeleton resource, or seed directory"
+                    f"HistFuzz needs a non-empty JSON corpus at {self._corpus_dir}"
                 )
             )
         return issues
 
     # -- generation ----------------------------------------------------------
 
-    def generate(self, max_retries: int = 1) -> Optional[str]:
+    def generate(self, max_retries: int = 10) -> Optional[str]:
         """Produce a formula by filling random skeletons with building blocks.
 
         If logic filtering is enabled, only uses skeletons and building blocks
         compatible with the target logic. Validates generated formulas before
         returning.
         """
-        if self._use_new_corpus and self._corpus:
-            return self._generate_with_corpus()
-        else:
-            return self._generate_legacy()
+        if self._corpus:
+            for _ in range(max(1, max_retries)):
+                generated = self._generate_with_corpus()
+                if generated is not None:
+                    return generated
+        return None
 
-    def _generate_with_corpus(self) -> Optional[str]:
+    def _generate_case_for_campaign(self, seed: int) -> GenerationOutcome:
+        """Generate a case with stable corpus provenance for campaign artifacts."""
+        for attempt in range(max(1, 10)):
+            provenance = {
+                "engine": self.name,
+                "corpus": str(self._corpus_dir),
+                "attempt": attempt,
+                "rng_seed": seed,
+                "skeleton": None,
+                "blocks": [],
+            }
+            generated = self._generate_with_corpus(provenance)
+            if generated is not None:
+                return GeneratedCase(
+                    generated,
+                    logic=self._logic_filter,
+                    provenance=provenance,
+                    rng_seed=seed,
+                )
+        return Skipped("no valid formula could be generated from the HistFuzz corpus")
+
+    @staticmethod
+    def _corpus_record_id(record: object) -> str:
+        """Return a deterministic identifier for a corpus record."""
+        to_dict = getattr(record, "to_dict", None)
+        payload = to_dict() if callable(to_dict) else str(record)
+        encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+        return hashlib.sha256(encoded).hexdigest()[:24]
+
+    def _generate_with_corpus(self, provenance: dict[str, object] | None = None) -> Optional[str]:
         """Generate formula using the new logic-aware corpus."""
 
-        if not self._corpus or not self._corpus.skeletons:
+        corpus = self._corpus
+        if corpus is None or not corpus.skeletons:
             logger.warning("HistFuzz (new corpus): empty corpus")
             return None
 
         # Determine compatible logics
+        target_logic: Optional[str] = None
         if self._logic_filter:
-            compatible_logics = self._corpus.get_compatible_logics(self._logic_filter)
+            compatible_logics = corpus.get_compatible_logics(self._logic_filter)
             if not compatible_logics:
                 logger.warning(
                     "HistFuzz: no compatible logics found for %s",
@@ -725,11 +581,11 @@ class HistFuzzStrategy(FuzzingStrategy):
             # logics if no exact match exists (e.g., QF_SLIA → QF_S + QF_LIA blocks)
             target_logic = self._logic_filter
         else:
-            compatible_logics = set(self._corpus.skeletons.keys())
-            target_logic = random.choice(list(compatible_logics)) if compatible_logics else None
+            available_logics = sorted(corpus.skeletons.keys())
+            target_logic = random.choice(available_logics) if available_logics else None
 
         # Sample skeleton
-        skeleton = self._corpus.sample_skeleton(
+        skeleton = corpus.sample_skeleton(
             logic=target_logic,
             quantified=False if self._logic_filter and self._logic_filter.startswith("QF") else None,
         )
@@ -737,8 +593,15 @@ class HistFuzzStrategy(FuzzingStrategy):
             logger.warning("HistFuzz: no skeleton found for logic %s", target_logic)
             return None
 
+        if provenance is not None:
+            provenance["skeleton"] = {
+                "id": self._corpus_record_id(skeleton),
+                "logic": skeleton.logic,
+                "quantified": skeleton.is_quantified,
+            }
+
         # Fill holes with logic-aware block selection
-        filled_term = self._fill_holes_with_corpus(skeleton)
+        filled_term = self._fill_holes_with_corpus(skeleton, provenance)
         if filled_term is None:
             return None
 
@@ -748,7 +611,7 @@ class HistFuzzStrategy(FuzzingStrategy):
         )
 
         # Validate
-        result = validate_formula(script, target_logic=self._logic_filter)
+        result = FormulaValidator.validate(script, target_logic=self._logic_filter)
         if not result.ok:
             logger.debug(
                 "HistFuzz: validation failed: %s",
@@ -758,11 +621,16 @@ class HistFuzzStrategy(FuzzingStrategy):
 
         return script
 
-    def _fill_holes_with_corpus(self, skeleton) -> Optional[Term]:
+    def _fill_holes_with_corpus(
+        self,
+        skeleton: Skeleton,
+        provenance: dict[str, object] | None = None,
+    ) -> Optional[Term]:
         """Fill skeleton holes using corpus blocks with type matching."""
         from chimera.core.smt_ast import HoleCollector
 
-        if not skeleton.term_obj:
+        corpus = self._corpus
+        if corpus is None or not skeleton.term_obj:
             return None
 
         filled = skeleton.term_obj.clone()
@@ -771,7 +639,7 @@ class HistFuzzStrategy(FuzzingStrategy):
 
         for hole in collector.holes:
             sort_hint = str(hole.type) if hole.type else "Bool"
-            replacement = self._corpus.sample_block(
+            replacement = corpus.sample_block(
                 sort_hint=sort_hint,
                 logic=skeleton.logic if not self._logic_filter else self._logic_filter,
             )
@@ -784,23 +652,17 @@ class HistFuzzStrategy(FuzzingStrategy):
                 continue
 
             repl_term = replacement.term_obj.clone()
-            hole._initialize(
-                name=copy.deepcopy(repl_term.name),
-                type=copy.deepcopy(repl_term.type),
-                is_const=copy.deepcopy(repl_term.is_const),
-                is_var=copy.deepcopy(repl_term.is_var),
-                label=copy.deepcopy(repl_term.label),
-                indices=copy.deepcopy(repl_term.indices),
-                quantifier=copy.deepcopy(repl_term.quantifier),
-                quantified_vars=copy.deepcopy(repl_term.quantified_vars),
-                var_binders=copy.deepcopy(repl_term.var_binders),
-                let_terms=copy.deepcopy(repl_term.let_terms),
-                op=copy.deepcopy(repl_term.op),
-                subterms=copy.deepcopy(repl_term.subterms),
-                is_indexed_id=copy.deepcopy(repl_term.is_indexed_id),
-                parent=hole.parent,
-            )
-            hole._link_parents()
+            hole.replace_with(repl_term)
+            if provenance is not None:
+                blocks = provenance.setdefault("blocks", [])
+                if isinstance(blocks, list):
+                    blocks.append(
+                        {
+                            "id": self._corpus_record_id(replacement),
+                            "logic": replacement.logic,
+                            "sort": replacement.type_hint,
+                        }
+                    )
 
         return filled
 
@@ -811,7 +673,7 @@ class HistFuzzStrategy(FuzzingStrategy):
         func_decls: Dict,
     ) -> str:
         """Build complete SMT-LIB script from filled term."""
-        declarations = []
+        declarations: List[str] = []
 
         # Collect variable declarations from the filled term
         self._collect_declarations(filled_term, declarations)
@@ -843,72 +705,6 @@ class HistFuzzStrategy(FuzzingStrategy):
         script = re.sub(r"\bTYPE\d+\b", "Int", script)
 
         return script
-
-    def _generate_legacy(self) -> Optional[str]:
-        """Generate formula using legacy loading (backward compatible)."""
-        if self._skeletons.total == 0 or self._pool.total == 0:
-            logger.warning("HistFuzz: empty skeletons or pool")
-            return None
-
-        chosen = self._skeletons.sample(n=random.randint(1, self._num_asserts))
-
-        # Collect all variable declarations needed
-        declarations: List[str] = []
-        asserts: List[str] = []
-
-        for skel_assert in chosen:
-            filled = fill_holes(skel_assert.term, self._pool)
-
-            # Skip if any holes remain unfilled (no type-compatible block found)
-            hc = HoleCollector()
-            hc.visit(filled)
-            if hc.holes:
-                logger.debug(
-                    "HistFuzz: skipping skeleton with %d unfilled holes",
-                    len(hc.holes),
-                )
-                return None  # Regenerate on next call
-
-            asserts.append(f"(assert {filled})")
-
-            # Collect variable declarations from the filled term
-            self._collect_declarations(filled, declarations)
-
-        # Deduplicate declarations
-        seen_decls: Set[str] = set()
-        unique_decls: List[str] = []
-        for d in declarations:
-            if d not in seen_decls:
-                seen_decls.add(d)
-                unique_decls.append(d)
-
-        parts = ["(set-logic %s)" % (self._logic_filter or "ALL")]
-        parts.extend(unique_decls)
-        parts.extend(asserts)
-        parts.append("(check-sat)")
-        formula = "\n".join(parts)
-
-        # Sanitize: SkeletonExtractor renames quantifier variable types to
-        # TYPE0, TYPE1, etc. These are placeholder names that are invalid in
-        # SMT-LIB. Replace them with Int (a safe default sort).
-        formula = re.sub(r"\bTYPE\d+\b", "Int", formula)
-
-        # Fix undeclared free variables: collect all declared names and
-        # quantifier/let-bound names, then declare any remaining free symbols.
-        formula = self._declare_undeclared_vars(formula, unique_decls)
-
-        # Optional validation if logic filter specified
-        if self._logic_filter:
-            result = validate_formula(formula, target_logic=self._logic_filter)
-            if not result.ok:
-                logger.debug(
-                    "HistFuzz (legacy): validation failed for %s: %s",
-                    self._logic_filter,
-                    ", ".join(result.errors[:3]),
-                )
-                return None
-
-        return formula
 
     # -- helpers -------------------------------------------------------------
 

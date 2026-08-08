@@ -1,0 +1,7 @@
+{"func_decls":{},"func_deps":[],"logic":"ABV","sort_deps":[],"term_smt2":"(= q4 q2 q2 q4 q2)","var_decls":{"arr1":"(Array Bool Bool)"}}
+{"func_decls":{},"func_deps":[],"logic":"ABV","sort_deps":[],"term_smt2":"(select arr1 true)","var_decls":{"arr1":"(Array Bool Bool)"}}
+{"func_decls":{},"func_deps":[],"logic":"ABV","sort_deps":[],"term_smt2":"(select v (_ bv0 1))","var_decls":{}}
+{"func_decls":{"_substvar_30_":{"arg_sorts":[],"name":"_substvar_30_","ret_sort":"Bool"}},"func_deps":[],"logic":"ABV","sort_deps":[],"term_smt2":"(distinct q0 q1)","var_decls":{}}
+{"func_decls":{"_substvar_30_":{"arg_sorts":[],"name":"_substvar_30_","ret_sort":"Bool"}},"func_deps":[],"logic":"ABV","sort_deps":[],"term_smt2":"_substvar_30_","var_decls":{}}
+{"func_decls":{"v6":{"arg_sorts":[],"name":"v6","ret_sort":"(_ BitVec 32)"}},"func_deps":[],"logic":"ABV","sort_deps":[],"term_smt2":"(= (_ bv0 1) (bvor (bvcomp (_ bv0 2) ((_ extract 1 0) v7)) (bvashr (bvnot (ite (= (store (store (store (store a1 v7 ((_ extract 15 8) v7)) (_ bv1 32) ((_ extract 7 0) v6)) (bvadd v6 (_ bv1 32)) ((_ extract 15 8) v6)) v6 ((_ extract 31 24) v6)) (store (store (store (store a1 (_ bv1 32) ((_ extract 7 0) v6)) (bvadd v6 (_ bv1 32)) ((_ extract 15 8) v6)) v6 ((_ extract 31 24) v6)) v7 ((_ extract 31 24) v7))) (_ bv1 1) (_ bv0 1))) (bvcomp (_ bv0 2) ((_ extract 1 0) v6)))))","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"ABV","sort_deps":[],"term_smt2":"(= a b)","var_decls":{}}

@@ -143,7 +143,7 @@ def _prepare_seed(script: Script) -> Script:
             ):
                 continue
         cleaned.append(cmd)
-    script.commands = cleaned
+    script.replace_commands(cleaned)
     return script
 
 

@@ -21,7 +21,7 @@ import re
 import random
 from typing import Dict, FrozenSet, List, Optional, Set, Tuple
 
-from chimera.core.smt_ast import DeclareConst, DeclareFun, Script, Assert, CheckSat, SMTLIBCommand
+from chimera.core.smt_ast import DeclareConst, DeclareFun, Script, Assert, CheckSat, SMTLIBCommand, Term
 from chimera.core.smt_parser import parse_string
 from chimera.core.logic_analyzer import parse_logic, is_builtin_sort
 
@@ -529,6 +529,12 @@ def build_smt_script(
 # Comprehensive validation
 # ---------------------------------------------------------------------------
 
+def validate_generated_formula(script: str) -> bool:
+    """Perform the shared fast validation used by all generation engines."""
+    if smt_paren_depth(script) != 0:
+        return False
+    return not any(token in script for token in ("any_int", "any_bool", "real.pi"))
+
 class ValidationResult:
     """Result of formula validation.
 
@@ -705,7 +711,24 @@ def validate_formula(
     return ValidationResult(ok=ok, errors=errors, warnings=warnings)
 
 
-def _collect_symbols_from_term(term, accumulator: Set[str]) -> None:
+class FormulaValidator:
+    """Canonical validation facade shared by all generation engines."""
+
+    @staticmethod
+    def fast(script: str) -> bool:
+        return validate_generated_formula(script)
+
+    @staticmethod
+    def validate(
+        script: str,
+        *,
+        target_logic: Optional[str] = None,
+        strict: bool = False,
+    ) -> ValidationResult:
+        return validate_formula(script, target_logic=target_logic, strict=strict)
+
+
+def _collect_symbols_from_term(term: Term, accumulator: Set[str]) -> None:
     """Recursively collect symbol names from a term.
 
     Parameters
@@ -729,7 +752,7 @@ def _collect_symbols_from_term(term, accumulator: Set[str]) -> None:
 
     if hasattr(term, 'subterms') and term.subterms:
         for sub in term.subterms:
-            if hasattr(sub, '__class__') and hasattr(sub, 'is_var'):
+            if isinstance(sub, Term):
                 _collect_symbols_from_term(sub, accumulator)
 
 

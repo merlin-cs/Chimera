@@ -35,7 +35,7 @@ def run_tests(
     elif test_type == "integration":
         cmd.extend(["-m", "integration"])
     elif test_type == "all":
-        pass  # Run all tests
+        cmd.extend([])  # Explicitly retain pytest's default test selection.
     elif test_type == "quick":
         cmd.extend(["-m", "not slow", "-x", "--tb=short"])
 

@@ -213,6 +213,33 @@ class Term:
         self.is_indexed_id = is_indexed_id
         self.parent = parent
 
+    def replace_with(self, replacement: "Term") -> "Term":
+        """Replace this node's payload while preserving its parent link.
+
+        Engines should use this operation instead of reaching into the
+        private initializer.  Children are cloned so replacing a hole never
+        aliases mutable state from the sampled replacement.
+        """
+        parent = self.parent
+        self._initialize(
+            name=copy.deepcopy(replacement.name),
+            type=copy.deepcopy(replacement.type),
+            is_const=copy.deepcopy(replacement.is_const),
+            is_var=copy.deepcopy(replacement.is_var),
+            label=copy.deepcopy(replacement.label),
+            indices=copy.deepcopy(replacement.indices),
+            quantifier=copy.deepcopy(replacement.quantifier),
+            quantified_vars=copy.deepcopy(replacement.quantified_vars),
+            var_binders=copy.deepcopy(replacement.var_binders),
+            let_terms=copy.deepcopy(replacement.let_terms),
+            op=copy.deepcopy(replacement.op),
+            subterms=copy.deepcopy(replacement.subterms),
+            is_indexed_id=copy.deepcopy(replacement.is_indexed_id),
+            parent=parent,
+        )
+        self._link_parents()
+        return self
+
     # -- parent linkage ------------------------------------------------------
 
     def _link_parents(self) -> None:
@@ -335,24 +362,7 @@ class Term:
         occurrences: List[Term] = []
         self.find_all(target, occurrences)
         for occ in occurrences:
-            saved_parent = occ.parent
-            occ._initialize(
-                name=copy.deepcopy(replacement.name),
-                type=copy.deepcopy(replacement.type),
-                is_const=copy.deepcopy(replacement.is_const),
-                is_var=copy.deepcopy(replacement.is_var),
-                label=copy.deepcopy(replacement.label),
-                indices=copy.deepcopy(replacement.indices),
-                quantifier=copy.deepcopy(replacement.quantifier),
-                quantified_vars=copy.deepcopy(replacement.quantified_vars),
-                var_binders=copy.deepcopy(replacement.var_binders),
-                let_terms=copy.deepcopy(replacement.let_terms),
-                op=copy.deepcopy(replacement.op),
-                subterms=copy.deepcopy(replacement.subterms),
-                is_indexed_id=copy.deepcopy(replacement.is_indexed_id),
-                parent=saved_parent,
-            )
-            occ._link_parents()
+            occ.replace_with(replacement)
 
     def substitute_n(
         self,
@@ -365,24 +375,7 @@ class Term:
         self.find_all(target, occurrences)
         chosen = random.sample(occurrences, min(n, len(occurrences)))
         for occ in chosen:
-            saved_parent = occ.parent
-            occ._initialize(
-                name=copy.deepcopy(replacement.name),
-                type=copy.deepcopy(replacement.type),
-                is_const=copy.deepcopy(replacement.is_const),
-                is_var=copy.deepcopy(replacement.is_var),
-                label=copy.deepcopy(replacement.label),
-                indices=copy.deepcopy(replacement.indices),
-                quantifier=copy.deepcopy(replacement.quantifier),
-                quantified_vars=copy.deepcopy(replacement.quantified_vars),
-                var_binders=copy.deepcopy(replacement.var_binders),
-                let_terms=copy.deepcopy(replacement.let_terms),
-                op=copy.deepcopy(replacement.op),
-                subterms=copy.deepcopy(replacement.subterms),
-                is_indexed_id=copy.deepcopy(replacement.is_indexed_id),
-                parent=saved_parent,
-            )
-            occ._link_parents()
+            occ.replace_with(replacement)
 
     # -- equality ------------------------------------------------------------
 
@@ -887,6 +880,11 @@ class Script:
                 globs = copy.copy(self.global_vars)
                 self._collect_free_vars(cmd.term, globs)
                 self._collect_op_occs(cmd.term)
+
+    def replace_commands(self, commands: List[SmtCommand]) -> None:
+        """Replace top-level commands and refresh all derived indexes."""
+        self.commands = list(commands)
+        self._rebuild_indices()
 
     def _extract_declarations(self) -> Tuple[List[Term], Dict[str, SmtSort]]:
         """Return (var_list, type_map) from DeclareConst/DeclareFun commands."""

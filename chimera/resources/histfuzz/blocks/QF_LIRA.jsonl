@@ -1,0 +1,36 @@
+{"func_decls":{"x":{"arg_sorts":[],"name":"x","ret_sort":"Real"}},"func_deps":[],"logic":"QF_LIRA","sort_deps":[],"term_smt2":"(<= 0 0.84)","var_decls":{}}
+{"func_decls":{"x":{"arg_sorts":[],"name":"x","ret_sort":"Real"}},"func_deps":[],"logic":"QF_LIRA","sort_deps":[],"term_smt2":"(> (sin 238) 0.85)","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_LIRA","sort_deps":[],"term_smt2":"(= 0 (to_int (selector1 (constructor2 (sin (ite false (arcsin 0.0) 1.0)) 0.0 false 0.0))))","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_LIRA","sort_deps":[],"term_smt2":"(seq.nth (seq.unit (>= 0.0 (arccos 0.0))) 0)","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_LIRA","sort_deps":[],"term_smt2":"(= 0.0 (^ 0 4.0))","var_decls":{}}
+{"func_decls":{"a":{"arg_sorts":[],"name":"a","ret_sort":"Real"}},"func_deps":[],"logic":"QF_LIRA","sort_deps":[],"term_smt2":"(<= 0 2.0)","var_decls":{}}
+{"func_decls":{"a":{"arg_sorts":[],"name":"a","ret_sort":"Real"},"b":{"arg_sorts":[],"name":"b","ret_sort":"Real"}},"func_deps":[],"logic":"QF_LIRA","sort_deps":[],"term_smt2":"(<= 0 (/ 0 0))","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_LIRA","sort_deps":[],"term_smt2":"(> 0.816577 169 569703 0.26205)","var_decls":{"r3":"Real","r5":"Real","r7":"Real","r8":"Real","v0":"Bool","v1":"Bool","v10":"Bool","v11":"Bool","v12":"Bool","v13":"Bool","v14":"Bool","v15":"Bool","v16":"Bool","v2":"Bool","v3":"Bool","v4":"Bool","v5":"Bool","v6":"Bool","v7":"Bool","v8":"Bool","v9":"Bool"}}
+{"func_decls":{},"func_deps":[],"logic":"QF_LIRA","sort_deps":[],"term_smt2":"(< (sin 51) 0.9)","var_decls":{}}
+{"func_decls":{"a":{"arg_sorts":[],"name":"a","ret_sort":"Real"}},"func_deps":[],"logic":"QF_LIRA","sort_deps":[],"term_smt2":"(distinct (sqrt 1.0) 0)","var_decls":{}}
+{"func_decls":{"r4":{"arg_sorts":[],"name":"r4","ret_sort":"Real"},"ufrb5":{"arg_sorts":["Real","Real","Real","Real","Real"],"name":"ufrb5","ret_sort":"Bool"}},"func_deps":["ufrb5"],"logic":"QF_LIRA","sort_deps":[],"term_smt2":"(ufrb5 0.0 0.0 0.0 0.0 0)","var_decls":{}}
+{"func_decls":{"r4":{"arg_sorts":[],"name":"r4","ret_sort":"Real"},"ufrb5":{"arg_sorts":["Real","Real","Real","Real","Real"],"name":"ufrb5","ret_sort":"Bool"}},"func_deps":["ufrb5"],"logic":"QF_LIRA","sort_deps":[],"term_smt2":"(ufrb5 0.0 0.0 0.0 0.0 0)","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_LIRA","sort_deps":[],"term_smt2":"(= 0.0 (/ 0 0.0))","var_decls":{}}
+{"func_decls":{"r7":{"arg_sorts":[],"name":"r7","ret_sort":"Real"}},"func_deps":[],"logic":"QF_LIRA","sort_deps":[],"term_smt2":"(= 1.0 (/ 1 0.0))","var_decls":{}}
+{"func_decls":{"v":{"arg_sorts":[],"name":"v","ret_sort":"Real"}},"func_deps":[],"logic":"QF_LIRA","sort_deps":[],"term_smt2":"(distinct 1 (/ 0 0))","var_decls":{}}
+{"func_decls":{"v":{"arg_sorts":[],"name":"v","ret_sort":"Real"}},"func_deps":[],"logic":"QF_LIRA","sort_deps":[],"term_smt2":"(distinct 0 (sin 1.0))","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_LIRA","sort_deps":[],"term_smt2":"(= 0.0 (sin 7))","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_LIRA","sort_deps":[],"term_smt2":"(= 0.0 (/ 0.0 (to_real (to_real 0))))","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_LIRA","sort_deps":[],"term_smt2":"(= (/ 0 0) 0)","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_LIRA","sort_deps":[],"term_smt2":"(< 2180030 9646.29)","var_decls":{"r2":"Real","r3":"Real","r7":"Real","r8":"Real","r9":"Real","v0":"Bool","v1":"Bool","v2":"Bool","v3":"Bool","v4":"Bool","v5":"Bool","v6":"Bool","v7":"Bool","v8":"Bool"}}
+{"func_decls":{},"func_deps":[],"logic":"QF_LIRA","sort_deps":[],"term_smt2":"(< 2180030 9646.29)","var_decls":{"r2":"Real","r3":"Real","r7":"Real","r8":"Real","r9":"Real","v0":"Bool","v1":"Bool","v2":"Bool","v3":"Bool","v4":"Bool","v5":"Bool","v6":"Bool","v7":"Bool","v8":"Bool"}}
+{"func_decls":{},"func_deps":[],"logic":"QF_LIRA","sort_deps":[],"term_smt2":"(distinct (/ 40 (^ 0.375 210)) (^ 0 4.0))","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_LIRA","sort_deps":[],"term_smt2":"(distinct (/ 40 (^ 0.375 210)) (^ 0 4.0))","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_LIRA","sort_deps":[],"term_smt2":"(distinct 1.0 (^ 0.5 100))","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_LIRA","sort_deps":[],"term_smt2":"(distinct 1.0 (^ 0.5 100))","var_decls":{}}
+{"func_decls":{"a":{"arg_sorts":[],"name":"a","ret_sort":"Real"}},"func_deps":[],"logic":"QF_LIRA","sort_deps":[],"term_smt2":"(<= 0.0 0)","var_decls":{}}
+{"func_decls":{"a":{"arg_sorts":[],"name":"a","ret_sort":"Real"},"b":{"arg_sorts":[],"name":"b","ret_sort":"Bool"},"c":{"arg_sorts":[],"name":"c","ret_sort":"Real"}},"func_deps":[],"logic":"QF_LIRA","sort_deps":[],"term_smt2":"(= (/ 0 0) 1)","var_decls":{}}
+{"func_decls":{"a":{"arg_sorts":[],"name":"a","ret_sort":"Real"},"b":{"arg_sorts":[],"name":"b","ret_sort":"Real"},"c":{"arg_sorts":[],"name":"c","ret_sort":"Real"},"d":{"arg_sorts":[],"name":"d","ret_sort":"Real"},"f":{"arg_sorts":[],"name":"f","ret_sort":"Real"}},"func_deps":[],"logic":"QF_LIRA","sort_deps":[],"term_smt2":"(< (/ 0 0) 0)","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_LIRA","sort_deps":[],"term_smt2":"(= 1 (b (/ 1 1)))","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_LIRA","sort_deps":["Unknown"],"term_smt2":"(= ((_ to_fp 5 11) RTN 65535.0 0) (fp (_ bv0 1) (_ bv0 5) (_ bv0 10)))","var_decls":{}}
+{"func_decls":{"f":{"arg_sorts":["Real"],"name":"f","ret_sort":"Real"},"p":{"arg_sorts":["Real"],"name":"p","ret_sort":"Bool"},"v":{"arg_sorts":[],"name":"v","ret_sort":"Int"},"v0":{"arg_sorts":[],"name":"v0","ret_sort":"Int"}},"func_deps":["p","f"],"logic":"QF_LIRA","sort_deps":[],"term_smt2":"(distinct (f 0.0) (to_real (ite (p 0.0) 1 0)))","var_decls":{"x":"Bool","x2":"Int"}}
+{"func_decls":{},"func_deps":[],"logic":"QF_LIRA","sort_deps":[],"term_smt2":"(> (/ 0 0.0) 1)","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_LIRA","sort_deps":[],"term_smt2":"(= 1.0 (div 0 0.0))","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_LIRA","sort_deps":["Unknown"],"term_smt2":"(= ((_ to_fp 5 11) RTN 65535.0 0) (fp (_ bv0 1) (_ bv0 5) (_ bv0 10)))","var_decls":{}}
+{"func_decls":{"v":{"arg_sorts":[],"name":"v","ret_sort":"Real"}},"func_deps":[],"logic":"QF_LIRA","sort_deps":[],"term_smt2":"(= 0.0 (/ 1 1.0 0.0))","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"QF_LIRA","sort_deps":[],"term_smt2":"(< 0.0 (/ 1 (/ 1.0 0.0)))","var_decls":{}}

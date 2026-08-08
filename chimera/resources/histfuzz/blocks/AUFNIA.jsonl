@@ -1,0 +1,1 @@
+{"func_decls":{"b":{"arg_sorts":["(Array Int Int)","(Array Int Int)","Int","Int"],"name":"b","ret_sort":"Bool"}},"func_deps":["b"],"logic":"AUFNIA","sort_deps":["Unknown"],"term_smt2":"(= i (b a j k d))","var_decls":{}}

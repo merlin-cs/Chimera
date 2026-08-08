@@ -1,0 +1,4 @@
+{"func_decls":{},"func_deps":[],"logic":"LRABV","sort_deps":[],"term_smt2":"x","var_decls":{"x":"Bool","x5":"Bool"}}
+{"func_decls":{},"func_deps":[],"logic":"LRABV","sort_deps":[],"term_smt2":"x","var_decls":{"x":"Bool","x5":"Bool"}}
+{"func_decls":{},"func_deps":[],"logic":"LRABV","sort_deps":[],"term_smt2":"x5","var_decls":{"x":"Bool","x5":"Bool"}}
+{"func_decls":{},"func_deps":[],"logic":"LRABV","sort_deps":[],"term_smt2":"(distinct (_ bv0 1) ((_ extract 0 0) x))","var_decls":{"x":"Bool","x5":"Bool"}}

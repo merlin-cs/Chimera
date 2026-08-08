@@ -1,0 +1,1 @@
+{"func_decls":{},"func_deps":[],"logic":"QFLIRAFP","sort_deps":["Unknown"],"term_smt2":"(= c ((_ to_fp 11 53) roundTowardZero b a))","var_decls":{"a":"Int","b":"Real","c":"(_ FloatingPoint 11 53)"}}

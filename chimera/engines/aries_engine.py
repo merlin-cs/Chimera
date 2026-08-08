@@ -46,7 +46,13 @@ from chimera.core.smt_ast import (
 from chimera.core.smt_parser import parse_file, parse_string
 from chimera.core.solver_manager import SolverConfig
 from chimera.core.differential_oracle import OracleConfig
-from chimera.engines.base import FuzzingStrategy
+from chimera.core.formula_builder import FormulaValidator
+from chimera.engines.base import (
+    GeneratedCase,
+    FuzzingStrategy,
+    GenerationOutcome,
+    Skipped,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -283,11 +289,12 @@ class MimeticMutator:
                 if isinstance(existing_var, Term) and existing_var.type == nv.type and nv.type:
                     new_term.substitute(nv, existing_var)
             elif nv.name and nv.type:
-                fresh = Term()
                 fresh_name = _random_var_name()
-                fresh._initialize(name=fresh_name, type=nv.type, is_var=True)
+                fresh = Term(name=fresh_name, type=nv.type, is_var=True)
                 new_term.substitute(nv, fresh)
-                script.commands.insert(0, DeclareFun(fresh_name, "", nv.type))
+                script.replace_commands(
+                    [DeclareFun(fresh_name, "", nv.type), *script.commands]
+                )
                 globs[fresh_name] = nv.type
 
         # Substitute in assert commands (respect max_subs)
@@ -593,6 +600,7 @@ class AriesStrategy(FuzzingStrategy):
         self._seed_paths = self._discover_smt_files(seed_dir) if seed_dir else []
         self._mimetic_rounds = mimetic_rounds
         self._use_egraph = use_egraph
+        self._last_generation_provenance: dict[str, Any] = {}
 
         # Mimetic mutator
         self._mutator = MimeticMutator(rules_csv, config_dir) if rules_csv else None
@@ -626,27 +634,18 @@ class AriesStrategy(FuzzingStrategy):
             logger.debug("Aries: rejected formula (static check)")
         return None
 
+    def _generate_case_for_campaign(self, seed: int) -> GenerationOutcome:
+        formula = self.generate(max_retries=10)
+        if formula is None:
+            return Skipped("no valid formula could be produced from the Aries seeds")
+        provenance = dict(self._last_generation_provenance)
+        provenance["rng_seed"] = seed
+        return GeneratedCase(formula, provenance=provenance, rng_seed=seed)
+
     @staticmethod
     def _validate_formula_static(formula: str) -> bool:
         """Quick static check before running solvers."""
-        # Check parentheses balance
-        depth = 0
-        for ch in formula:
-            if ch == '(':
-                depth += 1
-            elif ch == ')':
-                depth -= 1
-            if depth < 0:
-                return False
-        if depth != 0:
-            return False
-
-        # Reject known unsupported constants
-        for bad in ("real.pi", "any_int", "any_bool"):
-            if bad in formula:
-                return False
-
-        return True
+        return FormulaValidator.fast(formula)
 
     def _generate_once(self) -> Optional[str]:
         """Internal: perform one mutation attempt."""
@@ -660,6 +659,17 @@ class AriesStrategy(FuzzingStrategy):
             return None
         script, globs = result
 
+        provenance: dict[str, object] = {
+            "engine": self.name,
+            "seed": str(seed_path),
+            "mimetic_rounds": self._mimetic_rounds,
+            "egraph_requested": self._use_egraph,
+            "egraph_available": self._egraph is not None,
+            "mimetic_applied": False,
+            "egraph_applied": False,
+        }
+        self._last_generation_provenance = provenance
+
         mutated = False
 
         # Phase 1: mimetic mutation
@@ -667,11 +677,13 @@ class AriesStrategy(FuzzingStrategy):
             for _ in range(self._mimetic_rounds):
                 if self._mutator.mutate(script, globs):
                     mutated = True
+                    provenance["mimetic_applied"] = True
 
         # Phase 2: equality saturation
         if self._egraph is not None:
             if self._egraph.rewrite_script(script, globs):
                 mutated = True
+                provenance["egraph_applied"] = True
 
         if not mutated:
             # At least shuffle assertions for minimal diversity
@@ -682,7 +694,7 @@ class AriesStrategy(FuzzingStrategy):
         # Ensure check-sat
         has_checksat = any(isinstance(c, CheckSat) for c in script.commands)
         if not has_checksat:
-            script.commands.append(CheckSat())
+            script.replace_commands([*script.commands, CheckSat()])
 
         formula_str = str(script)
 
@@ -756,7 +768,7 @@ class AriesStrategy(FuzzingStrategy):
                 declared_names.add(m.group(1))
 
         # Replace egraph placeholder names only when they are NOT declared.
-        def rewrite_placeholder(m: re.Match) -> str:
+        def rewrite_placeholder(m: re.Match[str]) -> str:
             name = m.group(0)
             if name in declared_names:
                 return name  # preserve legitimate user symbols

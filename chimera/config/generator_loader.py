@@ -13,7 +13,7 @@ from __future__ import annotations
 import importlib.util
 import logging
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, cast
 
 from chimera.config.generator_config import (
     USE_NEW_GENERATORS,
@@ -102,7 +102,7 @@ def load_new_generator(generator_name: str, short_name: Optional[str] = None) ->
                         generator_name,
                         func_name,
                     )
-                    return func
+                    return cast(GeneratorFn, func)
 
         logger.debug("Could not find generator function in %s", module_path)
         logger.debug("  Tried: %s", possible_names)

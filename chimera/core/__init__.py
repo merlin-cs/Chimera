@@ -42,6 +42,7 @@ from chimera.core.types import (
 from chimera.core.logic_analyzer import (
     LogicCapability,
     LogicInfo,
+    detect_script_logic,
     parse_logic,
     is_logic_compatible,
     get_compatible_logics,
@@ -61,6 +62,18 @@ from chimera.core.formula_builder import (
     variable_translocation,
     extract_function_name,
     build_smt_script,
+    FormulaValidator,
+    validate_generated_formula,
+)
+from chimera.core.campaign import (
+    ARTIFACT_FORMAT_VERSION,
+    CAMPAIGN_CONFIG_VERSION,
+    ArtifactStore,
+    CampaignConfig,
+    CampaignRunner,
+    CaseProducer,
+    StrategyCaseProducer,
+    replay_artifact,
 )
 
 __all__ = [
@@ -96,6 +109,7 @@ __all__ = [
     "is_builtin_sort",
     "extract_sorts_from_declaration",
     "BUILTIN_SORTS",
+    "detect_script_logic",
     # Formula builder
     "smt_paren_depth",
     "balance_parentheses",
@@ -108,4 +122,15 @@ __all__ = [
     "variable_translocation",
     "extract_function_name",
     "build_smt_script",
+    "validate_generated_formula",
+    "FormulaValidator",
+    # Campaigns
+    "ARTIFACT_FORMAT_VERSION",
+    "CAMPAIGN_CONFIG_VERSION",
+    "ArtifactStore",
+    "CampaignConfig",
+    "CampaignRunner",
+    "CaseProducer",
+    "StrategyCaseProducer",
+    "replay_artifact",
 ]

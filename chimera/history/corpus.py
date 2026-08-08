@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import random
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
@@ -21,6 +22,21 @@ from chimera.core.smt_ast import Term, Hole, is_hole
 from chimera.core.smt_parser import parse_string
 from chimera.core.logic_analyzer import parse_logic, is_logic_compatible
 from chimera.core.types import UNKNOWN
+
+_HOLE_TEXT = re.compile(r"(?<![\w(])hole\s+(\d+)")
+
+
+def _canonical_logic(logic: str) -> str:
+    """Normalize compact QF labels emitted by historical extractors."""
+    value = logic.upper().strip()
+    if value.startswith("QF") and value != "QF" and not value.startswith("QF_"):
+        return "QF_" + value[2:]
+    return value
+
+
+def _canonicalize_holes(text: str) -> str:
+    """Make the human-readable ``hole N`` sentinel parseable as an app."""
+    return _HOLE_TEXT.sub(r"(hole \1)", text)
 
 
 @dataclass
@@ -93,11 +109,13 @@ class BuildingBlock:
         """Ensure sort_deps contains only non-built-in sorts."""
         from chimera.core.logic_analyzer import is_builtin_sort
 
+        self.logic = _canonical_logic(self.logic)
         # Filter to only non-builtin sorts that need declaration
         self.sort_deps = {
             s for s in self.sort_deps
             if not is_builtin_sort(s) and s.strip()
         }
+        self.term_smt2 = _canonicalize_holes(self.term_smt2)
 
     @property
     def term_obj(self) -> Optional[Term]:
@@ -136,10 +154,10 @@ class BuildingBlock:
     def to_dict(self) -> Dict[str, Any]:
         """Serialize to dictionary for JSON storage."""
         return {
-            "term_smt2": self.term_smt2,
+            "term_smt2": _canonicalize_holes(self.term_smt2),
             "logic": self.logic,
-            "sort_deps": list(self.sort_deps),
-            "func_deps": list(self.func_deps),
+            "sort_deps": sorted(self.sort_deps),
+            "func_deps": sorted(self.func_deps),
             "var_decls": self.var_decls,
             "func_decls": {k: v.to_dict() for k, v in self.func_decls.items()},
         }
@@ -203,10 +221,14 @@ class Skeleton:
         """Ensure sort_deps contains only non-built-in sorts."""
         from chimera.core.logic_analyzer import is_builtin_sort
 
+        self.logic = _canonical_logic(self.logic)
+        if not self.is_quantified and self.logic != "QF" and not self.logic.startswith("QF_"):
+            self.logic = "QF_" + self.logic
         self.sort_deps = {
             s for s in self.sort_deps
             if not is_builtin_sort(s) and s.strip()
         }
+        self.term_smt2 = _canonicalize_holes(self.term_smt2)
 
     @property
     def term_obj(self) -> Optional[Term]:
@@ -238,12 +260,12 @@ class Skeleton:
     def to_dict(self) -> Dict[str, Any]:
         """Serialize to dictionary for JSON storage."""
         return {
-            "term_smt2": self.term_smt2,
+            "term_smt2": _canonicalize_holes(self.term_smt2),
             "logic": self.logic,
             "is_quantified": self.is_quantified,
             "hole_types": self.hole_types,
-            "sort_deps": list(self.sort_deps),
-            "func_deps": list(self.func_deps),
+            "sort_deps": sorted(self.sort_deps),
+            "func_deps": sorted(self.func_deps),
             "var_decls": self.var_decls,
             "func_decls": {k: v.to_dict() for k, v in self.func_decls.items()},
         }
@@ -252,7 +274,7 @@ class Skeleton:
     def from_dict(cls, data: Dict[str, Any]) -> "Skeleton":
         """Deserialize from dictionary."""
         return cls(
-            term_smt2=data["term_smt2"],
+            term_smt2=_canonicalize_holes(data["term_smt2"]),
             logic=data["logic"],
             is_quantified=data.get("is_quantified", False),
             hole_types=data.get("hole_types", []),
@@ -293,7 +315,7 @@ class Corpus:
         The QF_ prefix is stripped from the logic name because the
         quantifier-free distinction only matters for skeletons, not blocks.
         """
-        logic = block.logic.upper()
+        logic = _canonical_logic(block.logic)
         if logic.startswith("QF_"):
             logic = logic[3:]
         if logic not in self.blocks:
@@ -302,7 +324,8 @@ class Corpus:
 
     def add_skeleton(self, skel: Skeleton) -> None:
         """Add a skeleton to the corpus."""
-        logic = skel.logic.upper()
+        logic = _canonical_logic(skel.logic)
+        skel.logic = logic
         if logic not in self.skeletons:
             self.skeletons[logic] = []
         self.skeletons[logic].append(skel)
@@ -313,7 +336,7 @@ class Corpus:
             logics = set(self.blocks.keys())
 
         result = []
-        for logic in logics:
+        for logic in sorted(logics):
             if logic in self.blocks:
                 result.extend(self.blocks[logic])
         return result
@@ -337,7 +360,7 @@ class Corpus:
             logics = set(self.skeletons.keys())
 
         result = []
-        for logic in logics:
+        for logic in sorted(logics):
             if logic not in self.skeletons:
                 continue
             for skel in self.skeletons[logic]:
@@ -354,7 +377,10 @@ class Corpus:
         """
         compatible = set()
         for logic in list(self.blocks.keys()) + list(self.skeletons.keys()):
-            if is_logic_compatible(logic, target_logic):
+            source_logic = logic
+            if logic in self.blocks and not logic.startswith("QF_"):
+                source_logic = "QF_" + logic
+            if is_logic_compatible(source_logic, target_logic):
                 compatible.add(logic)
         return compatible
 
@@ -369,7 +395,8 @@ class Corpus:
             # Find all compatible logics (blocks are stored without QF_ prefix)
             compatible = set()
             for key in self.blocks:
-                if is_logic_compatible(key, logic):
+                source_logic = key if key.startswith("QF_") else "QF_" + key
+                if is_logic_compatible(source_logic, logic):
                     compatible.add(key)
             candidates = self.get_blocks(logics=compatible)
         else:
@@ -407,7 +434,13 @@ class Corpus:
             If True, only quantified skeletons. If False, only QF skeletons.
             If None (default), return all.
         """
-        candidates = self.get_skeletons(quantified=quantified)
+        logics: Optional[Set[str]] = None
+        if logic:
+            logics = {
+                key for key in self.skeletons
+                if is_logic_compatible(key, logic)
+            }
+        candidates = self.get_skeletons(logics=logics, quantified=quantified)
         return random.choice(candidates) if candidates else None
 
     def statistics(self) -> Dict[str, Any]:
@@ -510,16 +543,20 @@ class Corpus:
                 json.dump(quant_skeletons, f, indent=2)
 
     @classmethod
-    def load(cls, input_dir: str) -> "Corpus":
+    def load(cls, input_dir: str, *, max_record_bytes: int = 16_384) -> "Corpus":
         """Load corpus from directory structure.
 
         Reads from:
             input_dir/
-                metadata.json (optional)
+                manifest.json (canonical JSONL format)
                 blocks/
-                    {LOGIC}.json
-                skeletons_qf.json
-                skeletons_quant.json
+                    {LOGIC}.jsonl
+                skeletons/
+                    {LOGIC}.jsonl
+
+        Legacy JSON files remain readable for migration.  Oversized JSONL
+        records are retained in the release corpus but skipped here by the
+        safety cap so a malformed historical input cannot stall a campaign.
         """
         corpus = cls()
         inp = Path(input_dir)
@@ -533,9 +570,19 @@ class Corpus:
             with open(meta_file) as f:
                 corpus.metadata = json.load(f)
 
-        # Load blocks from blocks/ directory
+        # Load canonical streaming JSONL blocks first.  The JSONL format is
+        # the release format; the older one-record-per-file JSON format below
+        # remains readable so callers can migrate existing resource folders.
         blocks_dir = inp / "blocks"
         if blocks_dir.is_dir():
+            for blocks_file in sorted(blocks_dir.glob("*.jsonl")):
+                with open(blocks_file, encoding="utf-8") as f:
+                    for line in f:
+                        if len(line.encode("utf-8")) > max_record_bytes:
+                            continue
+                        if line.strip():
+                            corpus.add_block(BuildingBlock.from_dict(json.loads(line)))
+
             for blocks_file in sorted(blocks_dir.glob("*.json")):
                 logic = blocks_file.stem  # filename without .json
                 # Strip QF_ prefix for consistency (QF/non-QF blocks are merged)
@@ -546,6 +593,18 @@ class Corpus:
                         block = BuildingBlock.from_dict(bd)
                         block.logic = logic
                         corpus.add_block(block)
+
+        # Canonical skeleton shards preserve their source logic.  The legacy
+        # aggregate files are still accepted for migration tooling.
+        skeletons_dir = inp / "skeletons"
+        if skeletons_dir.is_dir():
+            for skeletons_file in sorted(skeletons_dir.glob("*.jsonl")):
+                with open(skeletons_file, encoding="utf-8") as f:
+                    for line in f:
+                        if len(line.encode("utf-8")) > max_record_bytes:
+                            continue
+                        if line.strip():
+                            corpus.add_skeleton(Skeleton.from_dict(json.loads(line)))
 
         # Load QF skeletons
         qf_file = inp / "skeletons_qf.json"

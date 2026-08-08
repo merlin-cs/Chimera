@@ -1,0 +1,15 @@
+{"func_decls":{"a":{"arg_sorts":[],"name":"a","ret_sort":"Int"},"v":{"arg_sorts":[],"name":"v","ret_sort":"(_ BitVec 1)"}},"func_deps":[],"logic":"LIABV","sort_deps":[],"term_smt2":"(= 1 (bv2nat v))","var_decls":{}}
+{"func_decls":{"a":{"arg_sorts":[],"name":"a","ret_sort":"Int"},"v":{"arg_sorts":[],"name":"v","ret_sort":"(_ BitVec 1)"}},"func_deps":[],"logic":"LIABV","sort_deps":[],"term_smt2":"(= (_ bv0 1) ((_ extract 0 0) ((_ int2bv 1) (bv2nat ((_ int2bv 3) a)))))","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"LIABV","sort_deps":[],"term_smt2":"(>= 0 0 (div q51 942))","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"LIABV","sort_deps":[],"term_smt2":"(distinct (_ bv0 17) q95)","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"LIABV","sort_deps":[],"term_smt2":"(= y x)","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"LIABV","sort_deps":[],"term_smt2":"(= 0 z)","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"LIABV","sort_deps":[],"term_smt2":"(= y x)","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"LIABV","sort_deps":[],"term_smt2":"(= #x00000000 z)","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"LIABV","sort_deps":[],"term_smt2":"(= y x)","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"LIABV","sort_deps":[],"term_smt2":"(= #x00000000 z)","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"LIABV","sort_deps":[],"term_smt2":"(< 0 x)","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"LIABV","sort_deps":[],"term_smt2":"(= w x)","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"LIABV","sort_deps":[],"term_smt2":"(bvsle y z)","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"LIABV","sort_deps":[],"term_smt2":"(= x (bv2int ((_ int2bv 1) x)))","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"LIABV","sort_deps":[],"term_smt2":"(= x (bv2int ((_ int2bv 1) x)))","var_decls":{}}

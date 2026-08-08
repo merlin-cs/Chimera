@@ -1,0 +1,1 @@
+{"func_decls":{"f":{"arg_sorts":["Real","Real"],"name":"f","ret_sort":"Real"},"g":{"arg_sorts":["Real","Real"],"name":"g","ret_sort":"(Array Real Real)"}},"func_deps":["g","f"],"hole_types":["Bool","Bool"],"is_quantified":true,"logic":"AUFLRA","sort_deps":[],"term_smt2":"(forall ((VAR0 TYPE0) (VAR1 TYPE1) (VAR2 TYPE2) (VAR3 TYPE3)) (=> hole 0 hole 1))","var_decls":{}}

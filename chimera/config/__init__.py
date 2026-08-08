@@ -9,6 +9,11 @@ Copyright (c) 2024-2026 The Chimera authors.
 SPDX-License-Identifier: MIT
 """
 
+from __future__ import annotations
+
+import importlib
+from typing import Any
+
 from chimera.config.generator_config import (
     USE_NEW_GENERATORS,
     NEW_GENERATORS_PATH,
@@ -20,18 +25,33 @@ from chimera.config.generator_config import (
     find_generator_module_path,
     new_generator_file_exists,
 )
-from chimera.config.generator_loader import (
-    GeneratorFn,
-    load_new_generator,
-    get_generator_function,
-    validate_theory_coverage,
-    GENERATORS,
-)
 from chimera.config.theory_selection import (
     SolverTheoryProfile,
     DEFAULT_PROFILE,
     get_compatible_theories,
 )
+
+_LEGACY_GENERATOR_EXPORTS = frozenset(
+    {
+        "GeneratorFn",
+        "load_new_generator",
+        "get_generator_function",
+        "validate_theory_coverage",
+        "GENERATORS",
+    }
+)
+
+
+def __getattr__(name: str) -> Any:
+    """Lazily expose legacy loader imports during migration.
+
+    Importing ``chimera.config`` must not execute every generator module.  The
+    old symbols remain available only when a caller explicitly requests one.
+    """
+    if name in _LEGACY_GENERATOR_EXPORTS:
+        module = importlib.import_module("chimera.config.generator_loader")
+        return getattr(module, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 __all__ = [
     # generator_config

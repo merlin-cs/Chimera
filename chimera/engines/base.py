@@ -12,11 +12,12 @@ from __future__ import annotations
 
 import logging
 import os
+import random
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Union
+from typing import Dict, List, Mapping, Optional, Sequence, Union
 
 from chimera.core.smt_ast import Script
 from chimera.core.solver_manager import (
@@ -83,7 +84,7 @@ class GeneratedCase:
 
     text: str
     logic: Optional[str] = None
-    provenance: Optional[str] = None
+    provenance: Optional[Union[str, Mapping[str, object]]] = None
     rng_seed: Optional[int] = None
 
 
@@ -216,6 +217,39 @@ class FuzzingStrategy(ABC):
         if formula_text is None:
             return Skipped("producer returned no formula")
         return GeneratedCase(formula_text, provenance=self.name)
+
+    def generate_case_for_campaign(
+        self,
+        rng: random.Random,
+        seed: int,
+    ) -> GenerationOutcome:
+        """Generate one case using an injected campaign RNG.
+
+        Engines historically use the module-level :mod:`random` API.  This
+        bridge keeps those implementations reproducible while giving new
+        engines a single hook (``_generate_case_for_campaign``) for richer
+        provenance.
+        """
+        previous = random.getstate()
+        random.setstate(rng.getstate())
+        try:
+            outcome = self._generate_case_for_campaign(seed)
+            rng.setstate(random.getstate())
+        finally:
+            random.setstate(previous)
+        if isinstance(outcome, GeneratedCase):
+            return GeneratedCase(
+                text=outcome.text,
+                logic=outcome.logic,
+                provenance=outcome.provenance,
+                rng_seed=seed,
+            )
+        return outcome
+
+    def _generate_case_for_campaign(self, seed: int) -> GenerationOutcome:
+        """Compatibility hook for engines migrating from ``generate()``."""
+        del seed
+        return self.generate_case()
 
     # -- single iteration ----------------------------------------------------
 

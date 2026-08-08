@@ -23,11 +23,13 @@ SPDX-License-Identifier: MIT
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import sys
-from pathlib import Path
-from typing import List, Optional
+from dataclasses import asdict
 
+from chimera import __version__
+from chimera.core.campaign import CampaignConfig, CampaignRunner, StrategyCaseProducer, replay_artifact
 from chimera.core.solver_manager import SolverConfig, default_cvc5_args, default_z3_args
 from chimera.core.differential_oracle import OracleConfig
 from chimera.engines.base import FuzzingStrategy, FuzzStats
@@ -36,6 +38,8 @@ from chimera.engines.once4all_engine import Once4AllStrategy
 from chimera.engines.aries_engine import AriesStrategy
 from chimera.resources import REWRITE_RULES_CSV, REWRITE_CONFIG_DIR
 from chimera.history.collector import update_resources as _update_resources
+from chimera.history.streaming import export_corpus, validate_corpus
+from chimera.doctor import collect_capabilities
 
 logger = logging.getLogger("chimera")
 
@@ -44,19 +48,37 @@ logger = logging.getLogger("chimera")
 # CLI argument parser
 # ---------------------------------------------------------------------------
 
+class _ChimeraArgumentParser(argparse.ArgumentParser):
+    """Accept both modern commands and the pre-P3 ``--mode`` spelling."""
+
+    def parse_args(self, args=None, namespace=None):  # type: ignore[no-untyped-def]
+        parsed = super().parse_args(args=args, namespace=namespace)
+        if parsed.mode is None and parsed.command is None:
+            self.error("provide a command (run/corpus/doctor/replay) or --mode")
+        return parsed
+
+
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(
+    p = _ChimeraArgumentParser(
         prog="chimera",
         description="Chimera — differential SMT solver fuzzer.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
 
+    # Modern command spelling: ``chimera run histfuzz``.  Options remain
+    # shared so old integrations can be migrated without two factories.
+    p.add_argument("command", nargs="?", choices=["run", "corpus", "doctor", "replay"])
+    p.add_argument("target", nargs="?")
+    p.add_argument("--version", action="version", version=f"chimera {__version__}")
+    p.add_argument("--dry-run", action="store_true", help="Validate configuration without invoking solvers.")
+    p.add_argument("--resume", action="store_true", help="Resume a campaign from campaign-summary.json.")
+
     # -- mode ----------------------------------------------------------------
     p.add_argument(
         "--mode",
         choices=["histfuzz", "once4all", "aries", "update-resources"],
-        required=True,
+        required=False,
         help="Fuzzing strategy to use, or 'update-resources' to refresh HistFuzz corpus.",
     )
 
@@ -78,16 +100,25 @@ def build_parser() -> argparse.ArgumentParser:
     # -- campaign ------------------------------------------------------------
     camp = p.add_argument_group("Campaign settings")
     camp.add_argument("--iterations", type=int, default=0, help="Max iterations (0 = unlimited).")
+    camp.add_argument("--seed", type=int, default=None, help="Campaign RNG seed (config files remain authoritative).")
+    camp.add_argument("--config", default=None, help="Versioned JSON campaign configuration.")
+    camp.add_argument("--manifest", default=None, help="Artifact manifest to replay.")
+    camp.add_argument("--json-summary", action="store_true", help="Print the campaign summary as JSON.")
 
     # -- HistFuzz options ----------------------------------------------------
     hf = p.add_argument_group("HistFuzz options")
-    hf.add_argument("--skeleton-files", nargs="*", default=None, help="Pre-exported skeleton files.")
-    hf.add_argument("--resource-dir", default=None, help="Resource dir with skeleton/building-block files.")
+    hf.add_argument(
+        "--corpus-dir",
+        default=None,
+        help="Versioned JSONL HistFuzz corpus (defaults to the packaged corpus).",
+    )
+    hf.add_argument("--skeleton-files", nargs="*", default=None, help="Deprecated; use --corpus-dir.")
+    hf.add_argument("--resource-dir", default=None, help="Deprecated; use --corpus-dir.")
     hf.add_argument("--num-asserts", type=int, default=3, help="Max assertions per generated formula.")
     hf.add_argument("--logic", type=str, default=None,
                     help="Target SMT-LIB logic (e.g., QF_LIA, AUFLIA). Only use compatible skeletons/blocks.")
     hf.add_argument("--use-new-corpus", action="store_true",
-                    help="Use new logic-aware corpus system (experimental).")
+                    help="Deprecated compatibility flag; use --corpus-dir.")
 
     # -- Once4All options ----------------------------------------------------
     o4a = p.add_argument_group("Once4All options")
@@ -97,6 +128,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Directory with *_generator.py modules (defaults to packaged generators).",
     )
     o4a.add_argument("--theories", nargs="*", default=None, help="Restrict to these theory keys.")
+    o4a.add_argument("--generator-timeout", type=float, default=10.0, help="External generator worker timeout (seconds).")
     o4a.add_argument(
         "--merge-skeletons",
         action="store_true",
@@ -114,8 +146,8 @@ def build_parser() -> argparse.ArgumentParser:
     ur = p.add_argument_group("Resource update options (mode=update-resources)")
     ur.add_argument("--formula-store", default="./bug_triggering_formulas",
                     help="Directory for collected bug formulas (default: ./bug_triggering_formulas).")
-    ur.add_argument("--resource-output", default="./chimera/resources",
-                    help="Output directory for HistFuzz corpus (default: ./chimera/resources).")
+    ur.add_argument("--resource-output", default="./chimera/resources/histfuzz",
+                    help="Output directory for HistFuzz corpus (default: ./chimera/resources/histfuzz).")
     ur.add_argument("--collect-solvers", nargs="*", default=None,
                     help="Collect from specific solvers only (default: all known solvers).")
     ur.add_argument("--skip-collection", action="store_true",
@@ -200,6 +232,7 @@ def _build_strategy(args: argparse.Namespace) -> FuzzingStrategy:
         return HistFuzzStrategy(
             solver1,
             solver2,
+            corpus_dir=args.corpus_dir,
             seed_dir=args.seed_dir,
             skeleton_files=args.skeleton_files,
             resource_dir=args.resource_dir,
@@ -216,6 +249,7 @@ def _build_strategy(args: argparse.Namespace) -> FuzzingStrategy:
             generator_dir=args.generator_dir,
             compatible_theories=args.theories,
             merge_skeletons=args.merge_skeletons,
+            generator_timeout=args.generator_timeout,
             **common,
         )
 
@@ -270,18 +304,210 @@ def _run_update_resources(args: argparse.Namespace) -> int:
     return 0
 
 
+def _build_strategy_from_config(config: CampaignConfig) -> FuzzingStrategy:
+    """Build an engine from a self-contained campaign configuration."""
+    if len(config.solvers) < 2:
+        raise ValueError("campaign config requires at least two solvers")
+    settings = dict(config.engine_settings)
+    common = {
+        "output_dir": config.output_dir,
+        "temp_dir": config.temp_dir,
+        "timeout": config.timeout,
+        "oracle_config": config.oracle,
+    }
+    if config.engine == "histfuzz":
+        return HistFuzzStrategy(config.solvers[0], config.solvers[1], **settings, **common)  # type: ignore[arg-type]
+    if config.engine == "once4all":
+        if settings.get("merge_skeletons"):
+            raise ValueError(
+                "merge_skeletons is currently disabled; use a plain generator output"
+            )
+        return Once4AllStrategy(config.solvers[0], config.solvers[1], **settings, **common)  # type: ignore[arg-type]
+    if config.engine == "aries":
+        return AriesStrategy(config.solvers[0], config.solvers[1], **settings, **common)  # type: ignore[arg-type]
+    raise ValueError(f"unknown campaign engine: {config.engine}")
+
+
+_CONFIG_ALLOWED_OVERRIDES = {
+    "--config",
+    "--output-dir",
+    "--temp-dir",
+    "--iterations",
+    "--verbose",
+    "--quiet",
+    "--dry-run",
+    "--resume",
+    "--json-summary",
+}
+
+
+def _explicit_options(argv: list[str] | None) -> set[str]:
+    values = list(sys.argv[1:] if argv is None else argv)
+    return {
+        token.split("=", 1)[0]
+        for token in values
+        if token.startswith("--")
+    }
+
+
+def _reject_config_engine_overrides(
+    parser: argparse.ArgumentParser,
+    args: argparse.Namespace,
+    argv: list[str] | None,
+) -> None:
+    if not args.config:
+        return
+    rejected = sorted(
+        option
+        for option in _explicit_options(argv)
+        if option.startswith("--") and option not in _CONFIG_ALLOWED_OVERRIDES
+    )
+    if rejected:
+        parser.error(
+            "--config is self-contained; these options cannot override it: "
+            + ", ".join(rejected)
+        )
+
+
+def _campaign_config_from_strategy(args: argparse.Namespace, strategy: FuzzingStrategy) -> CampaignConfig:
+    """Build a self-contained config for modern command-line campaigns."""
+    settings = {}
+    if args.mode == "histfuzz":
+        settings = {
+            "corpus_dir": args.corpus_dir,
+            "logic": args.logic,
+            "num_asserts": args.num_asserts,
+        }
+    elif args.mode == "once4all":
+        settings = {
+            "generator_dir": args.generator_dir,
+            "compatible_theories": args.theories,
+            "merge_skeletons": args.merge_skeletons,
+            "generator_timeout": args.generator_timeout,
+        }
+    elif args.mode == "aries":
+        settings = {
+            "seed_dir": args.seed_dir,
+            "rules_csv": args.rules_csv,
+            "config_dir": args.config_dir,
+            "mimetic_rounds": args.mimetic_rounds,
+            "use_egraph": not args.no_egraph,
+        }
+    settings = {key: value for key, value in settings.items() if value is not None}
+    return CampaignConfig(
+        engine=args.mode,
+        solvers=(strategy.solver1, strategy.solver2),
+        engine_settings=settings,
+        oracle=strategy.oracle_config,
+        output_dir=args.output_dir,
+        temp_dir=args.temp_dir,
+        timeout=args.solver_timeout,
+        iterations=None if args.iterations == 0 else args.iterations,
+        seed=0 if args.seed is None else args.seed,
+    )
+
+
+def _print_campaign_result(
+    stats: FuzzStats,
+    *,
+    config: CampaignConfig | None = None,
+    json_summary: bool = False,
+) -> None:
+    if json_summary:
+        payload = {"stats": asdict(stats)}
+        if config is not None:
+            payload["config"] = config.to_dict()
+        print(json.dumps(payload, indent=2, sort_keys=True))
+    else:
+        print("\n" + stats.summary())
+
+
+def _run_corpus_command(args: argparse.Namespace) -> int:
+    if args.target == "extract":
+        manifest = export_corpus(
+            args.formula_store,
+            args.resource_output,
+            source_revision="working-tree",
+            replace=True,
+        )
+        print(json.dumps(manifest, indent=2, sort_keys=True))
+        return 0
+    if args.target == "refresh":
+        result = _run_update_resources(args)
+        if result:
+            return result
+        try:
+            manifest = validate_corpus(args.resource_output)
+        except (OSError, ValueError) as exc:
+            logger.error("refreshed corpus is unavailable: %s", exc)
+            return 1
+        print(json.dumps(manifest, indent=2, sort_keys=True))
+        return 0
+    raise ValueError("corpus command requires extract or refresh")
+
+
+def _run_doctor(args: argparse.Namespace) -> int:
+    capabilities = collect_capabilities(
+        solver_paths={
+            args.solver1_name: args.solver1_bin,
+            args.solver2_name: args.solver2_bin,
+        },
+        generator_dir=args.generator_dir,
+        artifact_dir=args.output_dir,
+    )
+    print(json.dumps(capabilities, indent=2, sort_keys=True))
+    return 0 if capabilities["corpus"]["ok"] else 1
+
+
+def _run_replay(args: argparse.Namespace) -> int:
+    manifest = args.manifest or args.target
+    if not manifest:
+        raise ValueError("replay requires an artifact manifest path")
+    result = replay_artifact(manifest)
+    serializable = dict(result)
+    serializable["results"] = {
+        name: {
+            "outcome": value.outcome.name,
+            "stdout": value.stdout,
+            "stderr": value.stderr,
+            "exit_code": value.exit_code,
+        }
+        for name, value in result["results"].items()
+    }
+    print(json.dumps(serializable, indent=2, sort_keys=True))
+    return 0
+
+
 # ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    explicit = _explicit_options(argv)
 
     _configure_logging(args.verbose, args.quiet)
 
+    # Resolve modern commands to the shared engine factory.
+    if args.command == "run":
+        if args.target not in ("histfuzz", "once4all", "aries"):
+            parser.error("run requires histfuzz, once4all, or aries")
+        args.mode = args.target
+    elif args.command == "corpus":
+        return _run_corpus_command(args)
+    elif args.command == "doctor":
+        return _run_doctor(args)
+    elif args.command == "replay":
+        return _run_replay(args)
+
+    _reject_config_engine_overrides(parser, args, argv)
+
+    if args.mode is None:
+        parser.error("--mode is required for the legacy command form")
+
     # -- Validate solver args for fuzzing modes -------------------------------
-    if args.mode != "update-resources":
+    if args.mode != "update-resources" and not args.config:
         missing = []
         if not args.solver1_bin:
             missing.append("--solver1-bin")
@@ -296,6 +522,8 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     # -- resource update mode (no solver / campaign needed) --------------------
     if args.mode == "update-resources":
+        if args.dry_run or args.resume:
+            parser.error("--dry-run/--resume are only valid for solver campaigns")
         return _run_update_resources(args)
 
     logger.info(
@@ -306,12 +534,58 @@ def main(argv: Optional[List[str]] = None) -> int:
         args.solver2_bin,
     )
 
+    if args.config:
+        config = CampaignConfig.read(args.config)
+        # Only operational controls are allowed to override a config file.
+        if "--output-dir" in explicit:
+            config = CampaignConfig.from_dict({**config.to_dict(), "output_dir": args.output_dir})
+        if "--temp-dir" in explicit:
+            config = CampaignConfig.from_dict({**config.to_dict(), "temp_dir": args.temp_dir})
+        if "--iterations" in explicit:
+            config = CampaignConfig.from_dict(
+                {**config.to_dict(), "iterations": None if args.iterations == 0 else args.iterations}
+            )
+        strategy = _build_strategy_from_config(config)
+        runner = CampaignRunner(StrategyCaseProducer(strategy), config)
+        issues = runner.preflight()
+        if issues:
+            parser.error("campaign preflight failed:\n  - " + "\n  - ".join(issue.reason for issue in issues))
+        if args.dry_run:
+            print(json.dumps({"config": config.to_dict(), "preflight": []}, indent=2, sort_keys=True))
+            return 0
+        stats = runner.run(resume=args.resume)
+        _print_campaign_result(stats, config=config, json_summary=args.json_summary)
+        return 0
+
     strategy = _build_strategy(args)
     issues = strategy.preflight()
     if issues:
         parser.error("campaign preflight failed:\n  - " + "\n  - ".join(
             issue.reason for issue in issues
         ))
+
+    # Modern commands always use the structured campaign runner, including
+    # injected RNG, N-solver comparison, artifacts, and resume support.
+    if args.command == "run":
+        config = _campaign_config_from_strategy(args, strategy)
+        runner = CampaignRunner(StrategyCaseProducer(strategy), config)
+        runner_issues = runner.preflight()
+        if runner_issues:
+            parser.error("campaign preflight failed:\n  - " + "\n  - ".join(
+                issue.reason for issue in runner_issues
+            ))
+        if args.dry_run:
+            print(json.dumps({"config": config.to_dict(), "preflight": []}, indent=2, sort_keys=True))
+            return 0
+        stats = runner.run(resume=args.resume)
+        _print_campaign_result(stats, config=config, json_summary=args.json_summary)
+        return 0
+
+    if args.dry_run:
+        print(json.dumps({"mode": args.mode, "preflight": []}, indent=2, sort_keys=True))
+        return 0
+    if args.resume:
+        parser.error("--resume requires --config or a modern `chimera run ...` command")
     # --iterations 0 or unspecified = unlimited campaign (run until interrupted)
     max_iters = args.iterations if args.iterations is not None and args.iterations > 0 else None
 
@@ -321,7 +595,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         logger.info("Campaign interrupted by user")
         stats = strategy.stats  # grab partial stats
 
-    print("\n" + stats.summary())
+    _print_campaign_result(stats, json_summary=args.json_summary)
     return 0
 
 

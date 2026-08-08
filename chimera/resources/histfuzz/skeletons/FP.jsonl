@@ -1,0 +1,12 @@
+{"func_decls":{},"func_deps":[],"hole_types":["Bool"],"is_quantified":true,"logic":"FP","sort_deps":[],"term_smt2":"(forall ((VAR0 TYPE0)) hole 0)","var_decls":{}}
+{"func_decls":{},"func_deps":[],"hole_types":["Bool"],"is_quantified":true,"logic":"FP","sort_deps":["Unknown"],"term_smt2":"(forall ((VAR0 TYPE0)) (not hole 0))","var_decls":{}}
+{"func_decls":{},"func_deps":[],"hole_types":["Bool"],"is_quantified":true,"logic":"FP","sort_deps":["FP","Unknown"],"term_smt2":"(exists ((VAR0 TYPE0)) (not hole 0))","var_decls":{}}
+{"func_decls":{"e":{"arg_sorts":[],"name":"e","ret_sort":"FP"},"f":{"arg_sorts":[],"name":"f","ret_sort":"FP"}},"func_deps":["f","e"],"hole_types":["Bool","Bool"],"is_quantified":true,"logic":"FP","sort_deps":["FP","Unknown"],"term_smt2":"(xor hole 0 (exists ((VAR0 TYPE0)) hole 1))","var_decls":{}}
+{"func_decls":{},"func_deps":[],"hole_types":["Bool"],"is_quantified":true,"logic":"FP","sort_deps":["Unknown"],"term_smt2":"(forall ((VAR0 TYPE0)) (not hole 0))","var_decls":{}}
+{"func_decls":{},"func_deps":[],"hole_types":["Bool"],"is_quantified":true,"logic":"FP","sort_deps":["Unknown"],"term_smt2":"(forall ((VAR0 TYPE0)) hole 0)","var_decls":{}}
+{"func_decls":{},"func_deps":[],"hole_types":["Bool"],"is_quantified":true,"logic":"FP","sort_deps":[],"term_smt2":"(forall ((VAR0 TYPE0)) hole 0)","var_decls":{}}
+{"func_decls":{},"func_deps":[],"hole_types":["Bool"],"is_quantified":true,"logic":"FP","sort_deps":[],"term_smt2":"(forall ((VAR0 TYPE0)) (exists ((VAR0 TYPE0)) hole 0))","var_decls":{}}
+{"func_decls":{},"func_deps":[],"hole_types":["Bool"],"is_quantified":true,"logic":"FP","sort_deps":[],"term_smt2":"(forall ((VAR0 TYPE0)) (exists ((VAR0 TYPE0)) hole 0))","var_decls":{}}
+{"func_decls":{},"func_deps":[],"hole_types":["Bool"],"is_quantified":true,"logic":"FP","sort_deps":["FP","Unknown"],"term_smt2":"hole 0","var_decls":{}}
+{"func_decls":{"b":{"arg_sorts":[],"name":"b","ret_sort":"a"}},"func_deps":["b"],"hole_types":["Bool"],"is_quantified":true,"logic":"FP","sort_deps":["a"],"term_smt2":"hole 0","var_decls":{}}
+{"func_decls":{"a":{"arg_sorts":[],"name":"a","ret_sort":"Float32"}},"func_deps":["a"],"hole_types":["Bool"],"is_quantified":true,"logic":"FP","sort_deps":[],"term_smt2":"(forall ((VAR0 TYPE0)) (not hole 0))","var_decls":{}}

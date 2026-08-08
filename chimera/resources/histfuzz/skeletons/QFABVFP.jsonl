@@ -1,0 +1,1 @@
+{"func_decls":{},"func_deps":[],"hole_types":["Bool","Bool"],"is_quantified":false,"logic":"QFABVFP","sort_deps":["Unknown"],"term_smt2":"(let ((c hole 1)) hole 0)","var_decls":{"a":"(Array (_ BitVec 32) (_ BitVec 32))","b":"(Array (_ BitVec 32) (_ BitVec 32))"}}

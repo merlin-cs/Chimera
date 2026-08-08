@@ -1,0 +1,1 @@
+{"func_decls":{},"func_deps":[],"logic":"QFALIABVFP","sort_deps":["S37"],"term_smt2":"(= 0 (select c (fp.min (fp (_ bv0 1) (_ bv0 11) (_ bv0 52)) (fp (_ bv1 1) (_ bv0 11) (_ bv0 52)))))","var_decls":{"c":"S37"}}

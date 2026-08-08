@@ -1,0 +1,2 @@
+{"func_decls":{},"func_deps":[],"hole_types":["Bool","Bool"],"is_quantified":true,"logic":"LRABV","sort_deps":[],"term_smt2":"(not (exists ((VAR0 TYPE0)) (or hole 0 (not hole 1))))","var_decls":{"x":"Bool","x5":"Bool"}}
+{"func_decls":{},"func_deps":[],"hole_types":["Bool","Bool"],"is_quantified":true,"logic":"LRABV","sort_deps":[],"term_smt2":"(forall ((VAR0 TYPE0)) (and hole 2 hole 3))","var_decls":{"x":"Bool","x5":"Bool"}}

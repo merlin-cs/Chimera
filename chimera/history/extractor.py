@@ -21,7 +21,7 @@ from dataclasses import dataclass
 # and str() on a Script with such ASTs requires ~5000+ stack frames in _prepare_seed)
 sys.setrecursionlimit(100000)
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
 from chimera.core.smt_ast import (
     Script,
@@ -33,7 +33,7 @@ from chimera.core.smt_ast import (
     collect_all_basic_subformulas,
 )
 from chimera.core.smt_parser import parse_file, parse_string
-from chimera.core.logic_analyzer import parse_logic, LogicCapability
+from chimera.core.logic_analyzer import parse_logic, LogicCapability, detect_script_logic
 from chimera.history.corpus import Corpus, BuildingBlock, Skeleton, FuncInfo
 
 logger = logging.getLogger(__name__)
@@ -102,7 +102,7 @@ class LogicAwareExtractor:
     def extract_all(
         self,
         file_paths: List[str],
-        progress_callback: Optional[callable] = None,
+        progress_callback: Optional[Callable[[int, int, str], None]] = None,
     ) -> Corpus:
         """Extract skeletons and blocks from all files.
 
@@ -201,7 +201,7 @@ class LogicAwareExtractor:
         FileExtraction
             Extracted items with context.
         """
-        parse_errors = []
+        parse_errors: List[str] = []
 
         # Parse the file
         result = parse_file(path, silent=True)
@@ -331,92 +331,7 @@ class LogicAwareExtractor:
         str
             Inferred logic name (e.g., "QF_LIA", "AUFLIA")
         """
-        has_quantifiers = False
-        has_bv = False
-        has_fp = False
-        has_arrays = False
-        has_uf = False
-        has_int = False
-        has_real = False
-        has_nonlinear = False
-
-        script_str = str(script)
-
-        # Check for quantifiers
-        has_quantifiers = "forall" in script_str or "exists" in script_str
-
-        # Check for theories
-        has_bv = "BitVec" in script_str or "bv" in script_str
-        has_fp = "FloatingPoint" in script_str or "fp" in script_str
-        has_arrays = "Array" in script_str or "select" in script_str or "store" in script_str
-
-        # Check for UF (uninterpreted functions)
-        # Look for declare-fun with non-empty argument list
-        for cmd in script.commands:
-            if isinstance(cmd, DeclareFun) and cmd.input_sort != "":
-                has_uf = True
-                break
-
-        # Check for arithmetic
-        has_int = "Int" in script_str or "to_int" in script_str
-        has_real = "Real" in script_str or "to_real" in script_str
-
-        # Check for nonlinear (multiplication of variables)
-        # This is a heuristic - real detection would need AST analysis
-        has_nonlinear = "* " in script_str and (has_int or has_real)
-
-        # Build logic name
-        parts = []
-
-        if not has_quantifiers:
-            parts.append("QF")
-
-        if has_arrays:
-            parts.append("A")
-
-        if has_uf:
-            if not parts or parts[-1] != "QF":
-                parts.append("UF")
-            elif parts == ["QF"]:
-                parts.append("UF")
-
-        # Arithmetic suffix
-        if has_int and has_real:
-            if has_nonlinear:
-                parts.append("NIRA")
-            else:
-                parts.append("LIRA")
-        elif has_int:
-            if has_nonlinear:
-                parts.append("NIA")
-            else:
-                parts.append("LIA")
-        elif has_real:
-            if has_nonlinear:
-                parts.append("NRA")
-            else:
-                parts.append("LRA")
-
-        # Theories
-        if has_bv:
-            parts.append("BV")
-
-        if has_fp:
-            parts.append("FP")
-
-        # Build final name
-        if not parts:
-            return "UF"  # Default to pure UF
-
-        # Rearrange to standard form
-        logic = "".join(parts)
-
-        # Normalize common patterns
-        if logic.startswith("QF") and "UF" not in logic and len(parts) == 2:
-            # QF + theory without UF -> add UF implicitly
-            logic = logic[:2] + "UF" + logic[2:]
-
-        return logic
+        return detect_script_logic(script)
 
     def _extract_skeletons(
         self,

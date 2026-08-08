@@ -14,6 +14,7 @@ import pytest
 from chimera.core.logic_analyzer import (
     LogicCapability,
     LogicInfo,
+    detect_script_logic,
     parse_logic,
     is_logic_compatible,
     get_compatible_logics,
@@ -21,6 +22,7 @@ from chimera.core.logic_analyzer import (
     extract_sorts_from_declaration,
     BUILTIN_SORTS,
 )
+from chimera.core.smt_parser import parse_string
 
 
 class TestLogicCapability:
@@ -191,6 +193,31 @@ class TestParseLogic:
         info = parse_logic("ALL")
         # ALL should allow quantifiers
         assert info.supports(LogicCapability.QUANTIFIERS)
+
+
+class TestDetectScriptLogic:
+    """The history pipelines share one structural logic detector."""
+
+    @staticmethod
+    def _script(text: str):
+        result = parse_string(text, silent=True)
+        assert result is not None
+        return result[0]
+
+    def test_explicit_set_logic_wins(self):
+        script = self._script(
+            "(set-logic QF_LIA)\n"
+            "(declare-const x Int)\n"
+            "(assert (> x 0))"
+        )
+        assert detect_script_logic(script) == "QF_LIA"
+
+    def test_structural_inference_is_canonical(self):
+        script = self._script(
+            "(declare-fun f (Int) Int)\n"
+            "(assert (= (f 1) 2))"
+        )
+        assert detect_script_logic(script) == "QF_UFLIA"
 
 
 class TestIsLogicCompatible:

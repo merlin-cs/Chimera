@@ -1,0 +1,1 @@
+{"func_decls":{"a":{"arg_sorts":[],"name":"a","ret_sort":"Int"},"v":{"arg_sorts":[],"name":"v","ret_sort":"(Array Int Bool)"}},"func_deps":["a","v"],"hole_types":["Bool","Bool","Bool","Bool"],"is_quantified":false,"logic":"QFALIABV","sort_deps":[],"term_smt2":"(or hole 0 hole 1 (or hole 2 hole 3))","var_decls":{"x":"Bool"}}

@@ -491,6 +491,13 @@ class TestScript:
 
         assert any("pre_x" in str(cmd) for cmd in script.commands)
 
+    def test_replace_commands_refreshes_derived_indexes(self):
+        script = Script([DeclareConst("x", "Int"), Assert(Const("true", "Bool"))], {})
+        assert len(script.assert_cmd) == 1
+        script.replace_commands([DeclareConst("y", "Int"), CheckSat()])
+        assert script.assert_cmd == []
+        assert [item.name for item in script.vars] == ["y"]
+
 
 class TestAstVisitorBase:
     """Tests for AstVisitorBase."""

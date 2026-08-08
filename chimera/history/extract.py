@@ -138,32 +138,23 @@ def main() -> int:
     if args.logic_mapping:
         logic_mapping = load_logic_mapping(args.logic_mapping)
 
-    # Import and run extraction
-    from chimera.history.extractor import LogicAwareExtractor
-
-    extractor = LogicAwareExtractor(logic_mapping=logic_mapping)
-
-    def progress(current: int, total: int, logic: str) -> None:
-        if current % 50 == 0 or current == total:
-            logging.info("Processed %d/%d files (current: %s)", current, total, logic)
-
     logging.info("Starting extraction...")
-    corpus = extractor.extract_all(smt_files, progress_callback=progress)
-
-    # Save corpus
-    corpus.save(args.output)
+    from chimera.history.streaming import export_corpus
+    manifest = export_corpus(
+        args.input,
+        args.output,
+        source_revision="working-tree",
+        replace=True,
+        logic_mapping=logic_mapping,
+    )
     logging.info("Corpus saved to %s", args.output)
 
     # Print statistics
-    stats = corpus.statistics()
+    stats = manifest["extraction_stats"]
     logging.info("Extraction complete:")
-    logging.info("  Total blocks: %d", stats["total_blocks"])
-    logging.info("  Total skeletons: %d", stats["total_skeletons"])
-    logging.info("  Logics: %s", ", ".join(stats["logics"][:10]))
-    if len(stats["logics"]) > 10:
-        logging.info("  ... and %d more", len(stats["logics"]) - 10)
-    logging.info("  QF skeletons: %d", stats["qf_skeletons"])
-    logging.info("  Quantified skeletons: %d", stats["quantified_skeletons"])
+    logging.info("  Total blocks: %d", stats["blocks_extracted"])
+    logging.info("  Total skeletons: %d", stats["skeletons_extracted"])
+    logging.info("  Shards: %d", sum(len(v) for v in manifest["shards"].values()))
 
     return 0
 

@@ -1,0 +1,6 @@
+{"func_decls":{},"func_deps":[],"logic":"ALRA","sort_deps":[],"term_smt2":"(= q37 q38)","var_decls":{}}
+{"func_decls":{},"func_deps":[],"logic":"ALRA","sort_deps":[],"term_smt2":"(> q36 0)","var_decls":{}}
+{"func_decls":{"a":{"arg_sorts":[],"name":"a","ret_sort":"(Array Real Real)"},"v":{"arg_sorts":[],"name":"v","ret_sort":"Real"}},"func_deps":[],"logic":"ALRA","sort_deps":[],"term_smt2":"(= 0 (/ 0 v))","var_decls":{}}
+{"func_decls":{"a":{"arg_sorts":[],"name":"a","ret_sort":"(Array Real Real)"},"v":{"arg_sorts":[],"name":"v","ret_sort":"Real"}},"func_deps":[],"logic":"ALRA","sort_deps":[],"term_smt2":"(< 0 (/ 0 v))","var_decls":{}}
+{"func_decls":{"a":{"arg_sorts":[],"name":"a","ret_sort":"(Array Real Real)"},"v":{"arg_sorts":[],"name":"v","ret_sort":"Real"}},"func_deps":[],"logic":"ALRA","sort_deps":["Unknown"],"term_smt2":"(= 1.0 (select (store a (/ (+ 0.0 real.pi) 0.0) 0.0) 0.0))","var_decls":{}}
+{"func_decls":{"v":{"arg_sorts":[],"name":"v","ret_sort":"(Array Bool (Array Real Real))"}},"func_deps":[],"logic":"ALRA","sort_deps":[],"term_smt2":"(distinct true (= x (store v false (store a 0.0 0))))","var_decls":{"x":"(Array Bool (Array Real Real))"}}

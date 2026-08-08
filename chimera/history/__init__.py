@@ -19,6 +19,14 @@ from chimera.history.extractor import (
     LogicAwareExtractor,
     FileExtraction,
 )
+from chimera.history.streaming import (
+    CORPUS_FORMAT_VERSION,
+    CorpusIntegrityError,
+    export_corpus,
+    load_corpus,
+    packaged_corpus_path,
+    validate_corpus,
+)
 
 __all__ = [
     "BuildingBlock",
@@ -28,4 +36,10 @@ __all__ = [
     "BuildingBlockPool",
     "LogicAwareExtractor",
     "FileExtraction",
+    "CORPUS_FORMAT_VERSION",
+    "CorpusIntegrityError",
+    "export_corpus",
+    "load_corpus",
+    "packaged_corpus_path",
+    "validate_corpus",
 ]
