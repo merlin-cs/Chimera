@@ -92,6 +92,34 @@ def test_runner_compares_all_solver_pairs_and_writes_manifest(tmp_path, monkeypa
     assert {result.command for result in replayed["results"].values()} == {"a", "b", "c"}
 
 
+def test_replay_rejects_tampered_campaign_configuration(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(
+        "chimera.core.campaign.run_solver",
+        lambda solver, smt_path, **_kwargs: SolverResult(
+            outcome=SolverOutcome.SAT,
+            stdout="sat",
+            exit_code=0,
+            command=solver.name,
+            smt_path=smt_path,
+        ),
+    )
+    config = CampaignConfig(
+        engine="test",
+        solvers=(SolverConfig("a", "/usr/bin/true"), SolverConfig("b", "/usr/bin/true")),
+        output_dir=str(tmp_path / "out"),
+        temp_dir=str(tmp_path / "tmp"),
+        iterations=1,
+    )
+    CampaignRunner(OneCaseProducer(), config).run()
+    manifest_path = next((tmp_path / "out" / "cases").glob("*/manifest.json"))
+    manifest = json.loads(manifest_path.read_text())
+    manifest["config"]["timeout"] = 999.0
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="configuration checksum"):
+        replay_artifact(manifest_path)
+
+
 def test_unlimited_campaign_has_consecutive_failure_breaker(tmp_path: Path) -> None:
     class EmptyProducer:
         name = "empty"
@@ -169,24 +197,36 @@ def test_resume_rejects_changed_semantic_configuration(tmp_path: Path, monkeypat
     monkeypatch.setattr(
         "chimera.core.campaign.run_solver",
         lambda solver, smt_path, **_kwargs: SolverResult(
-            outcome=SolverOutcome.SAT, stdout="sat", exit_code=0,
-            command=solver.name, smt_path=smt_path,
+            outcome=SolverOutcome.SAT,
+            stdout="sat",
+            exit_code=0,
+            command=solver.name,
+            smt_path=smt_path,
         ),
     )
     config = CampaignConfig(
         engine="resume",
         solvers=(SolverConfig("a", "/usr/bin/true"), SolverConfig("b", "/usr/bin/true")),
-        output_dir=str(tmp_path / "out"), temp_dir=str(tmp_path / "tmp"), iterations=1,
+        output_dir=str(tmp_path / "out"),
+        temp_dir=str(tmp_path / "tmp"),
+        iterations=1,
     )
     CampaignRunner(RepeatProducer(), config).run()
-    changed = CampaignConfig.from_dict({
-        **config.to_dict(),
-        "solvers": [
-            {"name": "a", "binary": "/usr/bin/true", "base_args": ["--changed"], "extra_args": []},
-            {"name": "b", "binary": "/usr/bin/true", "base_args": [], "extra_args": []},
-        ],
-        "iterations": 2,
-    })
+    changed = CampaignConfig.from_dict(
+        {
+            **config.to_dict(),
+            "solvers": [
+                {
+                    "name": "a",
+                    "binary": "/usr/bin/true",
+                    "base_args": ["--changed"],
+                    "extra_args": [],
+                },
+                {"name": "b", "binary": "/usr/bin/true", "base_args": [], "extra_args": []},
+            ],
+            "iterations": 2,
+        }
+    )
     with pytest.raises(ValueError, match="semantic campaign configuration"):
         CampaignRunner(RepeatProducer(), changed).run(resume=True)
 
@@ -196,23 +236,34 @@ def test_artifacts_are_distinct_for_different_semantic_configs(tmp_path: Path, m
     monkeypatch.setattr(
         "chimera.core.campaign.run_solver",
         lambda solver, smt_path, **_kwargs: SolverResult(
-            outcome=SolverOutcome.SAT, stdout="sat", exit_code=0,
-            command=solver.name, smt_path=smt_path,
+            outcome=SolverOutcome.SAT,
+            stdout="sat",
+            exit_code=0,
+            command=solver.name,
+            smt_path=smt_path,
         ),
     )
     common = {
         "engine": "test",
         "solvers": (SolverConfig("a", "/usr/bin/true"), SolverConfig("b", "/usr/bin/true")),
-        "output_dir": str(tmp_path / "out"), "temp_dir": str(tmp_path / "tmp"),
-        "iterations": 1, "seed": 1,
+        "output_dir": str(tmp_path / "out"),
+        "temp_dir": str(tmp_path / "tmp"),
+        "iterations": 1,
+        "seed": 1,
     }
     CampaignRunner(producer, CampaignConfig(**common)).run()
-    changed = CampaignConfig.from_dict({
-        **CampaignConfig(**common).to_dict(),
-        "oracle": {"detect_crashes": False, "detect_soundness": True,
-                   "detect_invalid_models": True, "detect_performance": False,
-                   "performance_ratio": 2.0},
-    })
+    changed = CampaignConfig.from_dict(
+        {
+            **CampaignConfig(**common).to_dict(),
+            "oracle": {
+                "detect_crashes": False,
+                "detect_soundness": True,
+                "detect_invalid_models": True,
+                "detect_performance": False,
+                "performance_ratio": 2.0,
+            },
+        }
+    )
     CampaignRunner(OneCaseProducer(), changed).run()
     manifests = list((tmp_path / "out" / "cases").glob("*/manifest.json"))
     assert len(manifests) == 2

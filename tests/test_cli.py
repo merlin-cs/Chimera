@@ -42,34 +42,45 @@ class TestBuildParser:
 
         # Should accept valid modes
         for mode in ["histfuzz", "once4all", "aries"]:
-            args = parser.parse_args([
-                "--mode", mode,
-                "--solver1-bin", "/usr/bin/z3",
-                "--solver2-bin", "/usr/bin/cvc5"
-            ])
+            args = parser.parse_args(
+                ["--mode", mode, "--solver1-bin", "/usr/bin/z3", "--solver2-bin", "/usr/bin/cvc5"]
+            )
             assert args.mode == mode
 
     def test_invalid_mode(self):
         """Test invalid mode is rejected."""
         parser = build_parser()
         with pytest.raises(SystemExit):
-            parser.parse_args([
-                "--mode", "invalid",
-                "--solver1-bin", "/usr/bin/z3",
-                "--solver2-bin", "/usr/bin/cvc5"
-            ])
+            parser.parse_args(
+                [
+                    "--mode",
+                    "invalid",
+                    "--solver1-bin",
+                    "/usr/bin/z3",
+                    "--solver2-bin",
+                    "/usr/bin/cvc5",
+                ]
+            )
 
     def test_solver_arguments(self):
         """Test solver configuration arguments."""
         parser = build_parser()
-        args = parser.parse_args([
-            "--mode", "histfuzz",
-            "--solver1-name", "z3",
-            "--solver1-bin", "/usr/bin/z3",
-            "--solver2-name", "cvc5",
-            "--solver2-bin", "/usr/bin/cvc5",
-            "--solver-timeout", "30.0"
-        ])
+        args = parser.parse_args(
+            [
+                "--mode",
+                "histfuzz",
+                "--solver1-name",
+                "z3",
+                "--solver1-bin",
+                "/usr/bin/z3",
+                "--solver2-name",
+                "cvc5",
+                "--solver2-bin",
+                "/usr/bin/cvc5",
+                "--solver-timeout",
+                "30.0",
+            ]
+        )
 
         assert args.solver1_name == "z3"
         assert args.solver1_bin == "/usr/bin/z3"
@@ -80,14 +91,22 @@ class TestBuildParser:
     def test_io_arguments(self):
         """Test input/output arguments."""
         parser = build_parser()
-        args = parser.parse_args([
-            "--mode", "histfuzz",
-            "--solver1-bin", "/usr/bin/z3",
-            "--solver2-bin", "/usr/bin/cvc5",
-            "--seed-dir", "./seeds",
-            "--output-dir", "./bugs",
-            "--temp-dir", "./temp"
-        ])
+        args = parser.parse_args(
+            [
+                "--mode",
+                "histfuzz",
+                "--solver1-bin",
+                "/usr/bin/z3",
+                "--solver2-bin",
+                "/usr/bin/cvc5",
+                "--seed-dir",
+                "./seeds",
+                "--output-dir",
+                "./bugs",
+                "--temp-dir",
+                "./temp",
+            ]
+        )
 
         assert args.seed_dir == "./seeds"
         assert args.output_dir == "./bugs"
@@ -96,20 +115,34 @@ class TestBuildParser:
     def test_campaign_arguments(self):
         """Test campaign settings."""
         parser = build_parser()
-        args = parser.parse_args([
-            "--mode", "histfuzz",
-            "--solver1-bin", "/usr/bin/z3",
-            "--solver2-bin", "/usr/bin/cvc5",
-            "--iterations", "1000"
-        ])
+        args = parser.parse_args(
+            [
+                "--mode",
+                "histfuzz",
+                "--solver1-bin",
+                "/usr/bin/z3",
+                "--solver2-bin",
+                "/usr/bin/cvc5",
+                "--iterations",
+                "1000",
+            ]
+        )
 
         assert args.iterations == 1000
 
     def test_reproducibility_and_operational_arguments(self):
         parser = build_parser()
-        args = parser.parse_args([
-            "run", "histfuzz", "--dry-run", "--resume", "--json-summary", "--seed", "17",
-        ])
+        args = parser.parse_args(
+            [
+                "run",
+                "histfuzz",
+                "--dry-run",
+                "--resume",
+                "--json-summary",
+                "--seed",
+                "17",
+            ]
+        )
         assert args.dry_run is True
         assert args.resume is True
         assert args.json_summary is True
@@ -118,14 +151,23 @@ class TestBuildParser:
     def test_histfuzz_options(self):
         """Test HistFuzz-specific options."""
         parser = build_parser()
-        args = parser.parse_args([
-            "--mode", "histfuzz",
-            "--solver1-bin", "/usr/bin/z3",
-            "--solver2-bin", "/usr/bin/cvc5",
-            "--skeleton-files", "skel1.smt2", "skel2.smt2",
-            "--resource-dir", "./resources",
-            "--num-asserts", "5"
-        ])
+        args = parser.parse_args(
+            [
+                "--mode",
+                "histfuzz",
+                "--solver1-bin",
+                "/usr/bin/z3",
+                "--solver2-bin",
+                "/usr/bin/cvc5",
+                "--skeleton-files",
+                "skel1.smt2",
+                "skel2.smt2",
+                "--resource-dir",
+                "./resources",
+                "--num-asserts",
+                "5",
+            ]
+        )
 
         assert args.skeleton_files == ["skel1.smt2", "skel2.smt2"]
         assert args.resource_dir == "./resources"
@@ -134,14 +176,22 @@ class TestBuildParser:
     def test_once4all_options(self):
         """Test Once4All-specific options."""
         parser = build_parser()
-        args = parser.parse_args([
-            "--mode", "once4all",
-            "--solver1-bin", "/usr/bin/z3",
-            "--solver2-bin", "/usr/bin/cvc5",
-            "--generator-dir", "./gens",
-            "--theories", "int", "bv",
-            "--merge-skeletons"
-        ])
+        args = parser.parse_args(
+            [
+                "--mode",
+                "once4all",
+                "--solver1-bin",
+                "/usr/bin/z3",
+                "--solver2-bin",
+                "/usr/bin/cvc5",
+                "--generator-dir",
+                "./gens",
+                "--theories",
+                "int",
+                "bv",
+                "--merge-skeletons",
+            ]
+        )
 
         assert args.generator_dir == "./gens"
         assert args.theories == ["int", "bv"]
@@ -150,15 +200,23 @@ class TestBuildParser:
     def test_aries_options(self):
         """Test Aries-specific options."""
         parser = build_parser()
-        args = parser.parse_args([
-            "--mode", "aries",
-            "--solver1-bin", "/usr/bin/z3",
-            "--solver2-bin", "/usr/bin/cvc5",
-            "--rules-csv", "./rules.csv",
-            "--config-dir", "./config",
-            "--mimetic-rounds", "5",
-            "--no-egraph"
-        ])
+        args = parser.parse_args(
+            [
+                "--mode",
+                "aries",
+                "--solver1-bin",
+                "/usr/bin/z3",
+                "--solver2-bin",
+                "/usr/bin/cvc5",
+                "--rules-csv",
+                "./rules.csv",
+                "--config-dir",
+                "./config",
+                "--mimetic-rounds",
+                "5",
+                "--no-egraph",
+            ]
+        )
 
         assert args.rules_csv == "./rules.csv"
         assert args.config_dir == "./config"
@@ -168,16 +226,22 @@ class TestBuildParser:
     def test_oracle_options(self):
         """Test oracle tuning options."""
         parser = build_parser()
-        args = parser.parse_args([
-            "--mode", "histfuzz",
-            "--solver1-bin", "/usr/bin/z3",
-            "--solver2-bin", "/usr/bin/cvc5",
-            "--detect-crashes",
-            "--detect-soundness",
-            "--detect-invalid-models",
-            "--detect-performance",
-            "--performance-ratio", "5.0"
-        ])
+        args = parser.parse_args(
+            [
+                "--mode",
+                "histfuzz",
+                "--solver1-bin",
+                "/usr/bin/z3",
+                "--solver2-bin",
+                "/usr/bin/cvc5",
+                "--detect-crashes",
+                "--detect-soundness",
+                "--detect-invalid-models",
+                "--detect-performance",
+                "--performance-ratio",
+                "5.0",
+            ]
+        )
 
         assert args.detect_crashes is True
         assert args.detect_soundness is True
@@ -189,20 +253,30 @@ class TestBuildParser:
         """Test logging options."""
         parser = build_parser()
 
-        args = parser.parse_args([
-            "--mode", "histfuzz",
-            "--solver1-bin", "/usr/bin/z3",
-            "--solver2-bin", "/usr/bin/cvc5",
-            "--verbose"
-        ])
+        args = parser.parse_args(
+            [
+                "--mode",
+                "histfuzz",
+                "--solver1-bin",
+                "/usr/bin/z3",
+                "--solver2-bin",
+                "/usr/bin/cvc5",
+                "--verbose",
+            ]
+        )
         assert args.verbose is True
 
-        args = parser.parse_args([
-            "--mode", "histfuzz",
-            "--solver1-bin", "/usr/bin/z3",
-            "--solver2-bin", "/usr/bin/cvc5",
-            "--quiet"
-        ])
+        args = parser.parse_args(
+            [
+                "--mode",
+                "histfuzz",
+                "--solver1-bin",
+                "/usr/bin/z3",
+                "--solver2-bin",
+                "/usr/bin/cvc5",
+                "--quiet",
+            ]
+        )
         assert args.quiet is True
 
 
@@ -248,6 +322,7 @@ class TestConfigureLogging:
     def _reset_logging(self):
         """Reset root logger so basicConfig works again."""
         import logging
+
         root = logging.getLogger()
         root.handlers.clear()
         root.setLevel(logging.WARNING)
@@ -255,24 +330,31 @@ class TestConfigureLogging:
     def test_verbose_logging(self):
         """Test verbose (DEBUG) logging configuration."""
         import logging
+
         self._reset_logging()
         _configure_logging(verbose=True, quiet=False)
         # Should set DEBUG level
-        assert logging.getLogger().level <= logging.DEBUG or \
-               logging.getLogger("chimera").level <= logging.DEBUG
+        assert (
+            logging.getLogger().level <= logging.DEBUG
+            or logging.getLogger("chimera").level <= logging.DEBUG
+        )
 
     def test_quiet_logging(self):
         """Test quiet (WARNING) logging configuration."""
         import logging
+
         self._reset_logging()
         _configure_logging(verbose=False, quiet=True)
         # Should set WARNING level
-        assert logging.getLogger().level >= logging.WARNING or \
-               logging.getLogger("chimera").level >= logging.WARNING
+        assert (
+            logging.getLogger().level >= logging.WARNING
+            or logging.getLogger("chimera").level >= logging.WARNING
+        )
 
     def test_default_logging(self):
         """Test default (INFO) logging configuration."""
         import logging
+
         self._reset_logging()
         _configure_logging(verbose=False, quiet=False)
         # Should set INFO level
@@ -285,51 +367,51 @@ class TestBuildStrategy:
     def test_build_histfuzz_strategy(self):
         """Test building HistFuzz strategy."""
         parser = build_parser()
-        args = parser.parse_args([
-            "--mode", "histfuzz",
-            "--solver1-bin", "/usr/bin/z3",
-            "--solver2-bin", "/usr/bin/cvc5",
-            "--corpus-dir", "./corpus"
-        ])
+        args = parser.parse_args(
+            [
+                "--mode",
+                "histfuzz",
+                "--solver1-bin",
+                "/usr/bin/z3",
+                "--solver2-bin",
+                "/usr/bin/cvc5",
+                "--corpus-dir",
+                "./corpus",
+            ]
+        )
 
         strategy = _build_strategy(args)
         assert strategy is not None
-        assert hasattr(strategy, 'run_campaign')
+        assert hasattr(strategy, "run_campaign")
 
     def test_build_once4all_strategy(self):
         """Test building Once4All strategy."""
         parser = build_parser()
-        args = parser.parse_args([
-            "--mode", "once4all",
-            "--solver1-bin", "/usr/bin/z3",
-            "--solver2-bin", "/usr/bin/cvc5"
-        ])
+        args = parser.parse_args(
+            ["--mode", "once4all", "--solver1-bin", "/usr/bin/z3", "--solver2-bin", "/usr/bin/cvc5"]
+        )
 
         strategy = _build_strategy(args)
         assert strategy is not None
-        assert hasattr(strategy, 'run_campaign')
+        assert hasattr(strategy, "run_campaign")
 
     def test_build_aries_strategy(self):
         """Test building Aries strategy."""
         parser = build_parser()
-        args = parser.parse_args([
-            "--mode", "aries",
-            "--solver1-bin", "/usr/bin/z3",
-            "--solver2-bin", "/usr/bin/cvc5"
-        ])
+        args = parser.parse_args(
+            ["--mode", "aries", "--solver1-bin", "/usr/bin/z3", "--solver2-bin", "/usr/bin/cvc5"]
+        )
 
         strategy = _build_strategy(args)
         assert strategy is not None
-        assert hasattr(strategy, 'run_campaign')
+        assert hasattr(strategy, "run_campaign")
 
     def test_invalid_mode_raises_error(self):
         """Test that invalid mode raises ValueError."""
         parser = build_parser()
-        args = parser.parse_args([
-            "--mode", "histfuzz",
-            "--solver1-bin", "/usr/bin/z3",
-            "--solver2-bin", "/usr/bin/cvc5"
-        ])
+        args = parser.parse_args(
+            ["--mode", "histfuzz", "--solver1-bin", "/usr/bin/z3", "--solver2-bin", "/usr/bin/cvc5"]
+        )
         # Manually set invalid mode
         args.mode = "invalid_mode"
 
@@ -341,10 +423,16 @@ def test_config_rejects_engine_overrides(tmp_path):
     config = tmp_path / "campaign.json"
     config.write_text("{}", encoding="utf-8")
     with pytest.raises(SystemExit):
-        main([
-            "run", "histfuzz", "--config", str(config),
-            "--solver1-bin", "/usr/bin/true",
-        ])
+        main(
+            [
+                "run",
+                "histfuzz",
+                "--config",
+                str(config),
+                "--solver1-bin",
+                "/usr/bin/true",
+            ]
+        )
 
 
 def test_config_rejects_disabled_skeleton_merge(tmp_path):
@@ -360,6 +448,10 @@ def test_config_rejects_disabled_skeleton_merge(tmp_path):
         main(["run", "once4all", "--config", str(config)])
 
 
+def test_doctor_fails_for_an_explicitly_unusable_solver(tmp_path) -> None:
+    assert main(["doctor", "--solver1-bin", str(tmp_path / "missing-solver")]) == 1
+
+
 def test_corpus_extract_rejects_empty_source_without_replacing_target(tmp_path):
     source = tmp_path / "empty"
     source.mkdir()
@@ -368,10 +460,19 @@ def test_corpus_extract_rejects_empty_source_without_replacing_target(tmp_path):
     sentinel = target / "sentinel"
     sentinel.write_text("keep", encoding="utf-8")
 
-    assert main([
-        "corpus", "extract", "--formula-store", str(source),
-        "--resource-output", str(target),
-    ]) == 1
+    assert (
+        main(
+            [
+                "corpus",
+                "extract",
+                "--formula-store",
+                str(source),
+                "--resource-output",
+                str(target),
+            ]
+        )
+        == 1
+    )
     assert sentinel.read_text(encoding="utf-8") == "keep"
 
 
@@ -380,18 +481,20 @@ def test_configured_aries_campaign_runs_normalized_solver_configs(tmp_path, caps
     cvc5.symlink_to("/usr/bin/true")
     config = tmp_path / "campaign.json"
     config.write_text(
-        json.dumps({
-            "version": 1,
-            "engine": "aries",
-            "solvers": [
-                {"name": "cvc5", "binary": str(cvc5), "base_args": [], "extra_args": []},
-                {"name": "z3", "binary": "/usr/bin/true", "base_args": [], "extra_args": []},
-            ],
-            "engine_settings": {"seed_dir": "", "use_egraph": False},
-            "output_dir": str(tmp_path / "out"),
-            "temp_dir": str(tmp_path / "temp"),
-            "iterations": 1,
-        }),
+        json.dumps(
+            {
+                "version": 1,
+                "engine": "aries",
+                "solvers": [
+                    {"name": "cvc5", "binary": str(cvc5), "base_args": [], "extra_args": []},
+                    {"name": "z3", "binary": "/usr/bin/true", "base_args": [], "extra_args": []},
+                ],
+                "engine_settings": {"seed_dir": "", "use_egraph": False},
+                "output_dir": str(tmp_path / "out"),
+                "temp_dir": str(tmp_path / "temp"),
+                "iterations": 1,
+            }
+        ),
         encoding="utf-8",
     )
     assert main(["run", "aries", "--config", str(config), "--dry-run"]) == 0

@@ -21,7 +21,15 @@ import re
 import random
 from typing import Dict, FrozenSet, List, Optional, Set, Tuple
 
-from chimera.core.smt_ast import DeclareConst, DeclareFun, Script, Assert, CheckSat, SMTLIBCommand, Term
+from chimera.core.smt_ast import (
+    DeclareConst,
+    DeclareFun,
+    Script,
+    Assert,
+    CheckSat,
+    SMTLIBCommand,
+    Term,
+)
 from chimera.core.smt_parser import parse_string
 from chimera.core.logic_analyzer import parse_logic, is_builtin_sort
 
@@ -29,6 +37,7 @@ from chimera.core.logic_analyzer import parse_logic, is_builtin_sort
 # ---------------------------------------------------------------------------
 # Parenthesis balancing and validation
 # ---------------------------------------------------------------------------
+
 
 def smt_paren_depth(text: str) -> int:
     """Calculate the net parenthesis depth of an SMT-LIB string.
@@ -57,15 +66,15 @@ def smt_paren_depth(text: str) -> int:
     """
     depth = 0
     in_string = False
-    prev = ''
+    prev = ""
 
     for ch in text:
-        if ch == '"' and prev != '\\':
+        if ch == '"' and prev != "\\":
             in_string = not in_string
         elif not in_string:
-            if ch == '(':
+            if ch == "(":
                 depth += 1
-            elif ch == ')':
+            elif ch == ")":
                 depth -= 1
         prev = ch
 
@@ -146,10 +155,7 @@ def validate_smt_formula(script: str) -> bool:
 # Annotation stripping
 # ---------------------------------------------------------------------------
 
-_NAMED_ANNOTATION_PATTERN = re.compile(
-    r'^\(\!\s+(.*?)\s+:named\s+\S+\s*\)$',
-    re.DOTALL
-)
+_NAMED_ANNOTATION_PATTERN = re.compile(r"^\(\!\s+(.*?)\s+:named\s+\S+\s*\)$", re.DOTALL)
 
 
 def strip_named_annotation(expr: str) -> str:
@@ -187,6 +193,7 @@ def strip_named_annotation(expr: str) -> str:
 # Formula formatting
 # ---------------------------------------------------------------------------
 
+
 def format_smt_string(text: str) -> str:
     """Normalize and clean up an SMT-LIB string.
 
@@ -209,14 +216,18 @@ def format_smt_string(text: str) -> str:
     text = text.strip()
 
     # Normalize line endings
-    text = text.replace('\r\n', '\n').replace('\r', '\n')
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
 
     # Remove excessive blank lines (more than 2 consecutive newlines)
-    text = re.sub(r'\n{3,}', '\n\n', text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
 
     # Ensure space after opening paren in commands (if missing)
-    text = re.sub(r'\((set-logic|set-info|set-option|declare-const|declare-fun|define-fun|assert|check-sat|push|pop|exit)\(', r'(\1 (', text)
-    text = re.sub(r'\(assert\(', '(assert (', text)
+    text = re.sub(
+        r"\((set-logic|set-info|set-option|declare-const|declare-fun|define-fun|assert|check-sat|push|pop|exit)\(",
+        r"(\1 (",
+        text,
+    )
+    text = re.sub(r"\(assert\(", "(assert (", text)
 
     return text
 
@@ -224,6 +235,7 @@ def format_smt_string(text: str) -> str:
 # ---------------------------------------------------------------------------
 # Incremental mode helpers
 # ---------------------------------------------------------------------------
+
 
 def insert_push_and_pop(assertions: List[str]) -> List[str]:
     """Wrap assertions in push/pop pairs for incremental solving.
@@ -292,13 +304,31 @@ def insert_push_and_pop(assertions: List[str]) -> List[str]:
 # Variable and declaration utilities
 # ---------------------------------------------------------------------------
 
-_RESERVED_NAMES: FrozenSet[str] = frozenset({
-    "Int", "Real", "Bool", "String", "Array", "BitVec", "FloatingPoint",
-    "let", "assert", "check-sat", "declare-fun", "define-fun", "match",
-    "par", "forall", "exists", "_", "as", "!",
-})
+_RESERVED_NAMES: FrozenSet[str] = frozenset(
+    {
+        "Int",
+        "Real",
+        "Bool",
+        "String",
+        "Array",
+        "BitVec",
+        "FloatingPoint",
+        "let",
+        "assert",
+        "check-sat",
+        "declare-fun",
+        "define-fun",
+        "match",
+        "par",
+        "forall",
+        "exists",
+        "_",
+        "as",
+        "!",
+    }
+)
 
-_VALID_SYMBOL_PATTERN = re.compile(r'^[a-zA-Z0-9_.~!@$%^&*+=<>.?/-]+$')
+_VALID_SYMBOL_PATTERN = re.compile(r"^[a-zA-Z0-9_.~!@$%^&*+=<>.?/-]+$")
 
 
 def is_valid_symbol_name(name: str) -> bool:
@@ -392,13 +422,11 @@ def variable_translocation(assertions: List[str], type_var: Dict[str, List[str]]
             continue
 
         for var in vars_of_type:
-            pattern = re.compile(r'(?<=[\s(])' + re.escape(var) + r'(?=[\s)])')
+            pattern = re.compile(r"(?<=[\s(])" + re.escape(var) + r"(?=[\s)])")
             match = pattern.search(result[replace_idx])
             if match:
                 replacement = random.choice(vars_of_type)
-                result[replace_idx] = pattern.sub(
-                    replacement, result[replace_idx], count=1
-                )
+                result[replace_idx] = pattern.sub(replacement, result[replace_idx], count=1)
                 replace_time -= 1
                 break
         else:
@@ -412,7 +440,7 @@ def variable_translocation(assertions: List[str], type_var: Dict[str, List[str]]
 # ---------------------------------------------------------------------------
 
 _FUNC_DECL_PATTERN = re.compile(
-    r'\((?:declare-fun|define-fun|declare-const|define-const)\s+([^\s)]+)'
+    r"\((?:declare-fun|define-fun|declare-const|define-const)\s+([^\s)]+)"
 )
 
 
@@ -443,6 +471,7 @@ def extract_function_name(decl: str) -> Optional[str]:
 # ---------------------------------------------------------------------------
 # Script building utilities
 # ---------------------------------------------------------------------------
+
 
 def build_smt_script(
     declarations: List[str],
@@ -511,10 +540,14 @@ def build_smt_script(
             bodies.append(inner)
         parts.append(f"(assert (and {' '.join(bodies)}))")
     elif incremental:
-        parts.extend(insert_push_and_pop(
-            [a[8:-1] if a.startswith("(assert ") and a.endswith(")") else a
-             for a in processed_assertions]
-        ))
+        parts.extend(
+            insert_push_and_pop(
+                [
+                    a[8:-1] if a.startswith("(assert ") and a.endswith(")") else a
+                    for a in processed_assertions
+                ]
+            )
+        )
     else:
         parts.extend(processed_assertions)
 
@@ -529,11 +562,13 @@ def build_smt_script(
 # Comprehensive validation
 # ---------------------------------------------------------------------------
 
+
 def validate_generated_formula(script: str) -> bool:
     """Perform the shared fast validation used by all generation engines."""
     if smt_paren_depth(script) != 0:
         return False
     return not any(token in script for token in ("any_int", "any_bool", "real.pi"))
+
 
 class ValidationResult:
     """Result of formula validation.
@@ -547,6 +582,7 @@ class ValidationResult:
     warnings : List[str]
         List of warning messages (non-fatal issues).
     """
+
     def __init__(
         self,
         ok: bool = True,
@@ -653,7 +689,7 @@ def validate_formula(
                 text = cmd.cmd_str.strip()
                 if text.startswith("(declare-const "):
                     # (declare-const <sym> <sort>) — extract everything after the symbol
-                    rest = text[len("(declare-const "):].rstrip(")").strip()
+                    rest = text[len("(declare-const ") :].rstrip(")").strip()
                     first_space = rest.find(" ")
                     if first_space >= 0:
                         declared_symbols.add(rest[:first_space])
@@ -664,7 +700,7 @@ def validate_formula(
                         declared_symbols.add(rest)
                 elif text.startswith("(declare-fun "):
                     # (declare-fun <sym> (<input_sorts>) <output_sort>)
-                    rest = text[len("(declare-fun "):].rstrip(")").strip()
+                    rest = text[len("(declare-fun ") :].rstrip(")").strip()
                     first_space = rest.find(" ")
                     if first_space >= 0:
                         declared_symbols.add(rest[:first_space])
@@ -673,8 +709,8 @@ def validate_formula(
                                 declared_sorts.add(s)
 
         # Collect uses from assertions
-        for cmd in parsed.assert_cmd if hasattr(parsed, 'assert_cmd') else []:
-            if isinstance(cmd, Assert) and hasattr(cmd, 'term'):
+        for cmd in parsed.assert_cmd if hasattr(parsed, "assert_cmd") else []:
+            if isinstance(cmd, Assert) and hasattr(cmd, "term"):
                 _collect_symbols_from_term(cmd.term, used_symbols)
 
         # Check for undeclared symbols
@@ -699,9 +735,7 @@ def validate_formula(
             has_quantifiers = True
 
         if logic_info.is_quantifier_free and has_quantifiers:
-            errors.append(
-                f"Quantifiers found but target logic {target_logic} is quantifier-free"
-            )
+            errors.append(f"Quantifiers found but target logic {target_logic} is quantifier-free")
 
     ok = len(errors) == 0
     if strict and len(warnings) > 0:
@@ -741,16 +775,16 @@ def _collect_symbols_from_term(term: Term, accumulator: Set[str]) -> None:
     if term is None:
         return
 
-    if hasattr(term, 'is_var') and term.is_var and hasattr(term, 'name') and term.name:
+    if hasattr(term, "is_var") and term.is_var and hasattr(term, "name") and term.name:
         accumulator.add(term.name)
-    elif hasattr(term, 'is_const') and term.is_const:
+    elif hasattr(term, "is_const") and term.is_const:
         pass  # Constants don't need declaration
-    elif hasattr(term, 'op') and term.op:
+    elif hasattr(term, "op") and term.op:
         op = term.op
         if isinstance(op, str) and not op.startswith("hole"):
             accumulator.add(op)
 
-    if hasattr(term, 'subterms') and term.subterms:
+    if hasattr(term, "subterms") and term.subterms:
         for sub in term.subterms:
             if isinstance(sub, Term):
                 _collect_symbols_from_term(sub, accumulator)
@@ -772,7 +806,7 @@ def extract_sorts_from_decl_string(decl_str: str) -> Set[str]:
     sorts: Set[str] = set()
 
     # Tokenize
-    tokens = re.findall(r'[a-zA-Z0-9_]+', decl_str)
+    tokens = re.findall(r"[a-zA-Z0-9_]+", decl_str)
 
     for tok in tokens:
         if tok.isdigit():
@@ -783,24 +817,133 @@ def extract_sorts_from_decl_string(decl_str: str) -> Set[str]:
     return sorts
 
 
-_BUILTIN_SYMBOLS: FrozenSet[str] = frozenset({
-    "true", "false",
-    "=", "distinct", "ite", "not", "and", "or", "xor", "=>",
-    "+", "-", "*", "/", "div", "mod", "rem", ">", "<", ">=", "<=", "abs",
-    "to_real", "to_int", "is_int",
-    "str.++", "str.len", "str.at", "str.substr", "str.prefixof", "str.suffixof",
-    "str.contains", "str.indexof", "str.replace", "str.to_int", "int.to_str",
-    "str.in_re", "str.to_re",
-    "bvnot", "bvand", "bvor", "bvxor", "bvnand", "bvnor", "bvxnor",
-    "bvcomp", "bvneg", "bvadd", "bvsub", "bvmul", "bvudiv", "bvsrem",
-    "bvurem", "bvsmod", "bvshl", "bvlshr", "bvashr", "concat", "extract",
-    "rotate_left", "rotate_right", "repeat", "sign_extend", "zero_extend",
-    "fp.abs", "fp.neg", "fp.add", "fp.sub", "fp.mul", "fp.div", "fp.fma",
-    "fp.sqrt", "fp.rem", "fp.roundToIntegral", "fp.min", "fp.max", "fp.leq",
-    "fp.lt", "fp.geq", "fp.gt", "fp.eq", "fp.isNormal", "fp.isSubnormal",
-    "fp.isZero", "fp.isInfinite", "fp.isNaN", "fp.isNegative", "fp.isPositive",
-    "select", "store", "const", "map", "default",
-})
+_BUILTIN_SYMBOLS: FrozenSet[str] = frozenset(
+    {
+        "true",
+        "false",
+        "=",
+        "distinct",
+        "ite",
+        "not",
+        "and",
+        "or",
+        "xor",
+        "=>",
+        "+",
+        "-",
+        "*",
+        "/",
+        "div",
+        "mod",
+        "rem",
+        ">",
+        "<",
+        ">=",
+        "<=",
+        "abs",
+        "to_real",
+        "to_int",
+        "is_int",
+        "str.++",
+        "str.len",
+        "str.at",
+        "str.substr",
+        "str.prefixof",
+        "str.suffixof",
+        "str.contains",
+        "str.indexof",
+        "str.replace",
+        "str.to_int",
+        "int.to_str",
+        "str.in_re",
+        "str.to_re",
+        "bvnot",
+        "bvand",
+        "bvor",
+        "bvxor",
+        "bvnand",
+        "bvnor",
+        "bvxnor",
+        "bvcomp",
+        "bvneg",
+        "bvadd",
+        "bvsub",
+        "bvmul",
+        "bvudiv",
+        "bvsrem",
+        "bvurem",
+        "bvsmod",
+        "bvshl",
+        "bvlshr",
+        "bvashr",
+        "concat",
+        "extract",
+        "rotate_left",
+        "rotate_right",
+        "repeat",
+        "sign_extend",
+        "zero_extend",
+        "fp.abs",
+        "fp.neg",
+        "fp.add",
+        "fp.sub",
+        "fp.mul",
+        "fp.div",
+        "fp.fma",
+        "fp.sqrt",
+        "fp.rem",
+        "fp.roundToIntegral",
+        "fp.min",
+        "fp.max",
+        "fp.leq",
+        "fp.lt",
+        "fp.geq",
+        "fp.gt",
+        "fp.eq",
+        "fp.isNormal",
+        "fp.isSubnormal",
+        "fp.isZero",
+        "fp.isInfinite",
+        "fp.isNaN",
+        "fp.isNegative",
+        "fp.isPositive",
+        "RNE",
+        "RNA",
+        "RTP",
+        "RTN",
+        "RTZ",
+        "select",
+        "store",
+        "const",
+        "map",
+        "default",
+    }
+)
+
+# SMT-LIB indexed identifiers are syntax, not user-declared symbols.  Keep
+# this separate from ``_BUILTIN_SYMBOLS``: several standard indexed families
+# (notably conversions and floating-point constants) have no unindexed
+# counterpart.  ``bv<N>`` is the parameterised bit-vector-literal family.
+_INDEXED_BUILTIN_SYMBOLS: FrozenSet[str] = frozenset(
+    {
+        "extract",
+        "repeat",
+        "zero_extend",
+        "sign_extend",
+        "rotate_left",
+        "rotate_right",
+        "divisible",
+        "int2bv",
+        "to_fp",
+        "to_fp_unsigned",
+        "+zero",
+        "-zero",
+        "+oo",
+        "-oo",
+        "NaN",
+        "as-array",
+    }
+)
 
 
 def is_builtin_symbol(name: str) -> bool:
@@ -826,7 +969,12 @@ def is_builtin_symbol(name: str) -> bool:
     # ``(as const (Array Int Int))`` must not be reported as user symbols.
     indexed = re.match(r"^\(\s*_\s+([^\s()]+)", name)
     if indexed:
-        return indexed.group(1) in _BUILTIN_SYMBOLS
+        base = indexed.group(1)
+        return (
+            base in _BUILTIN_SYMBOLS
+            or base in _INDEXED_BUILTIN_SYMBOLS
+            or bool(re.fullmatch(r"bv[0-9]+", base))
+        )
     qualified = re.match(r"^\(\s*as\s+([^\s()]+)", name)
     if qualified:
         return qualified.group(1) in _BUILTIN_SYMBOLS
@@ -835,5 +983,10 @@ def is_builtin_symbol(name: str) -> bool:
     if name.startswith("_"):
         parts = name.split()
         if parts and parts[0] == "_" and len(parts) > 1:
-            return parts[1] in _BUILTIN_SYMBOLS
+            base = parts[1]
+            return (
+                base in _BUILTIN_SYMBOLS
+                or base in _INDEXED_BUILTIN_SYMBOLS
+                or bool(re.fullmatch(r"bv[0-9]+", base))
+            )
     return False

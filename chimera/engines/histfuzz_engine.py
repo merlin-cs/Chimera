@@ -50,7 +50,7 @@ from chimera.engines.base import (
     Misconfigured,
     Skipped,
 )
-from chimera.history.corpus import BuildingBlock, BuildingBlockPool, Corpus, Skeleton
+from chimera.history.corpus import BuildingBlock, BuildingBlockPool, Corpus, FuncInfo, Skeleton
 from chimera.history.streaming import (
     CorpusIntegrityError,
     load_corpus,
@@ -68,6 +68,8 @@ _UNKNOWN_SORT = "Unknown"
 _BOOLEAN_OPS = {"not", "and", "or", "xor", "=>", "implies"}
 _BOOLEAN_RESULT_OPS = _BOOLEAN_OPS | {"=", "distinct", "<", "<=", ">", ">="}
 _ARITHMETIC_OPS = {"+", "-", "*", "/", "div", "mod", "abs"}
+
+
 def _sort_key(sort: Optional[SmtSort]) -> Optional[str]:
     if sort is None:
         return None
@@ -129,6 +131,105 @@ def _rename_term_symbols(term: Term, suffix: str) -> None:
                     walk(sub)
 
     walk(term)
+
+
+def _suffixed_symbol(name: str, suffix: object) -> str:
+    """Return a fresh SMT-LIB symbol while preserving quoted identifiers."""
+    if name.startswith("|") and name.endswith("|") and len(name) >= 2:
+        return f"{name[:-1]}_hf{suffix}|"
+    return f"{name}_hf{suffix}"
+
+
+def _referenced_symbols(term: Term, bound: Optional[set[str]] = None) -> set[str]:
+    """Return free variables and operator symbols referenced by *term*."""
+    bound = set() if bound is None else bound
+    referenced: set[str] = set()
+
+    def walk(node: Term, scoped_bound: set[str]) -> None:
+        if node.quantifier is not None:
+            nested_bound = set(scoped_bound)
+            if node.quantified_vars and len(node.quantified_vars) >= 2:
+                nested_bound.update(str(name) for name in node.quantified_vars[0])
+            for subterm in node.subterms or []:
+                if isinstance(subterm, Term):
+                    walk(subterm, nested_bound)
+            return
+
+        if node.is_var and node.name and node.name not in scoped_bound:
+            referenced.add(node.name)
+        if isinstance(node.op, str) and node.op and not node.op.startswith("hole"):
+            referenced.add(node.op)
+
+        let_bound = set(scoped_bound)
+        if node.var_binders:
+            for let_term in node.let_terms or []:
+                if isinstance(let_term, Term):
+                    walk(let_term, scoped_bound)
+            let_bound.update(str(name) for name in node.var_binders)
+        for subterm in node.subterms or []:
+            if isinstance(subterm, Term):
+                walk(subterm, let_bound)
+
+    walk(term, bound)
+    return referenced
+
+
+def _freshen_block_symbols(block: BuildingBlock, suffix: object) -> BuildingBlock:
+    """Clone a block with private declaration names for safe composition.
+
+    Corpus records retain their source file's declaration namespace.  A
+    sampled block must not share that namespace with another source record or
+    a skeleton: same-named symbols can have incompatible signatures.  Each
+    block therefore receives a deterministic private suffix before it is
+    inserted into a new script.
+    """
+    term = block.term_obj
+    if term is None:
+        return block
+    renamed_term = term.clone()
+    names = set(block.var_decls) | set(block.func_decls)
+    rename_map = {name: _suffixed_symbol(name, suffix) for name in names}
+
+    def walk(node: Term, bound: set[str]) -> None:
+        if node.quantifier is not None:
+            nested_bound = set(bound)
+            if node.quantified_vars and len(node.quantified_vars) >= 2:
+                nested_bound.update(str(name) for name in node.quantified_vars[0])
+            for subterm in node.subterms or []:
+                if isinstance(subterm, Term):
+                    walk(subterm, nested_bound)
+            return
+        if node.is_var and node.name in rename_map and node.name not in bound:
+            node.name = rename_map[node.name]
+        if isinstance(node.op, str) and node.op in rename_map:
+            node.op = rename_map[node.op]
+        let_bound = set(bound)
+        if node.var_binders:
+            for let_term in node.let_terms or []:
+                if isinstance(let_term, Term):
+                    walk(let_term, bound)
+            let_bound.update(str(name) for name in node.var_binders)
+        for subterm in node.subterms or []:
+            if isinstance(subterm, Term):
+                walk(subterm, let_bound)
+
+    walk(renamed_term, set())
+    return BuildingBlock(
+        term_smt2=str(renamed_term),
+        logic=block.logic,
+        sort_deps=set(block.sort_deps),
+        func_deps=set(block.func_deps),
+        var_decls={rename_map[name]: sort for name, sort in block.var_decls.items()},
+        func_decls={
+            rename_map[name]: FuncInfo(
+                rename_map.get(info.name, rename_map[name]),
+                list(info.arg_sorts),
+                info.ret_sort,
+            )
+            for name, info in block.func_decls.items()
+        },
+        term=renamed_term,
+    )
 
 
 def _infer_term_types(term: Term, variables: Dict[str, SmtSort]) -> Optional[SmtSort]:
@@ -297,6 +398,7 @@ def _infer_script_types(script: Script) -> Dict[str, SmtSort]:
 # Skeleton store
 # ---------------------------------------------------------------------------
 
+
 class SkeletonStore:
     """Maintains a deduplicated collection of assertion skeletons.
 
@@ -392,6 +494,7 @@ class SkeletonStore:
 # Hole filler — the core generation step
 # ---------------------------------------------------------------------------
 
+
 def fill_holes(skeleton: Term, pool: BuildingBlockPool) -> Term:
     """Replace every ``HOLE`` in *skeleton* with a block from *pool*.
 
@@ -418,6 +521,7 @@ def fill_holes(skeleton: Term, pool: BuildingBlockPool) -> Term:
 # ---------------------------------------------------------------------------
 # HistFuzz Strategy
 # ---------------------------------------------------------------------------
+
 
 class HistFuzzStrategy(FuzzingStrategy):
     """Skeleton-enumeration fuzzer powered by historical bug-triggering seeds.
@@ -508,9 +612,7 @@ class HistFuzzStrategy(FuzzingStrategy):
             issues.append(Misconfigured(f"invalid HistFuzz corpus: {self._corpus_error}"))
         if not self._corpus or not self._corpus.skeletons or not self._corpus.blocks:
             issues.append(
-                Misconfigured(
-                    f"HistFuzz needs a non-empty JSON corpus at {self._corpus_dir}"
-                )
+                Misconfigured(f"HistFuzz needs a non-empty JSON corpus at {self._corpus_dir}")
             )
         return issues
 
@@ -584,37 +686,58 @@ class HistFuzzStrategy(FuzzingStrategy):
             available_logics = sorted(corpus.skeletons.keys())
             target_logic = random.choice(available_logics) if available_logics else None
 
-        # Sample skeleton
-        skeleton = corpus.sample_skeleton(
-            logic=target_logic,
-            quantified=False if self._logic_filter and self._logic_filter.startswith("QF") else None,
-        )
-        if skeleton is None:
-            logger.warning("HistFuzz: no skeleton found for logic %s", target_logic)
-            return None
-
-        if provenance is not None:
-            provenance["skeleton"] = {
+        # ``num_asserts`` is a maximum, matching the historical HistFuzz
+        # behavior.  Every selected assertion is rebuilt together so only its
+        # reachable declarations are emitted once in the final script.
+        assertion_count = random.randint(1, max(1, self._num_asserts))
+        components: list[
+            tuple[Term, Mapping[str, str], Mapping[str, Any], set[str], Sequence[BuildingBlock]]
+        ] = []
+        skeletons_provenance: list[dict[str, object]] = []
+        for assertion_index in range(assertion_count):
+            skeleton = corpus.sample_skeleton(
+                logic=target_logic,
+                quantified=False
+                if self._logic_filter and self._logic_filter.startswith("QF")
+                else None,
+            )
+            if skeleton is None:
+                logger.warning("HistFuzz: no skeleton found for logic %s", target_logic)
+                return None
+            skeleton_info = {
                 "id": self._corpus_record_id(skeleton),
                 "logic": skeleton.logic,
                 "quantified": skeleton.is_quantified,
             }
+            skeletons_provenance.append(skeleton_info)
+            filled = self._fill_holes_with_corpus(
+                skeleton,
+                provenance,
+                namespace=f"{assertion_index}",
+            )
+            if filled is None:
+                return None
+            filled_term, sampled_blocks = filled
+            components.append(
+                (
+                    filled_term,
+                    skeleton.var_decls,
+                    skeleton.func_decls,
+                    skeleton.sort_deps,
+                    sampled_blocks,
+                )
+            )
 
-        # Fill holes with logic-aware block selection
-        filled = self._fill_holes_with_corpus(skeleton, provenance)
-        if filled is None:
-            return None
-        filled_term, sampled_blocks = filled
+        if provenance is not None:
+            # Keep the original key for consumers that expect a single
+            # assertion while also recording every sampled skeleton.
+            provenance["skeleton"] = skeletons_provenance[0]
+            provenance["skeletons"] = skeletons_provenance
 
         # A parsed replacement term intentionally does not retain declaration
-        # commands.  Carry both skeleton and block metadata into the rebuilt
-        # script instead of trying to infer declarations from Unknown leaves.
-        script = self._build_script_from_filled(
-            filled_term,
-            skeleton.var_decls,
-            skeleton.func_decls,
-            sampled_blocks,
-        )
+        # commands.  Carry source metadata into the rebuild, but emit only
+        # declarations referenced by the selected terms.
+        script = self._build_script_from_components(components)
 
         # Validate
         result = FormulaValidator.validate(script, target_logic=self._logic_filter)
@@ -631,7 +754,8 @@ class HistFuzzStrategy(FuzzingStrategy):
         self,
         skeleton: Skeleton,
         provenance: dict[str, object] | None = None,
-    ) -> Optional[Tuple[Term, List[BuildingBlock]]]:
+        namespace: str = "0",
+    ) -> Optional[tuple[Term, list[BuildingBlock]]]:
         """Fill skeleton holes using corpus blocks with type matching."""
         from chimera.core.smt_ast import HoleCollector
 
@@ -640,7 +764,7 @@ class HistFuzzStrategy(FuzzingStrategy):
             return None
 
         filled = skeleton.term_obj.clone()
-        sampled_blocks: List[BuildingBlock] = []
+        sampled_blocks: list[BuildingBlock] = []
         collector = HoleCollector()
         collector.visit(filled)
 
@@ -658,7 +782,16 @@ class HistFuzzStrategy(FuzzingStrategy):
                 )
                 continue
 
-            repl_term = replacement.term_obj.clone()
+            # Isolate every sampled block's declaration namespace before it
+            # enters the assembled script.  This resolves source-record name
+            # collisions instead of emitting incompatible redeclarations.
+            replacement = _freshen_block_symbols(
+                replacement,
+                f"{namespace}_{len(sampled_blocks)}",
+            )
+            repl_term = replacement.term_obj
+            if repl_term is None:
+                continue
             hole.replace_with(repl_term)
             sampled_blocks.append(replacement)
             if provenance is not None:
@@ -677,55 +810,83 @@ class HistFuzzStrategy(FuzzingStrategy):
     def _build_script_from_filled(
         self,
         filled_term: Term,
-        var_decls: Dict[str, str],
+        var_decls: dict[str, str],
         func_decls: Mapping[str, Any],
         sampled_blocks: Sequence[BuildingBlock] = (),
+        sort_deps: set[str] | None = None,
     ) -> str:
-        """Build complete SMT-LIB script from filled term."""
-        declarations: List[str] = []
+        """Build a script for one assertion (compatibility helper)."""
+        return self._build_script_from_components(
+            [(filled_term, var_decls, func_decls, sort_deps or set(), sampled_blocks)]
+        )
 
-        # Metadata is the source of truth for declarations.  It survives
-        # standalone parsing (where leaves deliberately have Unknown types),
-        # and supports both declare-const and zero-arity declare-fun records.
-        all_var_decls: List[Mapping[str, str]] = [var_decls]
-        all_func_decls: List[Mapping[str, Any]] = [func_decls]
-        for block in sampled_blocks:
-            all_var_decls.append(block.var_decls)
-            all_func_decls.append(block.func_decls)
-        for declaration_map in all_var_decls:
-            for name, sort in declaration_map.items():
-                declarations.append(f"(declare-const {name} {sort})")
-        for declaration_map in all_func_decls:
-            for name, info in declaration_map.items():
-                args = getattr(info, "arg_sorts", None)
-                ret = getattr(info, "ret_sort", None)
-                declared_name = getattr(info, "name", name)
-                if isinstance(info, Mapping):
-                    args = info.get("arg_sorts", args)
-                    ret = info.get("ret_sort", ret)
-                    declared_name = info.get("name", declared_name)
-                if args is None or not ret:
-                    continue
-                declarations.append(
-                    f"(declare-fun {declared_name} ({' '.join(str(arg) for arg in args)}) {ret})"
-                )
+    def _build_script_from_components(
+        self,
+        components: Sequence[
+            tuple[Term, Mapping[str, str], Mapping[str, Any], set[str], Sequence[BuildingBlock]]
+        ],
+    ) -> str:
+        """Build a script from selected terms and their precise dependencies."""
+        declarations_by_symbol: dict[str, str] = {}
+        declaration_sorts: list[str] = []
+        all_sort_deps: set[str] = set()
+        assertions: list[str] = []
 
-        # Collect variable declarations from the filled term
-        self._collect_declarations(filled_term, declarations)
+        for filled_term, var_decls, func_decls, sort_deps, sampled_blocks in components:
+            referenced = _referenced_symbols(filled_term)
+            assertions.append(f"(assert {filled_term})")
+            all_sort_deps.update(sort_deps)
+            metadata: list[tuple[Mapping[str, str], Mapping[str, Any]]] = [(var_decls, func_decls)]
+            for block in sampled_blocks:
+                metadata.append((block.var_decls, block.func_decls))
+                all_sort_deps.update(block.sort_deps)
 
-        # Deduplicate
-        seen = set()
-        unique_decls = []
-        for d in declarations:
-            if d not in seen:
-                seen.add(d)
-                unique_decls.append(d)
+            # A declaration map describes its original source script, so it
+            # may contain unrelated symbols.  Retain only names that appear in
+            # this assembled assertion.  Blocks were freshened on insertion,
+            # making conflicting source namespaces impossible to emit here.
+            for source_vars, source_funcs in metadata:
+                for name, sort in source_vars.items():
+                    if name not in referenced or name in declarations_by_symbol:
+                        continue
+                    sort_text = str(sort)
+                    declarations_by_symbol[name] = f"(declare-const {name} {sort_text})"
+                    declaration_sorts.append(sort_text)
+                for name, info in source_funcs.items():
+                    if name not in referenced or name in declarations_by_symbol:
+                        continue
+                    args = getattr(info, "arg_sorts", None)
+                    ret = getattr(info, "ret_sort", None)
+                    declared_name = getattr(info, "name", name)
+                    if isinstance(info, Mapping):
+                        args = info.get("arg_sorts", args)
+                        ret = info.get("ret_sort", ret)
+                        declared_name = info.get("name", declared_name)
+                    if args is None or not ret:
+                        continue
+                    arg_text = " ".join(str(arg) for arg in args)
+                    declarations_by_symbol[name] = (
+                        f"(declare-fun {declared_name} ({arg_text}) {ret})"
+                    )
+                    declaration_sorts.extend([str(arg) for arg in args])
+                    declaration_sorts.append(str(ret))
 
-        asserts = [f"(assert {filled_term})"]
+        # Emit only simple uninterpreted sorts actually used by selected
+        # declarations.  Parametric builtin sorts (Array/Set/...) are not
+        # legal declare-sort targets and are deliberately ignored.
+        sort_declarations: list[str] = []
+        joined_sorts = " ".join(declaration_sorts)
+        for sort in sorted(all_sort_deps):
+            if sort == "Unknown" or not re.fullmatch(r"\|[^|]+\||[A-Za-z_][A-Za-z0-9_]*", sort):
+                continue
+            if re.search(rf"(?<![A-Za-z0-9_]){re.escape(sort)}(?![A-Za-z0-9_])", joined_sorts):
+                sort_declarations.append(f"(declare-sort {sort} 0)")
+
+        declarations = sort_declarations + list(declarations_by_symbol.values())
 
         script = build_smt_script(
-            declarations=unique_decls,
-            assertions=asserts,
+            declarations=declarations,
+            assertions=assertions,
             logic=self._logic_filter or "ALL",
         )
 
@@ -805,9 +966,13 @@ class HistFuzzStrategy(FuzzingStrategy):
     def _is_valid_sort(sort_str: str) -> bool:
         """Check if a sort string is a recognized SMT-LIB sort."""
         builtin = {
-            "Int", "Real", "Bool", "String",
+            "Int",
+            "Real",
+            "Bool",
+            "String",
             # BitVec is parameterized but we accept the name
-            "bitvector", "BitVec",
+            "bitvector",
+            "BitVec",
         }
         # Parametric sorts start with "(" or contain known prefixes
         if sort_str.startswith("("):
@@ -815,9 +980,7 @@ class HistFuzzStrategy(FuzzingStrategy):
         return sort_str in builtin
 
     @staticmethod
-    def _declare_undeclared_vars(
-        formula: str, existing_decls: List[str]
-    ) -> str:
+    def _declare_undeclared_vars(formula: str, existing_decls: List[str]) -> str:
         """Find undeclared free variables in *formula* and add declarations.
 
         Scans the SMT-LIB string for symbols that appear as operands but are
@@ -847,46 +1010,136 @@ class HistFuzzStrategy(FuzzingStrategy):
         # false matches for "declare" and "const".
         keywords: Set[str] = {
             "_",  # Reserved underscore
-            "true", "false", "and", "or", "not", "xor",
-            "distinct", "ite", "let", "forall", "exists", "assert",
-            "check", "sat", "unsat", "unknown",
-            "declare", "const", "fun", "define",
-            "set", "logic", "push", "pop",
-            "match", "as", "par",
+            "true",
+            "false",
+            "and",
+            "or",
+            "not",
+            "xor",
+            "distinct",
+            "ite",
+            "let",
+            "forall",
+            "exists",
+            "assert",
+            "check",
+            "sat",
+            "unsat",
+            "unknown",
+            "declare",
+            "const",
+            "fun",
+            "define",
+            "set",
+            "logic",
+            "push",
+            "pop",
+            "match",
+            "as",
+            "par",
             # String theory
-            "str", "re",
+            "str",
+            "re",
             # Arithmetic
-            "div", "mod", "abs",
-            "to_real", "to_int", "is_int",
+            "div",
+            "mod",
+            "abs",
+            "to_real",
+            "to_int",
+            "is_int",
             # BitVec
-            "bvand", "bvor", "bvxor", "bvnot", "bvneg",
-            "bvadd", "bvsub", "bvmul", "bvudiv", "bvurem",
-            "bvult", "bvule", "bvugt", "bvuge",
-            "bvslt", "bvsle", "bvsgt", "bvsge",
-            "concat", "extract", "sign_extend", "zero_extend",
-            "fp", "NaN", "inf",
+            "bvand",
+            "bvor",
+            "bvxor",
+            "bvnot",
+            "bvneg",
+            "bvadd",
+            "bvsub",
+            "bvmul",
+            "bvudiv",
+            "bvurem",
+            "bvult",
+            "bvule",
+            "bvugt",
+            "bvuge",
+            "bvslt",
+            "bvsle",
+            "bvsgt",
+            "bvsge",
+            "concat",
+            "extract",
+            "sign_extend",
+            "zero_extend",
+            "fp",
+            "NaN",
+            "inf",
             # Reserved SMT-LIB theory function symbols (shadowing prevention)
-            "bv2nat", "nat2bv",
-            "exp", "log", "sin", "cos", "tan", "asin", "acos", "atan",
-            "arcsin", "arccos", "arctan",
-            "sqrt", "pow",
-            "store", "select",
+            "bv2nat",
+            "nat2bv",
+            "exp",
+            "log",
+            "sin",
+            "cos",
+            "tan",
+            "asin",
+            "acos",
+            "atan",
+            "arcsin",
+            "arccos",
+            "arctan",
+            "sqrt",
+            "pow",
+            "store",
+            "select",
             "member",
-            "as", "par",
+            "as",
+            "par",
             # Hyphen-split keywords (full forms)
-            "declare-fun", "declare-const", "define-fun", "set-logic",
-            "check-sat", "get-model", "get-value", "get-assignment",
-            "str.++", "str.len", "str.contains", "str.prefixof",
-            "str.suffixof", "str.indexof", "str.replace", "str.replace_all",
-            "str.replace_re", "str.replace_re_all",
-            "str.substr", "str.at", "str.to_re", "str.in_re",
-            "str.from_int", "str.to_int", "str.is_digit",
-            "str.to_code", "str.from_code",
-            "re.none", "re.all", "re.allchar", "re.++", "re.union",
-            "re.inter", "re.*", "re.+", "re.opt", "re.range",
-            "re.comp", "re.diff",
+            "declare-fun",
+            "declare-const",
+            "define-fun",
+            "set-logic",
+            "check-sat",
+            "get-model",
+            "get-value",
+            "get-assignment",
+            "str.++",
+            "str.len",
+            "str.contains",
+            "str.prefixof",
+            "str.suffixof",
+            "str.indexof",
+            "str.replace",
+            "str.replace_all",
+            "str.replace_re",
+            "str.replace_re_all",
+            "str.substr",
+            "str.at",
+            "str.to_re",
+            "str.in_re",
+            "str.from_int",
+            "str.to_int",
+            "str.is_digit",
+            "str.to_code",
+            "str.from_code",
+            "re.none",
+            "re.all",
+            "re.allchar",
+            "re.++",
+            "re.union",
+            "re.inter",
+            "re.*",
+            "re.+",
+            "re.opt",
+            "re.range",
+            "re.comp",
+            "re.diff",
             # Sorts
-            "Int", "Real", "Bool", "String", "RegL",
+            "Int",
+            "Real",
+            "Bool",
+            "String",
+            "RegL",
         }
 
         # Strip declaration/metadata lines, then scan only assert content.

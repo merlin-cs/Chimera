@@ -189,7 +189,9 @@ class TestFuzzingStrategy:
         assert isinstance(result, GeneratedCase)
         assert result.provenance == "test-strategy"
 
-    def test_empty_legacy_generation_is_a_skip_not_a_parse_failure(self, solver1, solver2, temp_dirs):
+    def test_empty_legacy_generation_is_a_skip_not_a_parse_failure(
+        self, solver1, solver2, temp_dirs
+    ):
         output_dir, temp_dir = temp_dirs
 
         class NoFormulaStrategy(FuzzingStrategy):
@@ -467,30 +469,65 @@ class TestStrategyTimeout:
             shutil.rmtree(output_dir, ignore_errors=True)
             shutil.rmtree(temp_dir, ignore_errors=True)
 
-def test_histfuzz_rebuild_keeps_skeleton_and_block_declarations(tmp_path: Path) -> None:
+
+def test_histfuzz_rebuild_emits_only_referenced_declarations_and_sort_dependencies(
+    tmp_path: Path,
+) -> None:
     strategy = HistFuzzStrategy(
-        SolverConfig("a", "/usr/bin/true"), SolverConfig("b", "/usr/bin/true"),
+        SolverConfig("a", "/usr/bin/true"),
+        SolverConfig("b", "/usr/bin/true"),
         corpus_dir=str(tmp_path / "missing"),
-        output_dir=str(tmp_path / "out"), temp_dir=str(tmp_path / "temp"),
+        output_dir=str(tmp_path / "out"),
+        temp_dir=str(tmp_path / "temp"),
     )
     parsed = parse_string("(assert (= (f x) y))", silent=True)
     assert parsed is not None
     term = parsed[0].assert_cmd[0].term
     block = BuildingBlock(
-        "y", "QF_LIA", var_decls={"y": "Int"},
+        "y",
+        "QF_UF",
+        sort_deps={"S0"},
+        var_decls={"y": "S0", "unrelated_string": "String"},
         func_decls={"g": FuncInfo("g", [], "Int")},
     )
     script = strategy._build_script_from_filled(
         term,
-        {"x": "Int"},
-        {"f": FuncInfo("f", ["Int"], "Int")},
+        {"x": "S0", "unrelated_seq": "String"},
+        {"f": FuncInfo("f", ["S0"], "S0"), "unused": FuncInfo("unused", [], "Int")},
         [block],
+        {"S0"},
     )
-    assert "(declare-fun f (Int) Int)" in script
-    assert "(declare-const x Int)" in script
-    assert "(declare-const y Int)" in script
-    assert "(declare-fun g () Int)" in script
+    assert "(declare-sort S0 0)" in script
+    assert "(declare-fun f (S0) S0)" in script
+    assert "(declare-const x S0)" in script
+    assert "(declare-const y S0)" in script
+    assert "unrelated_string" not in script
+    assert "unrelated_seq" not in script
+    assert "(declare-fun g () Int)" not in script
+    assert "(declare-fun unused () Int)" not in script
     assert FormulaValidator.validate(script).ok
+
+
+def test_histfuzz_num_asserts_is_an_effective_maximum(tmp_path: Path, monkeypatch) -> None:
+    strategy = HistFuzzStrategy(
+        SolverConfig("a", "/usr/bin/true"),
+        SolverConfig("b", "/usr/bin/true"),
+        corpus_dir=str(tmp_path / "missing"),
+        logic="QF_LIA",
+        num_asserts=3,
+        output_dir=str(tmp_path / "out"),
+        temp_dir=str(tmp_path / "temp"),
+    )
+    from chimera.history.corpus import Corpus, Skeleton
+
+    corpus = Corpus()
+    corpus.add_skeleton(Skeleton("(= x x)", "QF_LIA", var_decls={"x": "Int"}))
+    strategy._corpus = corpus
+    monkeypatch.setattr("chimera.engines.histfuzz_engine.random.randint", lambda _low, _high: 2)
+
+    formula = strategy._generate_with_corpus()
+    assert formula is not None
+    assert formula.count("(assert ") == 2
 
 
 if __name__ == "__main__":

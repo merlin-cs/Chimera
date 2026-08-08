@@ -28,6 +28,7 @@ from chimera.core.formula_builder import (
     extract_function_name,
     build_smt_script,
     FormulaValidator,
+    is_builtin_symbol,
 )
 
 
@@ -77,6 +78,29 @@ class TestSmtParenDepth:
         assert smt_paren_depth('(assert (= s "test\\"string"))') == 0
 
 
+@pytest.mark.parametrize(
+    "operator",
+    [
+        "(_ divisible 5)",
+        "(_ int2bv 8)",
+        "(_ to_fp 8 24)",
+        "(_ to_fp_unsigned 8 24)",
+        "(_ +zero 8 24)",
+        "(_ bv42 8)",
+    ],
+)
+def test_standard_indexed_operators_are_builtin(operator: str) -> None:
+    assert is_builtin_symbol(operator)
+
+
+def test_standard_indexed_operators_validate_without_declarations() -> None:
+    script = """(set-logic ALL)
+(declare-const x Real)
+(assert (= ((_ to_fp 8 24) RNE x) (_ +zero 8 24)))
+(check-sat)"""
+    assert FormulaValidator.validate(script).ok
+
+
 class TestBalanceParentheses:
     """Tests for balance_parentheses function."""
 
@@ -111,14 +135,17 @@ class TestValidateSmtFormula:
         formula = "(set-logic QF_LIA)\n(assert (> x 0))\n(check-sat)"
         assert validate_smt_formula(formula) is True
 
-    @pytest.mark.parametrize("formula", [
-        "(set-logic QF_BV)\n"
-        "(declare-const x (_ BitVec 8))\n"
-        "(assert (= ((_ extract 3 0) x) (_ bv0 4)))\n(check-sat)",
-        "(set-logic QF_AUFLIA)\n"
-        "(declare-const a (Array Int Int))\n"
-        "(assert (= ((as const (Array Int Int)) 0) a))\n(check-sat)",
-    ])
+    @pytest.mark.parametrize(
+        "formula",
+        [
+            "(set-logic QF_BV)\n"
+            "(declare-const x (_ BitVec 8))\n"
+            "(assert (= ((_ extract 3 0) x) (_ bv0 4)))\n(check-sat)",
+            "(set-logic QF_AUFLIA)\n"
+            "(declare-const a (Array Int Int))\n"
+            "(assert (= ((as const (Array Int Int)) 0) a))\n(check-sat)",
+        ],
+    )
     def test_qualified_builtin_identifiers_are_not_undeclared_symbols(self, formula):
         result = FormulaValidator.validate(formula)
         assert result.ok, result.errors

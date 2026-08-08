@@ -344,9 +344,7 @@ class ArtifactStore:
         formula_path.write_text(case.text, encoding="utf-8")
         solver_payload = {name: _result_to_dict(result) for name, result in results.items()}
         config_payload = config.to_dict()
-        solver_metadata = {
-            solver.name: self.solver_metadata(solver) for solver in config.solvers
-        }
+        solver_metadata = {solver.name: self.solver_metadata(solver) for solver in config.solvers}
         manifest = {
             "artifact_version": ARTIFACT_FORMAT_VERSION,
             "case_id": destination.name,
@@ -449,7 +447,9 @@ class CampaignRunner:
         if saved_identity is not None and saved_identity != expected_identity:
             raise ValueError("cannot resume: summary configuration checksum is invalid")
         if _semantic_config_sha256(self.config) != expected_identity:
-            raise ValueError("cannot resume: semantic campaign configuration does not match summary")
+            raise ValueError(
+                "cannot resume: semantic campaign configuration does not match summary"
+            )
         stats_payload = summary.get("stats", {})
         stat_names = {item.name for item in fields(FuzzStats)}
         for name in stat_names:
@@ -469,7 +469,9 @@ class CampaignRunner:
         issues = self.preflight()
         if issues:
             self.stats.misconfigurations += len(issues)
-            raise ValueError("campaign preflight failed: " + "; ".join(item.reason for item in issues))
+            raise ValueError(
+                "campaign preflight failed: " + "; ".join(item.reason for item in issues)
+            )
         limit = self.config.iterations if max_iterations is None else max_iterations
         if limit == 0:
             limit = None
@@ -542,10 +544,12 @@ class CampaignRunner:
         names = list(results)
         for left, right in itertools.combinations(names, 2):
             pair_findings = compare(results[left], results[right], config=self.config.oracle)
-            comparisons.append({
-                "pair": [left, right],
-                "findings": [finding.kind.name for finding in pair_findings],
-            })
+            comparisons.append(
+                {
+                    "pair": [left, right],
+                    "findings": [finding.kind.name for finding in pair_findings],
+                }
+            )
             for finding in pair_findings:
                 findings.append(((left, right), finding))
                 self.stats.bugs_found += 1
@@ -578,7 +582,20 @@ def replay_artifact(manifest_path: str | Path) -> Dict[str, Any]:
     checksums = manifest.get("checksums", {})
     if checksums.get("formula_sha256") and checksums["formula_sha256"] != digest:
         raise ValueError("artifact formula checksum mismatch")
-    config = CampaignConfig.from_dict(manifest["config"])
+    config_payload = manifest.get("config")
+    if not isinstance(config_payload, Mapping):
+        raise ValueError("artifact campaign configuration is missing or invalid")
+    recorded_config_sha = checksums.get("config_sha256")
+    if not isinstance(recorded_config_sha, str) or recorded_config_sha != _sha256_json(
+        config_payload
+    ):
+        raise ValueError("artifact campaign configuration checksum mismatch")
+    config = CampaignConfig.from_dict(config_payload)
+    recorded_semantic_sha = checksums.get("semantic_config_sha256")
+    if not isinstance(
+        recorded_semantic_sha, str
+    ) or recorded_semantic_sha != _semantic_config_sha256(config):
+        raise ValueError("artifact semantic campaign configuration checksum mismatch")
     results = {
         solver.name: run_solver(solver, str(formula_path), timeout=config.timeout)
         for solver in config.solvers

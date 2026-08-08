@@ -30,7 +30,12 @@ from dataclasses import asdict, replace
 from typing import Any
 
 from chimera import __version__
-from chimera.core.campaign import CampaignConfig, CampaignRunner, StrategyCaseProducer, replay_artifact
+from chimera.core.campaign import (
+    CampaignConfig,
+    CampaignRunner,
+    StrategyCaseProducer,
+    replay_artifact,
+)
 from chimera.core.solver_manager import SolverConfig, default_cvc5_args, default_z3_args
 from chimera.core.differential_oracle import OracleConfig
 from chimera.engines.base import FuzzingStrategy, FuzzStats
@@ -48,6 +53,7 @@ logger = logging.getLogger("chimera")
 # ---------------------------------------------------------------------------
 # CLI argument parser
 # ---------------------------------------------------------------------------
+
 
 class _ChimeraArgumentParser(argparse.ArgumentParser):
     """Accept both modern commands and the pre-P3 ``--mode`` spelling."""
@@ -72,8 +78,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("command", nargs="?", choices=["run", "corpus", "doctor", "replay"])
     p.add_argument("target", nargs="?")
     p.add_argument("--version", action="version", version=f"chimera {__version__}")
-    p.add_argument("--dry-run", action="store_true", help="Validate configuration without invoking solvers.")
-    p.add_argument("--resume", action="store_true", help="Resume a campaign from campaign-summary.json.")
+    p.add_argument(
+        "--dry-run", action="store_true", help="Validate configuration without invoking solvers."
+    )
+    p.add_argument(
+        "--resume", action="store_true", help="Resume a campaign from campaign-summary.json."
+    )
 
     # -- mode ----------------------------------------------------------------
     p.add_argument(
@@ -90,7 +100,9 @@ def build_parser() -> argparse.ArgumentParser:
     sol.add_argument("--solver1-bin", default=None, help="Path to solver 1 binary.")
     sol.add_argument("--solver2-name", default="cvc5", help="Name of solver 2 (default: cvc5).")
     sol.add_argument("--solver2-bin", default=None, help="Path to solver 2 binary.")
-    sol.add_argument("--solver-timeout", type=float, default=10.0, help="Per-query timeout (seconds).")
+    sol.add_argument(
+        "--solver-timeout", type=float, default=10.0, help="Per-query timeout (seconds)."
+    )
 
     # -- I/O -----------------------------------------------------------------
     io = p.add_argument_group("Input / output")
@@ -101,10 +113,17 @@ def build_parser() -> argparse.ArgumentParser:
     # -- campaign ------------------------------------------------------------
     camp = p.add_argument_group("Campaign settings")
     camp.add_argument("--iterations", type=int, default=0, help="Max iterations (0 = unlimited).")
-    camp.add_argument("--seed", type=int, default=None, help="Campaign RNG seed (config files remain authoritative).")
+    camp.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Campaign RNG seed (config files remain authoritative).",
+    )
     camp.add_argument("--config", default=None, help="Versioned JSON campaign configuration.")
     camp.add_argument("--manifest", default=None, help="Artifact manifest to replay.")
-    camp.add_argument("--json-summary", action="store_true", help="Print the campaign summary as JSON.")
+    camp.add_argument(
+        "--json-summary", action="store_true", help="Print the campaign summary as JSON."
+    )
 
     # -- HistFuzz options ----------------------------------------------------
     hf = p.add_argument_group("HistFuzz options")
@@ -113,13 +132,24 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Versioned JSONL HistFuzz corpus (defaults to the packaged corpus).",
     )
-    hf.add_argument("--skeleton-files", nargs="*", default=None, help="Deprecated; use --corpus-dir.")
+    hf.add_argument(
+        "--skeleton-files", nargs="*", default=None, help="Deprecated; use --corpus-dir."
+    )
     hf.add_argument("--resource-dir", default=None, help="Deprecated; use --corpus-dir.")
-    hf.add_argument("--num-asserts", type=int, default=3, help="Max assertions per generated formula.")
-    hf.add_argument("--logic", type=str, default=None,
-                    help="Target SMT-LIB logic (e.g., QF_LIA, AUFLIA). Only use compatible skeletons/blocks.")
-    hf.add_argument("--use-new-corpus", action="store_true",
-                    help="Deprecated compatibility flag; use --corpus-dir.")
+    hf.add_argument(
+        "--num-asserts", type=int, default=3, help="Max assertions per generated formula."
+    )
+    hf.add_argument(
+        "--logic",
+        type=str,
+        default=None,
+        help="Target SMT-LIB logic (e.g., QF_LIA, AUFLIA). Only use compatible skeletons/blocks.",
+    )
+    hf.add_argument(
+        "--use-new-corpus",
+        action="store_true",
+        help="Deprecated compatibility flag; use --corpus-dir.",
+    )
 
     # -- Once4All options ----------------------------------------------------
     o4a = p.add_argument_group("Once4All options")
@@ -129,7 +159,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Directory with *_generator.py modules (defaults to packaged generators).",
     )
     o4a.add_argument("--theories", nargs="*", default=None, help="Restrict to these theory keys.")
-    o4a.add_argument("--generator-timeout", type=float, default=10.0, help="External generator worker timeout (seconds).")
+    o4a.add_argument(
+        "--generator-timeout",
+        type=float,
+        default=10.0,
+        help="External generator worker timeout (seconds).",
+    )
     o4a.add_argument(
         "--merge-skeletons",
         action="store_true",
@@ -139,39 +174,69 @@ def build_parser() -> argparse.ArgumentParser:
     # -- Aries options -------------------------------------------------------
     ar = p.add_argument_group("Aries options")
     ar.add_argument("--rules-csv", default=str(REWRITE_RULES_CSV), help="Path to RewriteRule.csv.")
-    ar.add_argument("--config-dir", default=str(REWRITE_CONFIG_DIR), help="Operator config directory for mimetic mutation.")
-    ar.add_argument("--mimetic-rounds", type=int, default=3, help="Mimetic mutation rounds per seed.")
+    ar.add_argument(
+        "--config-dir",
+        default=str(REWRITE_CONFIG_DIR),
+        help="Operator config directory for mimetic mutation.",
+    )
+    ar.add_argument(
+        "--mimetic-rounds", type=int, default=3, help="Mimetic mutation rounds per seed."
+    )
     ar.add_argument("--no-egraph", action="store_true", help="Disable equality saturation.")
 
     # -- update-resources options ---------------------------------------------
     ur = p.add_argument_group("Resource update options (mode=update-resources)")
-    ur.add_argument("--formula-store", default="./bug_triggering_formulas",
-                    help="Directory for collected bug formulas (default: ./bug_triggering_formulas).")
-    ur.add_argument("--resource-output", default="./chimera/resources/histfuzz",
-                    help="Output directory for HistFuzz corpus (default: ./chimera/resources/histfuzz).")
-    ur.add_argument("--collect-solvers", nargs="*", default=None,
-                    help="Collect from specific solvers only (default: all known solvers).")
-    ur.add_argument("--skip-collection", action="store_true",
-                    help="Skip GitHub collection; only extract corpus from existing formula files.")
+    ur.add_argument(
+        "--formula-store",
+        default="./bug_triggering_formulas",
+        help="Directory for collected bug formulas (default: ./bug_triggering_formulas).",
+    )
+    ur.add_argument(
+        "--resource-output",
+        default="./chimera/resources/histfuzz",
+        help="Output directory for HistFuzz corpus (default: ./chimera/resources/histfuzz).",
+    )
+    ur.add_argument(
+        "--collect-solvers",
+        nargs="*",
+        default=None,
+        help="Collect from specific solvers only (default: all known solvers).",
+    )
+    ur.add_argument(
+        "--skip-collection",
+        action="store_true",
+        help="Skip GitHub collection; only extract corpus from existing formula files.",
+    )
 
     # -- oracle --------------------------------------------------------------
     orc = p.add_argument_group("Oracle tuning")
     # New negation flags (preferred)
-    orc.add_argument("--no-crash-detection", action="store_true",
-                     help="Disable crash detection (enabled by default).")
-    orc.add_argument("--no-soundness-detection", action="store_true",
-                     help="Disable soundness bug detection (enabled by default).")
+    orc.add_argument(
+        "--no-crash-detection",
+        action="store_true",
+        help="Disable crash detection (enabled by default).",
+    )
+    orc.add_argument(
+        "--no-soundness-detection",
+        action="store_true",
+        help="Disable soundness bug detection (enabled by default).",
+    )
     # Deprecated: kept for backward compatibility (no-op, enabled by default)
-    orc.add_argument("--detect-crashes", action="store_true", default=True,
-                     help=argparse.SUPPRESS)  # Deprecated: crashes detected by default
-    orc.add_argument("--detect-soundness", action="store_true", default=True,
-                     help=argparse.SUPPRESS)  # Deprecated: soundness checked by default
-    orc.add_argument("--detect-invalid-models", action="store_true", default=False,
-                     help="Report invalid models.")
-    orc.add_argument("--detect-performance", action="store_true", default=False,
-                     help="Report perf regressions.")
-    orc.add_argument("--performance-ratio", type=float, default=10.0,
-                     help="Threshold for perf bugs.")
+    orc.add_argument(
+        "--detect-crashes", action="store_true", default=True, help=argparse.SUPPRESS
+    )  # Deprecated: crashes detected by default
+    orc.add_argument(
+        "--detect-soundness", action="store_true", default=True, help=argparse.SUPPRESS
+    )  # Deprecated: soundness checked by default
+    orc.add_argument(
+        "--detect-invalid-models", action="store_true", default=False, help="Report invalid models."
+    )
+    orc.add_argument(
+        "--detect-performance", action="store_true", default=False, help="Report perf regressions."
+    )
+    orc.add_argument(
+        "--performance-ratio", type=float, default=10.0, help="Threshold for perf bugs."
+    )
 
     # -- logging -------------------------------------------------------------
     p.add_argument("-v", "--verbose", action="store_true", help="DEBUG-level logging.")
@@ -183,6 +248,7 @@ def build_parser() -> argparse.ArgumentParser:
 # ---------------------------------------------------------------------------
 # Solver construction helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_solver(name: str, binary: str, timeout: float = 10.0) -> SolverConfig:
     """Build a solver configuration whose internal timeout matches the CLI."""
@@ -207,6 +273,7 @@ def _make_solver(name: str, binary: str, timeout: float = 10.0) -> SolverConfig:
 # ---------------------------------------------------------------------------
 # Engine factory
 # ---------------------------------------------------------------------------
+
 
 def _build_strategy(args: argparse.Namespace) -> FuzzingStrategy:
     solver1 = _make_solver(args.solver1_name, args.solver1_bin, args.solver_timeout)
@@ -273,6 +340,7 @@ def _build_strategy(args: argparse.Namespace) -> FuzzingStrategy:
 # Logging setup
 # ---------------------------------------------------------------------------
 
+
 def _configure_logging(verbose: bool, quiet: bool) -> None:
     level = logging.DEBUG if verbose else (logging.WARNING if quiet else logging.INFO)
     fmt = "%(asctime)s %(name)-14s %(levelname)-7s %(message)s"
@@ -282,6 +350,7 @@ def _configure_logging(verbose: bool, quiet: bool) -> None:
 # ---------------------------------------------------------------------------
 # Resource update mode
 # ---------------------------------------------------------------------------
+
 
 def _run_update_resources(args: argparse.Namespace) -> int:
     """Execute the resource update pipeline."""
@@ -301,7 +370,9 @@ def _run_update_resources(args: argparse.Namespace) -> int:
     print("\n=== Resource Update Summary ===")
     print(f"  Formulas collected from GitHub: {result.formulas_collected}")
     print(f"  Skeletons + blocks in corpus:   {result.formulas_standardized}")
-    print(f"  Logics covered:                 {', '.join(sorted(result.logics_found)) if result.logics_found else 'none'}")
+    print(
+        f"  Logics covered:                 {', '.join(sorted(result.logics_found)) if result.logics_found else 'none'}"
+    )
     return 0
 
 
@@ -320,12 +391,13 @@ def _build_strategy_from_config(config: CampaignConfig) -> FuzzingStrategy:
         return HistFuzzStrategy(config.solvers[0], config.solvers[1], **settings, **common)
     if config.engine == "once4all":
         if settings.get("merge_skeletons"):
-            raise ValueError(
-                "merge_skeletons is currently disabled; use a plain generator output"
-            )
+            raise ValueError("merge_skeletons is currently disabled; use a plain generator output")
         return Once4AllStrategy(
-            config.solvers[0], config.solvers[1], solver_configs=config.solvers,
-            **settings, **common,
+            config.solvers[0],
+            config.solvers[1],
+            solver_configs=config.solvers,
+            **settings,
+            **common,
         )
     if config.engine == "aries":
         return AriesStrategy(config.solvers[0], config.solvers[1], **settings, **common)
@@ -347,11 +419,7 @@ _CONFIG_ALLOWED_OVERRIDES = {
 
 def _explicit_options(argv: list[str] | None) -> set[str]:
     values = list(sys.argv[1:] if argv is None else argv)
-    return {
-        token.split("=", 1)[0]
-        for token in values
-        if token.startswith("--")
-    }
+    return {token.split("=", 1)[0] for token in values if token.startswith("--")}
 
 
 def _reject_config_engine_overrides(
@@ -368,12 +436,13 @@ def _reject_config_engine_overrides(
     )
     if rejected:
         parser.error(
-            "--config is self-contained; these options cannot override it: "
-            + ", ".join(rejected)
+            "--config is self-contained; these options cannot override it: " + ", ".join(rejected)
         )
 
 
-def _campaign_config_from_strategy(args: argparse.Namespace, strategy: FuzzingStrategy) -> CampaignConfig:
+def _campaign_config_from_strategy(
+    args: argparse.Namespace, strategy: FuzzingStrategy
+) -> CampaignConfig:
     """Build a self-contained config for modern command-line campaigns."""
     settings = {}
     if args.mode == "histfuzz":
@@ -455,16 +524,22 @@ def _run_corpus_command(args: argparse.Namespace) -> int:
 
 
 def _run_doctor(args: argparse.Namespace) -> int:
-    capabilities = collect_capabilities(
-        solver_paths={
+    requested_solver_paths = {
+        name: path
+        for name, path in {
             args.solver1_name: args.solver1_bin,
             args.solver2_name: args.solver2_bin,
-        },
+        }.items()
+        if path
+    }
+    capabilities = collect_capabilities(
+        solver_paths=requested_solver_paths,
         generator_dir=args.generator_dir,
         artifact_dir=args.output_dir,
     )
     print(json.dumps(capabilities, indent=2, sort_keys=True))
-    return 0 if capabilities["corpus"]["ok"] else 1
+    solvers_ok = all(item["ok"] for item in capabilities["solvers"].values())
+    return 0 if capabilities["corpus"]["ok"] and solvers_ok else 1
 
 
 def _run_replay(args: argparse.Namespace) -> int:
@@ -489,6 +564,7 @@ def _run_replay(args: argparse.Namespace) -> int:
 # ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
+
 
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
@@ -551,7 +627,10 @@ def main(argv: list[str] | None = None) -> int:
             config = CampaignConfig.from_dict({**config.to_dict(), "temp_dir": args.temp_dir})
         if "--iterations" in explicit:
             config = CampaignConfig.from_dict(
-                {**config.to_dict(), "iterations": None if args.iterations == 0 else args.iterations}
+                {
+                    **config.to_dict(),
+                    "iterations": None if args.iterations == 0 else args.iterations,
+                }
             )
         # CampaignRunner executes config.solvers, not the strategy's private
         # copies.  Normalize the stored configuration before building Aries so
@@ -565,9 +644,13 @@ def main(argv: list[str] | None = None) -> int:
         runner = CampaignRunner(StrategyCaseProducer(strategy), config)
         issues = runner.preflight()
         if issues:
-            parser.error("campaign preflight failed:\n  - " + "\n  - ".join(issue.reason for issue in issues))
+            parser.error(
+                "campaign preflight failed:\n  - " + "\n  - ".join(issue.reason for issue in issues)
+            )
         if args.dry_run:
-            print(json.dumps({"config": config.to_dict(), "preflight": []}, indent=2, sort_keys=True))
+            print(
+                json.dumps({"config": config.to_dict(), "preflight": []}, indent=2, sort_keys=True)
+            )
             return 0
         stats = runner.run(resume=args.resume)
         _print_campaign_result(stats, config=config, json_summary=args.json_summary)
@@ -576,9 +659,9 @@ def main(argv: list[str] | None = None) -> int:
     strategy = _build_strategy(args)
     issues = strategy.preflight()
     if issues:
-        parser.error("campaign preflight failed:\n  - " + "\n  - ".join(
-            issue.reason for issue in issues
-        ))
+        parser.error(
+            "campaign preflight failed:\n  - " + "\n  - ".join(issue.reason for issue in issues)
+        )
 
     # Modern commands always use the structured campaign runner, including
     # injected RNG, N-solver comparison, artifacts, and resume support.
@@ -587,11 +670,14 @@ def main(argv: list[str] | None = None) -> int:
         runner = CampaignRunner(StrategyCaseProducer(strategy), config)
         runner_issues = runner.preflight()
         if runner_issues:
-            parser.error("campaign preflight failed:\n  - " + "\n  - ".join(
-                issue.reason for issue in runner_issues
-            ))
+            parser.error(
+                "campaign preflight failed:\n  - "
+                + "\n  - ".join(issue.reason for issue in runner_issues)
+            )
         if args.dry_run:
-            print(json.dumps({"config": config.to_dict(), "preflight": []}, indent=2, sort_keys=True))
+            print(
+                json.dumps({"config": config.to_dict(), "preflight": []}, indent=2, sort_keys=True)
+            )
             return 0
         stats = runner.run(resume=args.resume)
         _print_campaign_result(stats, config=config, json_summary=args.json_summary)
